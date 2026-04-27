@@ -13,6 +13,28 @@
 7. 修复失败项。
 8. 总结变更、验证结果和风险。
 
+## 文档读取策略
+
+为了节省模型上下文，任务开始时不要默认读取整个 `docs/`。
+
+默认先确认：
+
+- `README.md`
+- `AGENTS.md`
+- 当前 Git 状态
+
+再根据任务类型选择性读取：
+
+- 产品或目标变化：`docs/product.md`
+- 里程碑和下一步：`docs/roadmap.md`
+- 架构和模块边界：`docs/architecture.md`
+- 开发流程：`docs/development.md`
+- 测试策略：`docs/testing.md`
+- Git 流程：`docs/git.md`
+- 决策背景：相关 `docs/Insight/` 和 `docs/decisions/`
+
+旧 Insight、已被取代的 ADR 和历史复盘只在需要追溯背景时读取。
+
 ## 决策前置流程
 
 进入实现前，先判断是否属于关键决策：

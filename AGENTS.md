@@ -39,19 +39,35 @@
 
 不要只依赖聊天上下文。长期有效的信息必须沉淀到项目文档或 Git 提交中。
 
-开始非小型任务前，先读取或确认：
+开始非小型任务前，采用分层读取，不要默认读取整个 `docs/`。
+
+第一层，每次优先确认：
 
 - `README.md`
 - `AGENTS.md`
+- 当前 Git 状态：`git status --short`
+
+第二层，按任务类型选择性读取：
+
 - `docs/product.md`
 - `docs/roadmap.md`
 - `docs/architecture.md`
 - `docs/development.md`
 - `docs/testing.md`
 - `docs/git.md`
-- `docs/decisions/`
-- 与当前任务相关的 `docs/Insight/` 记录
-- 当前 Git 状态：`git status --short`
+
+第三层，只在涉及具体决策、架构或历史背景时读取：
+
+- 与当前任务相关的 `docs/Insight/<topic>.md`
+- 与当前任务相关的 `docs/decisions/<id>.md`
+
+第四层，作为历史材料按需读取：
+
+- 旧 Insight
+- 已被取代的 ADR
+- 失败复盘或长期归档材料
+
+长文档应优先阅读标题、摘要、状态和适用范围，再决定是否阅读全文。
 
 如果任务涉及新的架构、核心模型、agent 流程、证据链格式或安全边界，先创建或更新 `docs/Insight/`，再进入实现。
 
