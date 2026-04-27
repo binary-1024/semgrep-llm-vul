@@ -35,6 +35,28 @@
 - 构建：`./scripts/build`
 - 完整检查：`./scripts/check`
 
+## 项目记忆与上下文管理
+
+不要只依赖聊天上下文。长期有效的信息必须沉淀到项目文档或 Git 提交中。
+
+开始非小型任务前，先读取或确认：
+
+- `README.md`
+- `AGENTS.md`
+- `docs/product.md`
+- `docs/roadmap.md`
+- `docs/architecture.md`
+- `docs/development.md`
+- `docs/testing.md`
+- `docs/git.md`
+- `docs/decisions/`
+- 与当前任务相关的 `docs/Insight/` 记录
+- 当前 Git 状态：`git status --short`
+
+如果任务涉及新的架构、核心模型、agent 流程、证据链格式或安全边界，先创建或更新 `docs/Insight/`，再进入实现。
+
+如果对话中出现长期有效的新规则、目标或约束，优先更新项目文档，而不是只在聊天中保留。
+
 ## Git 管理
 
 项目 Git 使用方式见 `docs/git.md`。
