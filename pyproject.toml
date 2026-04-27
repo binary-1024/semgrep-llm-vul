@@ -1,0 +1,32 @@
+[project]
+name = "semgrep-llm-vul"
+version = "0.1.0"
+description = "基于 Semgrep findings 和 LLM 工作流的 AI 辅助漏洞分析项目。"
+readme = "README.md"
+requires-python = ">=3.10,<3.11"
+dependencies = []
+
+[project.scripts]
+semgrep-llm-vul = "semgrep_llm_vul.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5",
+    "ruff>=0.11.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

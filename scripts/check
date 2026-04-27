@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+"${script_dir}/lint"
+"${script_dir}/test"
+"${script_dir}/build"
+
+echo "Python/uv harness check passed."
