@@ -65,6 +65,8 @@
 
 - 主干分支使用 `main`。
 - 任务分支使用 `codex/<type>-<topic>` 格式。
+- 关键决策使用 `codex/docs-<topic>` 分支，只写 Insight、ADR 和相关文档。
+- 实现工作使用 `codex/feature-<topic>` 分支，并基于已合入 `main` 的决策文档进行。
 - 提交信息使用 Conventional Commits 风格。
 - 提交前运行 `./scripts/check`。
 - `uv.lock` 应提交，`.venv/`、`dist/`、缓存和敏感数据不得提交。

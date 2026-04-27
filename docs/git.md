@@ -41,6 +41,44 @@ git push -u origin main
 git switch -c codex/feature-semgrep-json-parser
 ```
 
+## 决策分支与实现分支分离
+
+涉及架构、核心模型、agent 流程、证据链格式、安全边界或跨里程碑影响的任务，必须拆成两类分支：
+
+- `codex/docs-<topic>`：只做决策、Insight、ADR 和相关文档，不实现代码。
+- `codex/feature-<topic>`：基于已经合入 `main` 的决策文档实现代码、fixture 和测试。
+
+推荐流程：
+
+```bash
+git switch main
+git switch -c codex/docs-semgrep-taint-insight
+
+# 编写 docs/Insight 和 docs/decisions
+./scripts/check
+git add docs/Insight docs/decisions
+git commit -m "docs: decide semgrep taint normalization approach"
+
+git switch main
+git merge --ff-only codex/docs-semgrep-taint-insight
+git switch -c codex/feature-semgrep-taint-normalization
+
+# 按已合入 main 的决策实现代码
+```
+
+这样做的目的：
+
+- 让“为什么这样做”和“具体怎么实现”分开 review。
+- 避免在还没完成决策时提前写出难以回滚的实现。
+- 让后续实现分支总是基于主干中的最新决策文档。
+- 方便重做实现而不丢失决策过程。
+
+例外：
+
+- 小范围文档修正不需要单独分成 docs 分支。
+- 不涉及架构或核心模型变化的 bug fix 可以直接使用 `codex/fix-<topic>`。
+- 如果用户明确要求快速原型，可以先在 feature 分支实验，但最终合并前仍应补齐 Insight 或 ADR。
+
 ## 提交规范
 
 提交信息使用 Conventional Commits 风格：
