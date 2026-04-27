@@ -50,7 +50,7 @@
 
 ## Insight 决策流程
 
-项目关键决策必须先记录到 `Insight/`，再进入实现。
+项目关键决策必须先记录到 `docs/Insight/`，再进入实现。
 
 必须写 Insight 的情况：
 
@@ -61,9 +61,9 @@
 - PoC/exp 安全边界变化。
 - 影响后续多个里程碑的工程决策。
 
-通用决策使用 `Insight/templates/decision-insight.md`。
+通用决策使用 `docs/Insight/templates/decision-insight.md`。
 
-架构决策使用 `Insight/templates/architecture-insight.md`。
+架构决策使用 `docs/Insight/templates/architecture-insight.md`。
 
 每份 Insight 至少包含三轮讨论：
 

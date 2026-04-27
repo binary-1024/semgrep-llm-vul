@@ -16,11 +16,9 @@
 ```text
 .
 ├── AGENTS.md
-├── Insight/
-│   ├── README.md
-│   └── templates/
 ├── README.md
 ├── docs/
+│   ├── Insight/
 │   ├── architecture.md
 │   ├── development.md
 │   ├── git.md
@@ -60,7 +58,7 @@
 
 ## 项目文档
 
-- [Insight 决策流程](Insight/README.md)
+- [Insight 决策流程](docs/Insight/README.md)
 - [架构说明](docs/architecture.md)
 - [产品目标与需求](docs/product.md)
 - [路线图](docs/roadmap.md)
@@ -93,7 +91,7 @@ uv run python --version
 
 ## 决策记录
 
-关键设计和架构调整先记录到 `Insight/`，完成多视角讨论和最终决策后，再按需同步到 `docs/decisions/`。
+关键设计和架构调整先记录到 `docs/Insight/`，完成多视角讨论和最终决策后，再按需同步到 `docs/decisions/`。
 
 ## 下一步
 

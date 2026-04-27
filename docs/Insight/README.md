@@ -1,10 +1,10 @@
 # Insight
 
-`Insight/` 用于记录项目关键决策前的多视角讨论过程。
+`docs/Insight/` 用于记录项目关键决策前的多视角讨论过程。
 
 它和 `docs/decisions/` 的关系：
 
-- `Insight/`：记录决策形成过程，包括第一性原理分析、多角色讨论、备选方案、优缺点和最终建议。
+- `docs/Insight/`：记录决策形成过程，包括第一性原理分析、多角色讨论、备选方案、优缺点和最终建议。
 - `docs/decisions/`：记录已经确定的最终决策，采用简洁 ADR 风格，便于长期查阅。
 
 简单说：
@@ -35,14 +35,14 @@ docs/decisions = 最后决定了什么
 ## 文件命名
 
 ```text
-Insight/YYYYMMDD-短标题.md
+docs/Insight/YYYYMMDD-短标题.md
 ```
 
 示例：
 
 ```text
-Insight/20260427-language-agnostic-core.md
-Insight/20260427-semgrep-taint-normalization.md
+docs/Insight/20260427-language-agnostic-core.md
+docs/Insight/20260427-semgrep-taint-normalization.md
 ```
 
 ## 决策讨论要求
@@ -130,5 +130,5 @@ Insight/20260427-semgrep-taint-normalization.md
 
 ## 模板
 
-- 通用决策模板：`Insight/templates/decision-insight.md`
-- 架构决策模板：`Insight/templates/architecture-insight.md`
+- 通用决策模板：`docs/Insight/templates/decision-insight.md`
+- 架构决策模板：`docs/Insight/templates/architecture-insight.md`
