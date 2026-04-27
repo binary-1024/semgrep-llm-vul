@@ -1,0 +1,32 @@
+{
+  "version": "1.99.0",
+  "results": [
+    {
+      "check_id": "python.flask.open-redirect",
+      "path": "app/routes.py",
+      "start": {
+        "line": 12,
+        "col": 16
+      },
+      "end": {
+        "line": 12,
+        "col": 42
+      },
+      "extra": {
+        "message": "User-controlled redirect target reaches redirect().",
+        "severity": "WARNING",
+        "lines": "return redirect(request.args[\"next\"])",
+        "metadata": {
+          "category": "security",
+          "cwe": [
+            "CWE-601"
+          ],
+          "languages": [
+            "python"
+          ]
+        }
+      }
+    }
+  ],
+  "errors": []
+}

@@ -21,6 +21,8 @@
 │   ├── architecture.md
 │   ├── development.md
 │   ├── git.md
+│   ├── product.md
+│   ├── roadmap.md
 │   ├── testing.md
 │   └── decisions/
 ├── scripts/
@@ -56,6 +58,8 @@
 ## 项目文档
 
 - [架构说明](docs/architecture.md)
+- [产品目标与需求](docs/product.md)
+- [路线图](docs/roadmap.md)
 - [开发流程](docs/development.md)
 - [Git 管理](docs/git.md)
 - [测试策略](docs/testing.md)
@@ -85,7 +89,7 @@ uv run python --version
 
 ## 下一步
 
-1. 定义 Semgrep JSON 基础解析与归一化任务。
-2. 添加代表性的 `fixtures/` 样例。
-3. 实现解析模块和测试。
-4. 当解析流程稳定后，补充 CI。
+1. 定义漏洞分析任务输入模型与证据链数据模型。
+2. 围绕已知 sink 和未知 sink 场景补测试。
+3. 再进入 sink 函数生成里程碑。
+4. 当核心流程稳定后，补充 CI。
