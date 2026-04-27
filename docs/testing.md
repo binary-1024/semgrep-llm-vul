@@ -19,6 +19,26 @@
 
 使用 `fixtures/` 存放代表性的 Semgrep 输出和最小漏洞代码样例。除非明确允许包含真实项目数据，否则 fixture 应使用合成数据或脱敏数据。
 
+### Fixture 真实性分层
+
+外部工具 adapter 的 fixture 需要标注或说明类型：
+
+- `minimal`：最小合法结构，只覆盖核心字段。
+- `realistic`：尽量贴近真实工具输出结构，可以是真实输出的脱敏裁剪版。
+- `malformed`：刻意缺字段、结构不完整或格式异常，用于验证错误处理。
+
+适配 Semgrep、CodeQL、SARIF、Joern、GitHub API、LLM 输出等外部格式时，不应只依赖手写理想化 fixture。
+
+Insight 中列出的格式风险和失败模式，必须转化为 fixture 或测试断言。
+
+Review adapter 测试时必须确认：
+
+```text
+这个 fixture 是真实输出、真实输出裁剪版，还是合成的近似结构？
+```
+
+如果是合成的近似结构，需要明确其依据，并尽量补充 realistic fixture。
+
 ## 命令
 
 ```bash

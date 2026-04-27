@@ -105,3 +105,14 @@ uv run python --version
 - 使用 `pytest` 做测试。
 - 使用 `uv build` 验证包构建。
 - 项目 Python 版本约束为 `>=3.10,<3.11`。
+
+## 外部工具 Adapter 开发约定
+
+实现 Semgrep、CodeQL、SARIF、Joern、GitHub API、LLM 输出等外部格式 adapter 时：
+
+- 先确认是否已有相关 `docs/Insight/` 或 ADR。
+- 不要只用理想化手写 fixture 驱动实现。
+- 至少根据场景覆盖 `minimal`、`realistic`、`malformed` fixture。
+- realistic fixture 应尽量贴近真实工具输出，或说明它依据官方文档/已知样例构造。
+- Insight 中提到的格式风险，必须转化成测试断言。
+- adapter 只做解析、归一化和证据保留，不直接做最终安全结论。

@@ -137,6 +137,16 @@ Insight 形成最终决策后，如该决策需要长期保留，应同步新增
 - 新增依赖前确认必要性，并写入 `pyproject.toml`。
 - 处理 Semgrep 输出或其他机器可读数据时，优先使用结构化解析方式，避免临时字符串拼接。
 
+## 外部工具 Adapter 规则
+
+处理 Semgrep、CodeQL、SARIF、Joern、GitHub API、LLM 输出等外部格式时：
+
+- 不要只用理想化手写 fixture 驱动实现。
+- 至少覆盖 `minimal`、`realistic`、`malformed` 三类测试样例中的相关类型。
+- realistic fixture 应尽量贴近真实工具输出结构；如果是合成样例，需要在 README 或测试中说明。
+- Insight 中提到的格式风险和失败模式，必须转化为 fixture 或测试断言。
+- Review adapter 时必须确认：fixture 是真实输出、真实输出裁剪版，还是合成的近似结构。
+
 ## 安全规则
 
 - 未经明确要求，不删除或覆盖用户创建的文件。
