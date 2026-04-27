@@ -4,7 +4,23 @@
 
 ## 当前状态
 
-仓库处于 Python/uv 基础工程阶段。当前已有最小 Python 包结构，但尚未提交 Semgrep 解析等核心应用逻辑。
+仓库处于 Python/uv 基础工程阶段。当前已有语言无关数据模型、Semgrep finding 归一化，以及 Semgrep taint-mode trace 到候选 `TaintPath` 的最小归一化能力。
+
+## 当前数据流
+
+```text
+Semgrep JSON
+  ↓
+NormalizedFinding
+  ↓
+如果存在可识别 dataflow_trace
+  ↓
+TaintPath(reachable=None)
+```
+
+`TaintPath` 表示静态分析报告的候选路径，不代表最终可触达或可利用结论。
+
+trace 缺失或结构不完整时，不强行生成 `TaintPath`；原始 finding 仍保留为 `NormalizedFinding`。
 
 ## 预期方向
 
@@ -12,6 +28,7 @@
 
 - Semgrep 扫描输入
 - 漏洞 finding 归一化
+- Semgrep taint-mode 候选路径归一化
 - LLM 辅助分析工作流
 - 便于人工审查的输出
 - 用于可重复验证的测试和 fixtures

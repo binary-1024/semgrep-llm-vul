@@ -1,0 +1,29 @@
+{
+  "version": "1.99.0",
+  "results": [
+    {
+      "check_id": "python.flask.open-redirect-taint",
+      "path": "app/routes.py",
+      "start": {
+        "line": 16,
+        "col": 12
+      },
+      "end": {
+        "line": 16,
+        "col": 41
+      },
+      "extra": {
+        "message": "User-controlled redirect target reaches redirect().",
+        "severity": "WARNING",
+        "lines": "return redirect(next_url)",
+        "metadata": {
+          "category": "security",
+          "languages": [
+            "python"
+          ]
+        }
+      }
+    }
+  ],
+  "errors": []
+}

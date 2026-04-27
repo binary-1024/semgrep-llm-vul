@@ -217,7 +217,7 @@ PoC / exp
 ## 后续动作
 
 - [x] 同步新增 `docs/decisions/0004-normalize-semgrep-taint-as-evidence.md`
-- [ ] 实现 Semgrep taint trace fixture
-- [ ] 实现 Semgrep taint trace 到 `TaintPath` 的归一化函数
-- [ ] 增加 `tests/test_semgrep_taint.py`
-- [ ] 根据实现结果更新 `docs/architecture.md`
+- [x] 实现 Semgrep taint trace fixture
+- [x] 实现 Semgrep taint trace 到 `TaintPath` 的归一化函数
+- [x] 增加 `tests/test_semgrep_taint.py`
+- [x] 根据实现结果更新 `docs/architecture.md`

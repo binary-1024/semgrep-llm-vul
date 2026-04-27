@@ -10,8 +10,14 @@ from semgrep_llm_vul.models import (
     CodeLocation,
     Evidence,
     EvidenceKind,
+    FunctionSignature,
     NormalizedFinding,
+    SinkCandidate,
+    SourceCandidate,
     SourceReference,
+    TaintPath,
+    TaintRole,
+    TaintStep,
 )
 
 LANGUAGE_BY_SUFFIX = {
@@ -50,6 +56,18 @@ def load_semgrep_findings(path: str | Path) -> list[NormalizedFinding]:
     return normalize_semgrep_results(raw, source_uri=str(result_path))
 
 
+def load_semgrep_taint_paths(path: str | Path) -> list[TaintPath]:
+    """从文件读取 Semgrep JSON，并派生可识别的 taint paths。"""
+
+    result_path = Path(path)
+    try:
+        raw = json.loads(result_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise SemgrepParseError(f"Semgrep JSON 解析失败：{result_path}") from exc
+
+    return normalize_semgrep_taint_paths(raw, source_uri=str(result_path))
+
+
 def normalize_semgrep_results(
     semgrep_json: dict[str, Any],
     *,
@@ -62,6 +80,32 @@ def normalize_semgrep_results(
         raise SemgrepParseError("Semgrep JSON 必须包含 list 类型的 results 字段")
 
     return [_normalize_result(result, source_uri=source_uri) for result in results]
+
+
+def normalize_semgrep_taint_paths(
+    semgrep_json: dict[str, Any],
+    *,
+    source_uri: str | None = None,
+) -> list[TaintPath]:
+    """从 Semgrep JSON 中派生可识别的 taint paths。
+
+    trace 缺失或结构不完整时不会强行生成路径；原始 finding 仍可通过
+    `normalize_semgrep_results` 获取。
+    """
+
+    results = semgrep_json.get("results")
+    if not isinstance(results, list):
+        raise SemgrepParseError("Semgrep JSON 必须包含 list 类型的 results 字段")
+
+    taint_paths = []
+    for result in results:
+        finding = _normalize_result(result, source_uri=source_uri)
+        trace = _extract_dataflow_trace(result)
+        taint_path = _taint_path_from_trace(finding, trace, source_uri=source_uri)
+        if taint_path is not None:
+            taint_paths.append(taint_path)
+
+    return taint_paths
 
 
 def _normalize_result(result: Any, *, source_uri: str | None) -> NormalizedFinding:
@@ -149,3 +193,209 @@ def _infer_language(path: str, metadata: dict[str, Any]) -> str | None:
                 return item
 
     return LANGUAGE_BY_SUFFIX.get(Path(path).suffix.lower())
+
+
+def _extract_dataflow_trace(result: Any) -> dict[str, Any] | None:
+    if not isinstance(result, dict):
+        return None
+
+    extra = result.get("extra")
+    if not isinstance(extra, dict):
+        return None
+
+    trace = extra.get("dataflow_trace")
+    return trace if isinstance(trace, dict) else None
+
+
+def _taint_path_from_trace(
+    finding: NormalizedFinding,
+    trace: dict[str, Any] | None,
+    *,
+    source_uri: str | None,
+) -> TaintPath | None:
+    if trace is None:
+        return None
+
+    source_step = _trace_step(trace.get("taint_source"), role=TaintRole.SOURCE, finding=finding)
+    sink_step = _trace_step(trace.get("taint_sink"), role=TaintRole.SINK, finding=finding)
+    if source_step is None or sink_step is None:
+        return None
+
+    intermediate_steps = tuple(
+        step
+        for item in _trace_list(trace.get("intermediate_vars"))
+        if (step := _trace_step(item, role=TaintRole.INTERMEDIATE, finding=finding)) is not None
+    )
+    steps = (source_step, *intermediate_steps, sink_step)
+    path_evidence = _taint_path_evidence(
+        finding=finding,
+        trace=trace,
+        location=sink_step.location,
+        source_uri=source_uri,
+    )
+
+    source = SourceCandidate(
+        name=source_step.symbol or source_step.description or "semgrep-taint-source",
+        location=source_step.location,
+        reason="Semgrep taint-mode 报告该位置为 source。",
+        confidence=0.7,
+        evidence=source_step.evidence,
+    )
+    sink = SinkCandidate(
+        signature=FunctionSignature(
+            raw=sink_step.symbol or sink_step.description or finding.rule_id,
+            name=sink_step.symbol,
+            location=sink_step.location,
+            language=finding.language,
+        ),
+        reason="Semgrep taint-mode 报告污点到达该 sink。",
+        confidence=0.7,
+        evidence=sink_step.evidence,
+    )
+
+    return TaintPath(
+        source=source,
+        sink=sink,
+        steps=steps,
+        reachable=None,
+        evidence=(path_evidence,),
+    )
+
+
+def _trace_step(
+    raw_step: Any,
+    *,
+    role: TaintRole,
+    finding: NormalizedFinding,
+) -> TaintStep | None:
+    location_payload = _trace_location_payload(raw_step)
+    if location_payload is None:
+        return None
+
+    location = _code_location_from_trace_payload(location_payload)
+    if location is None:
+        return None
+
+    symbol = _trace_symbol(location_payload)
+    description = _trace_description(raw_step, location_payload)
+    evidence = Evidence(
+        source=SourceReference(
+            kind=EvidenceKind.SEMGREP_FINDING,
+            uri=finding.evidence[0].source.uri if finding.evidence else None,
+            location=location,
+            metadata={
+                "rule_id": finding.rule_id,
+                "role": role.value,
+                "raw_trace_step": raw_step,
+            },
+        ),
+        summary=f"Semgrep taint-mode 报告 {role.value} 节点：{location.path}",
+        reasoning="该节点来自 Semgrep dataflow_trace，作为候选污点路径的一部分。",
+        confidence=0.7,
+        open_questions=(
+            "该路径尚未完成可触达确认。",
+            "该路径尚未完成 sanitizer 充分性确认。",
+            "该路径尚未完成受影响版本与修复版本对照验证。",
+        ),
+    )
+
+    return TaintStep(
+        location=location,
+        role=role,
+        symbol=symbol,
+        description=description,
+        evidence=(evidence,),
+    )
+
+
+def _trace_list(value: Any) -> list[Any]:
+    if value is None:
+        return []
+    return value if isinstance(value, list) else [value]
+
+
+def _trace_location_payload(raw_step: Any) -> dict[str, Any] | None:
+    if isinstance(raw_step, dict):
+        return raw_step
+
+    if isinstance(raw_step, list):
+        for item in raw_step:
+            if isinstance(item, dict):
+                return item
+            nested = _trace_location_payload(item)
+            if nested is not None:
+                return nested
+
+    return None
+
+
+def _code_location_from_trace_payload(payload: dict[str, Any]) -> CodeLocation | None:
+    path = payload.get("path") or payload.get("file")
+    if not isinstance(path, str) or not path:
+        return None
+
+    start = payload.get("start") if isinstance(payload.get("start"), dict) else payload
+    end = payload.get("end") if isinstance(payload.get("end"), dict) else payload
+
+    return CodeLocation(
+        path=path,
+        start_line=_location_value(start, "line"),
+        start_col=_location_value(start, "col"),
+        end_line=_location_value(end, "line"),
+        end_col=_location_value(end, "col"),
+    )
+
+
+def _trace_symbol(payload: dict[str, Any]) -> str | None:
+    for key in ("name", "symbol", "metavar", "content"):
+        value = payload.get(key)
+        if isinstance(value, str) and value:
+            return value
+    return None
+
+
+def _trace_description(raw_step: Any, payload: dict[str, Any]) -> str | None:
+    for key in ("message", "description", "content", "lines"):
+        value = payload.get(key)
+        if isinstance(value, str) and value:
+            return value
+
+    if isinstance(raw_step, list) and raw_step:
+        first = raw_step[0]
+        if isinstance(first, str) and first:
+            return first
+
+    return None
+
+
+def _taint_path_evidence(
+    *,
+    finding: NormalizedFinding,
+    trace: dict[str, Any],
+    location: CodeLocation,
+    source_uri: str | None,
+) -> Evidence:
+    return Evidence(
+        source=SourceReference(
+            kind=EvidenceKind.SEMGREP_FINDING,
+            uri=source_uri,
+            location=location,
+            metadata={
+                "rule_id": finding.rule_id,
+                "severity": finding.severity,
+                "raw_trace": trace,
+            },
+        ),
+        summary=f"Semgrep taint-mode 报告候选污点路径：{finding.rule_id}",
+        reasoning=(
+            "该路径由 Semgrep dataflow_trace 派生，"
+            "表示静态分析报告的候选路径，不代表已确认可触达或可利用。"
+        ),
+        confidence=0.7,
+        reproducible_steps=(f"semgrep scan --json > {source_uri}",) if source_uri else (),
+        open_questions=(
+            "Semgrep 可能只报告一条代表 trace，而不是完整路径枚举。",
+            "该路径尚未完成可触达确认。",
+            "该路径尚未完成受影响版本与修复版本对照验证。",
+        ),
+    )

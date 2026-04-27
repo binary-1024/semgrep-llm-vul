@@ -10,6 +10,7 @@ from semgrep_llm_vul.models import (
     SinkCandidate,
     SourceCandidate,
     TaintPath,
+    TaintRole,
     TaintStep,
     VulnerabilityInput,
 )
@@ -24,6 +25,7 @@ __all__ = [
     "SinkCandidate",
     "SourceCandidate",
     "TaintPath",
+    "TaintRole",
     "TaintStep",
     "VulnerabilityInput",
     "__version__",

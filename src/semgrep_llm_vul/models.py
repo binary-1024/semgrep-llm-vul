@@ -37,6 +37,14 @@ class ArtifactKind(str, Enum):
     RAW_SCAN = "raw_scan"
 
 
+class TaintRole(str, Enum):
+    """污点路径节点角色。"""
+
+    SOURCE = "source"
+    INTERMEDIATE = "intermediate"
+    SINK = "sink"
+
+
 @dataclass(frozen=True)
 class CodeLocation:
     """代码位置，行列号使用 1-based 语义。"""
@@ -165,6 +173,7 @@ class TaintStep:
     """污点路径中的一个节点。"""
 
     location: CodeLocation
+    role: TaintRole | None = None
     symbol: str | None = None
     description: str | None = None
     evidence: tuple[Evidence, ...] = ()

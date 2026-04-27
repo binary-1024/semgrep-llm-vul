@@ -1,0 +1,87 @@
+{
+  "version": "1.99.0",
+  "results": [
+    {
+      "check_id": "python.flask.open-redirect-taint",
+      "path": "app/routes.py",
+      "start": {
+        "line": 16,
+        "col": 12
+      },
+      "end": {
+        "line": 16,
+        "col": 41
+      },
+      "extra": {
+        "message": "User-controlled redirect target reaches redirect().",
+        "severity": "WARNING",
+        "lines": "return redirect(next_url)",
+        "metadata": {
+          "category": "security",
+          "cwe": [
+            "CWE-601"
+          ],
+          "languages": [
+            "python"
+          ]
+        },
+        "dataflow_trace": {
+          "taint_source": [
+            "Source",
+            [
+              {
+                "path": "app/routes.py",
+                "start": {
+                  "line": 14,
+                  "col": 16
+                },
+                "end": {
+                  "line": 14,
+                  "col": 36
+                },
+                "content": "request.args[\"next\"]"
+              }
+            ]
+          ],
+          "intermediate_vars": [
+            [
+              "Propagation",
+              [
+                {
+                  "path": "app/routes.py",
+                  "start": {
+                    "line": 14,
+                    "col": 5
+                  },
+                  "end": {
+                    "line": 14,
+                    "col": 36
+                  },
+                  "content": "next_url"
+                }
+              ]
+            ]
+          ],
+          "taint_sink": [
+            "Sink",
+            [
+              {
+                "path": "app/routes.py",
+                "start": {
+                  "line": 16,
+                  "col": 12
+                },
+                "end": {
+                  "line": 16,
+                  "col": 30
+                },
+                "content": "redirect(next_url)"
+              }
+            ]
+          ]
+        }
+      }
+    }
+  ],
+  "errors": []
+}
