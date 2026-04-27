@@ -19,6 +19,7 @@ def test_load_semgrep_taint_paths_from_trace_fixture() -> None:
     assert path.source.name == 'request.args["next"]'
     assert path.source.location.start_line == 14
     assert path.sink.signature.raw == "redirect(next_url)"
+    assert path.sink.signature.raw != "CliLoc"
     assert path.sink.signature.language == "python"
     assert [step.role for step in path.steps] == [
         TaintRole.SOURCE,
@@ -26,6 +27,8 @@ def test_load_semgrep_taint_paths_from_trace_fixture() -> None:
         TaintRole.SINK,
     ]
     assert path.steps[1].symbol == "next_url"
+    assert path.steps[0].symbol == 'request.args["next"]'
+    assert path.steps[2].symbol == "redirect(next_url)"
     assert path.evidence[0].source.metadata["rule_id"] == "python.flask.open-redirect-taint"
     assert "raw_trace" in path.evidence[0].source.metadata
     assert "尚未完成可触达确认" in path.evidence[0].open_questions[1]

@@ -276,7 +276,7 @@ def _trace_step(
     if location is None:
         return None
 
-    symbol = _trace_symbol(location_payload)
+    symbol = _trace_symbol(raw_step, location_payload)
     description = _trace_description(raw_step, location_payload)
     evidence = Evidence(
         source=SourceReference(
@@ -330,12 +330,24 @@ def _trace_location_payload(raw_step: Any) -> dict[str, Any] | None:
 
 
 def _code_location_from_trace_payload(payload: dict[str, Any]) -> CodeLocation | None:
-    path = payload.get("path") or payload.get("file")
+    location_payload = (
+        payload.get("location") if isinstance(payload.get("location"), dict) else payload
+    )
+
+    path = location_payload.get("path") or location_payload.get("file")
     if not isinstance(path, str) or not path:
         return None
 
-    start = payload.get("start") if isinstance(payload.get("start"), dict) else payload
-    end = payload.get("end") if isinstance(payload.get("end"), dict) else payload
+    start = (
+        location_payload.get("start")
+        if isinstance(location_payload.get("start"), dict)
+        else location_payload
+    )
+    end = (
+        location_payload.get("end")
+        if isinstance(location_payload.get("end"), dict)
+        else location_payload
+    )
 
     return CodeLocation(
         path=path,
@@ -346,11 +358,16 @@ def _code_location_from_trace_payload(payload: dict[str, Any]) -> CodeLocation |
     )
 
 
-def _trace_symbol(payload: dict[str, Any]) -> str | None:
+def _trace_symbol(raw_step: Any, payload: dict[str, Any]) -> str | None:
     for key in ("name", "symbol", "metavar", "content"):
         value = payload.get(key)
         if isinstance(value, str) and value:
             return value
+
+    sibling_content = _trace_sibling_content(raw_step)
+    if sibling_content is not None:
+        return sibling_content
+
     return None
 
 
@@ -360,10 +377,25 @@ def _trace_description(raw_step: Any, payload: dict[str, Any]) -> str | None:
         if isinstance(value, str) and value:
             return value
 
-    if isinstance(raw_step, list) and raw_step:
-        first = raw_step[0]
-        if isinstance(first, str) and first:
-            return first
+    sibling_content = _trace_sibling_content(raw_step)
+    if sibling_content is not None:
+        return sibling_content
+
+    return None
+
+
+def _trace_sibling_content(raw_step: Any) -> str | None:
+    if not isinstance(raw_step, list):
+        return None
+
+    for item in raw_step:
+        if isinstance(item, str) and item not in {"CliLoc", "Source", "Sink", "Propagation"}:
+            return item
+
+        if isinstance(item, list):
+            nested = _trace_sibling_content(item)
+            if nested is not None:
+                return nested
 
     return None
 

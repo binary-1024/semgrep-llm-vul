@@ -27,56 +27,59 @@
         },
         "dataflow_trace": {
           "taint_source": [
-            "Source",
+            "CliLoc",
             [
               {
-                "path": "app/routes.py",
-                "start": {
-                  "line": 14,
-                  "col": 16
-                },
-                "end": {
-                  "line": 14,
-                  "col": 36
-                },
-                "content": "request.args[\"next\"]"
-              }
-            ]
-          ],
-          "intermediate_vars": [
-            [
-              "Propagation",
-              [
-                {
+                "location": {
                   "path": "app/routes.py",
                   "start": {
                     "line": 14,
-                    "col": 5
+                    "col": 16
                   },
                   "end": {
                     "line": 14,
                     "col": 36
-                  },
-                  "content": "next_url"
-                }
-              ]
+                  }
+                },
+                "content": "request.args[\"next\"]"
+              },
+              "request.args[\"next\"]"
             ]
           ],
-          "taint_sink": [
-            "Sink",
-            [
-              {
+          "intermediate_vars": [
+            {
+              "content": "next_url",
+              "location": {
                 "path": "app/routes.py",
                 "start": {
-                  "line": 16,
-                  "col": 12
+                  "line": 14,
+                  "col": 5
                 },
                 "end": {
-                  "line": 16,
-                  "col": 30
+                  "line": 14,
+                  "col": 36
+                }
+              }
+            }
+          ],
+          "taint_sink": [
+            "CliLoc",
+            [
+              {
+                "location": {
+                  "path": "app/routes.py",
+                  "start": {
+                    "line": 16,
+                    "col": 12
+                  },
+                  "end": {
+                    "line": 16,
+                    "col": 30
+                  }
                 },
                 "content": "redirect(next_url)"
-              }
+              },
+              "redirect(next_url)"
             ]
           ]
         }
