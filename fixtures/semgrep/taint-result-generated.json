@@ -1,0 +1,43 @@
+{
+  "engine_requested": "OSS",
+  "errors": [],
+  "paths": {
+    "scanned": [
+      "examples/semgrep/project/app/routes.py"
+    ]
+  },
+  "results": [
+    {
+      "check_id": "examples.semgrep.rules.python.flask.open-redirect-taint",
+      "end": {
+        "col": 30,
+        "line": 6,
+        "offset": 115
+      },
+      "extra": {
+        "engine_kind": "OSS",
+        "fingerprint": "requires login",
+        "lines": "requires login",
+        "message": "User-controlled redirect target reaches redirect().",
+        "metadata": {
+          "category": "security",
+          "confidence": "MEDIUM",
+          "cwe": [
+            "CWE-601"
+          ],
+          "impact": "MEDIUM",
+          "likelihood": "MEDIUM"
+        },
+        "severity": "WARNING",
+        "validation_state": "NO_VALIDATOR"
+      },
+      "path": "examples/semgrep/project/app/routes.py",
+      "start": {
+        "col": 12,
+        "line": 6,
+        "offset": 97
+      }
+    }
+  ],
+  "version": "1.161.0"
+}

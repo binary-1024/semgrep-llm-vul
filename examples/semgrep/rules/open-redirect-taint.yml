@@ -1,0 +1,18 @@
+rules:
+  - id: python.flask.open-redirect-taint
+    mode: taint
+    languages:
+      - python
+    message: User-controlled redirect target reaches redirect().
+    severity: WARNING
+    metadata:
+      category: security
+      cwe:
+        - CWE-601
+      confidence: MEDIUM
+      likelihood: MEDIUM
+      impact: MEDIUM
+    pattern-sources:
+      - pattern: request.args[$KEY]
+    pattern-sinks:
+      - pattern: redirect($TARGET)

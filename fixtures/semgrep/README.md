@@ -24,6 +24,23 @@
 - `taint-result-with-trace.json`：realistic，覆盖 `dataflow_trace` 中常见的 `location` 嵌套和 `CliLoc` 结构。
 - `taint-result-without-trace.json`：minimal，覆盖 taint finding 缺少 trace 的情况。
 - `taint-result-malformed-trace.json`：malformed，覆盖 trace 缺少 source 的情况。
+- `taint-result-generated.json`：generated，由 `scripts/update-semgrep-fixtures` 基于 `examples/semgrep/` 生成。当前使用 Semgrep OSS 输出，通常不包含 `dataflow_trace`。
+
+## 生成方式
+
+运行：
+
+```bash
+./scripts/update-semgrep-fixtures
+```
+
+该脚本会使用：
+
+- 样例项目：`examples/semgrep/project`
+- Semgrep 规则：`examples/semgrep/rules/open-redirect-taint.yml`
+- 输出文件：`fixtures/semgrep/taint-result-generated.json`
+
+生成后脚本会通过项目的 Semgrep adapter 读取 fixture，确保至少包含一个 finding。
 
 ## 规则
 

@@ -13,6 +13,7 @@ semgrep-llm-vul = "semgrep_llm_vul.cli:main"
 dev = [
     "pytest>=8.3.5",
     "ruff>=0.11.0",
+    "semgrep>=1.99.0",
 ]
 
 [build-system]

@@ -92,9 +92,12 @@ uv run python --version
 ./scripts/test
 ./scripts/lint
 ./scripts/build
+./scripts/update-semgrep-fixtures
 ```
 
 `./scripts/check` 会依次运行 lint、测试和构建。
+
+`./scripts/update-semgrep-fixtures` 用于从 `examples/semgrep/` 中的样例项目和规则生成 Semgrep JSON fixture。
 
 ## Python 项目约定
 

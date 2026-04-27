@@ -39,6 +39,14 @@ Review adapter 测试时必须确认：
 
 如果是合成的近似结构，需要明确其依据，并尽量补充 realistic fixture。
 
+Semgrep fixture 可以通过以下命令从样例项目和规则生成：
+
+```bash
+./scripts/update-semgrep-fixtures
+```
+
+该命令应在更新 Semgrep adapter 或 Semgrep 规则样例时运行。
+
 ## 命令
 
 ```bash

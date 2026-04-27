@@ -45,6 +45,18 @@ def test_taint_finding_without_trace_still_normalizes_as_finding() -> None:
     assert paths == []
 
 
+def test_generated_semgrep_fixture_normalizes_as_finding() -> None:
+    fixture = FIXTURE_DIR / "taint-result-generated.json"
+
+    findings = load_semgrep_findings(fixture)
+    paths = load_semgrep_taint_paths(fixture)
+
+    assert len(findings) == 1
+    assert findings[0].location.path == "examples/semgrep/project/app/routes.py"
+    assert findings[0].severity == "WARNING"
+    assert paths == []
+
+
 def test_malformed_trace_does_not_create_misleading_path() -> None:
     paths = load_semgrep_taint_paths(FIXTURE_DIR / "taint-result-malformed-trace.json")
 

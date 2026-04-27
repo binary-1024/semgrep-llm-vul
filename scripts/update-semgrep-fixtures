@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+rule_file="${repo_root}/examples/semgrep/rules/open-redirect-taint.yml"
+target_dir="${repo_root}/examples/semgrep/project"
+output_file="${repo_root}/fixtures/semgrep/taint-result-generated.json"
+
+uv run semgrep scan \
+  --config "${rule_file}" \
+  --json \
+  --metrics=off \
+  --output "${output_file}" \
+  "${target_dir}"
+
+uv run python - <<'PY'
+import json
+from pathlib import Path
+
+from semgrep_llm_vul.semgrep import load_semgrep_findings
+
+fixture = Path("fixtures/semgrep/taint-result-generated.json")
+repo_root = Path.cwd()
+
+raw = json.loads(fixture.read_text(encoding="utf-8"))
+canonical = {
+    "version": raw.get("version"),
+    "results": raw.get("results", []),
+    "errors": raw.get("errors", []),
+    "paths": raw.get("paths", {}),
+    "engine_requested": raw.get("engine_requested"),
+}
+
+for result in canonical["results"]:
+    path = result.get("path")
+    if isinstance(path, str):
+        result["path"] = str(Path(path).resolve().relative_to(repo_root))
+
+scanned = canonical.get("paths", {}).get("scanned")
+if isinstance(scanned, list):
+    canonical["paths"]["scanned"] = [
+        str(Path(path).resolve().relative_to(repo_root)) if isinstance(path, str) else path
+        for path in scanned
+    ]
+
+fixture.write_text(
+    json.dumps(canonical, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+    encoding="utf-8",
+)
+
+findings = load_semgrep_findings(fixture)
+if not findings:
+    raise SystemExit("generated Semgrep fixture contains no findings")
+
+print(f"generated {fixture} with {len(findings)} finding(s)")
+PY
