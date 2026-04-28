@@ -117,6 +117,7 @@ notes.md
 ```bash
 uv run semgrep-llm-vul validate-benchmarks
 uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .
+uv run semgrep-llm-vul benchmark-summary --artifact-base . --repo-root .
 ```
 
 `validate-benchmarks` 只校验 case 目录并输出 inventory；`evaluate-benchmarks`
@@ -141,7 +142,13 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root .
 日常回归建议使用摘要输出，避免完整阶段报告干扰快速判断：
 
 ```bash
-./scripts/benchmark
+./scripts/benchmark-summary
+```
+
+更新 baseline 文档时，优先由命令生成当前计数和 gaps，再人工补充能力边界解释：
+
+```bash
+uv run semgrep-llm-vul benchmark-baseline --artifact-base . --repo-root . --markdown
 ```
 
 第三阶段：

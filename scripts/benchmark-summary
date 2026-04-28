@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+uv run semgrep-llm-vul benchmark-summary "${repo_root}/benchmarks/cases" \
+  --artifact-base "${repo_root}" \
+  --repo-root "${repo_root}"

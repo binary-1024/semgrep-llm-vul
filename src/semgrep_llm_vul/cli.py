@@ -91,6 +91,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     if args.command == "validate-benchmarks":
         return _validate_benchmarks(args.path)
+    if args.command == "benchmark-summary":
+        return _benchmark_summary(
+            args.path,
+            artifact_base=args.artifact_base,
+            repo_root=args.repo_root,
+        )
+    if args.command == "benchmark-baseline":
+        return _benchmark_baseline(
+            args.path,
+            artifact_base=args.artifact_base,
+            repo_root=args.repo_root,
+            markdown=args.markdown,
+        )
 
     parser.print_help()
     return 0
@@ -227,6 +240,53 @@ def _build_parser() -> argparse.ArgumentParser:
         nargs="?",
         default="benchmarks/cases",
         help="case 目录或 cases 根目录，默认 benchmarks/cases",
+    )
+
+    benchmark_summary = subparsers.add_parser(
+        "benchmark-summary",
+        help="输出 benchmark/case harness 的短摘要",
+    )
+    benchmark_summary.add_argument(
+        "path",
+        nargs="?",
+        default="benchmarks/cases",
+        help="case 目录或 cases 根目录，默认 benchmarks/cases",
+    )
+    benchmark_summary.add_argument(
+        "--artifact-base",
+        default=None,
+        help="解析 inventory evaluator 本地 artifact 相对路径时使用的基准目录",
+    )
+    benchmark_summary.add_argument(
+        "--repo-root",
+        default=None,
+        help="解析 executable suite 本地 artifact 相对路径时使用的仓库根目录",
+    )
+
+    benchmark_baseline = subparsers.add_parser(
+        "benchmark-baseline",
+        help="生成 benchmark baseline 文档片段",
+    )
+    benchmark_baseline.add_argument(
+        "path",
+        nargs="?",
+        default="benchmarks/cases",
+        help="case 目录或 cases 根目录，默认 benchmarks/cases",
+    )
+    benchmark_baseline.add_argument(
+        "--artifact-base",
+        default=None,
+        help="解析 inventory evaluator 本地 artifact 相对路径时使用的基准目录",
+    )
+    benchmark_baseline.add_argument(
+        "--repo-root",
+        default=None,
+        help="解析 executable suite 本地 artifact 相对路径时使用的仓库根目录",
+    )
+    benchmark_baseline.add_argument(
+        "--markdown",
+        action="store_true",
+        help="输出 Markdown baseline，而不是 JSON",
     )
 
     return parser
@@ -462,6 +522,163 @@ def _validate_benchmarks(path: str) -> int:
         )
     )
     return 0
+
+
+def _benchmark_summary(
+    path: str,
+    *,
+    artifact_base: str | None,
+    repo_root: str | None,
+) -> int:
+    try:
+        summary = _benchmark_summary_data(
+            path,
+            artifact_base=artifact_base,
+            repo_root=repo_root,
+        )
+    except (BenchmarkCaseError, BenchmarkInventoryError, SinkGenerationError) as exc:
+        print(f"benchmark summary failed: {exc}", file=sys.stderr)
+        return 1
+
+    print(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0 if summary["passed"] else 1
+
+
+def _benchmark_baseline(
+    path: str,
+    *,
+    artifact_base: str | None,
+    repo_root: str | None,
+    markdown: bool,
+) -> int:
+    try:
+        summary = _benchmark_summary_data(
+            path,
+            artifact_base=artifact_base,
+            repo_root=repo_root,
+        )
+    except (BenchmarkCaseError, BenchmarkInventoryError, SinkGenerationError) as exc:
+        print(f"benchmark baseline failed: {exc}", file=sys.stderr)
+        return 1
+
+    if markdown:
+        print(_benchmark_baseline_markdown(summary))
+    else:
+        print(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0 if summary["passed"] else 1
+
+
+def _benchmark_summary_data(
+    path: str,
+    *,
+    artifact_base: str | None,
+    repo_root: str | None,
+) -> dict[str, object]:
+    inventory_cases = discover_benchmark_cases(path)
+    inventory = benchmark_cases_to_dict(inventory_cases)
+    evaluations = tuple(
+        evaluate_benchmark_inventory_case(case, artifact_base=artifact_base)
+        for case in inventory_cases
+    )
+    evaluation = benchmark_evaluations_to_dict(evaluations, cases=inventory_cases)
+    executable = summarize_benchmark_suite(
+        evaluate_benchmark_cases(path, repo_root=repo_root)
+    )
+    passed = (
+        evaluation["summary"]["failed"] == 0
+        and evaluation["summary"]["error"] == 0
+        and executable["passed"]
+    )
+    return {
+        "schema_version": 1,
+        "kind": "benchmark_summary",
+        "passed": passed,
+        "inventory": {
+            "summary": inventory["summary"],
+            "coverage": inventory["coverage"],
+        },
+        "evaluation": {
+            "summary": evaluation["summary"],
+            "gaps": evaluation["gaps"],
+        },
+        "executable_suite": {
+            "total": executable["total"],
+            "passed": executable["passed"],
+            "passed_count": executable["passed_count"],
+            "failed_count": executable["failed_count"],
+        },
+    }
+
+
+def _benchmark_baseline_markdown(summary: dict[str, object]) -> str:
+    inventory = summary["inventory"]
+    evaluation = summary["evaluation"]
+    executable = summary["executable_suite"]
+    inventory_summary = inventory["summary"]
+    coverage = inventory["coverage"]
+    evaluation_summary = evaluation["summary"]
+    lines = [
+        "# Benchmark Baseline",
+        "",
+        "## Inventory",
+        "",
+        "| 维度 | 数量 |",
+        "| --- | ---: |",
+        *_summary_rows(inventory_summary, ("total", "candidate", "unsupported", "blocked")),
+        "",
+        "### 按阶段",
+        "",
+        "| 阶段 | 数量 |",
+        "| --- | ---: |",
+        *_mapping_rows(coverage["by_stage"]),
+        "",
+        "### 按类型",
+        "",
+        "| 类型 | 数量 |",
+        "| --- | ---: |",
+        *_mapping_rows(coverage["by_type"]),
+        "",
+        "## Evaluation",
+        "",
+        "| outcome | 数量 |",
+        "| --- | ---: |",
+        *_summary_rows(
+            evaluation_summary,
+            ("passed", "unsupported", "blocked", "failed", "error", "total"),
+        ),
+        "",
+        "## Gaps",
+        "",
+        "| case | code | 说明 |",
+        "| --- | --- | --- |",
+        *_gap_rows(evaluation["gaps"]),
+        "",
+        "## Executable Suite",
+        "",
+        "| 指标 | 数量 |",
+        "| --- | ---: |",
+        f"| total | {executable['total']} |",
+        f"| passed_count | {executable['passed_count']} |",
+        f"| failed_count | {executable['failed_count']} |",
+    ]
+    return "\n".join(lines)
+
+
+def _summary_rows(summary: dict[str, object], keys: tuple[str, ...]) -> list[str]:
+    return [f"| {key} | {summary[key]} |" for key in keys]
+
+
+def _mapping_rows(mapping: dict[str, object]) -> list[str]:
+    return [f"| {key} | {value} |" for key, value in mapping.items()]
+
+
+def _gap_rows(gaps: list[dict[str, object]]) -> list[str]:
+    if not gaps:
+        return ["| 无 | 无 | 无 |"]
+    return [
+        f"| `{gap['case_id']}` | `{gap['code']}` | {gap['message']} |"
+        for gap in gaps
+    ]
 
 
 if __name__ == "__main__":

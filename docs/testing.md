@@ -160,6 +160,7 @@ Semgrep fixture 可以通过以下命令从样例项目和规则生成：
 ./scripts/test
 ./scripts/check
 ./scripts/benchmark
+./scripts/benchmark-summary
 ```
 
 底层命令：
@@ -171,4 +172,5 @@ uv build
 uv run semgrep-llm-vul validate-benchmarks
 uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .
 uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-only
+uv run semgrep-llm-vul benchmark-baseline --artifact-base . --repo-root . --markdown
 ```

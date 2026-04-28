@@ -50,6 +50,7 @@
 ./scripts/lint
 ./scripts/build
 ./scripts/benchmark
+./scripts/benchmark-summary
 ./scripts/update-semgrep-fixtures
 uv run semgrep-llm-vul validate-benchmarks
 uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .
@@ -63,6 +64,7 @@ uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .
 - `./scripts/check` 依次运行 lint、test 和 build
 - `./scripts/update-semgrep-fixtures` 从样例项目生成 Semgrep fixture
 - `./scripts/benchmark` 校验并执行 benchmark/case harness，覆盖 inventory/gap evaluator 和 M1/M2 case suite
+- `./scripts/benchmark-summary` 输出 benchmark/case harness 短摘要
 - `uv run semgrep-llm-vul validate-benchmarks` 校验 benchmark/case 目录并输出 inventory
 - `uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .` 执行 M1 benchmark/case evaluator
 
@@ -92,6 +94,7 @@ uv run semgrep-llm-vul generate-sinks \
 
 ```bash
 ./scripts/benchmark
+./scripts/benchmark-summary
 uv run semgrep-llm-vul validate-benchmarks
 uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .
 ```
@@ -139,7 +142,7 @@ uv run semgrep-llm-vul confirm-reachability \
 日常回归可使用摘要输出：
 
 ```bash
-./scripts/benchmark
+./scripts/benchmark-summary
 ```
 
 ## 项目文档
