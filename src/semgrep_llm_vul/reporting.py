@@ -11,8 +11,10 @@ from semgrep_llm_vul.models import (
     SinkCandidate,
     SinkGenerationReport,
     SourceReference,
+    TaintPath,
     VulnerabilityInput,
 )
+from semgrep_llm_vul.taint_path_generation import TaintPathGenerationReport
 
 
 def sink_generation_report_to_dict(
@@ -36,6 +38,54 @@ def sink_generation_report_to_dict(
         "candidates": [_candidate_to_dict(candidate) for candidate in report.candidates],
         "evidence": [_evidence_to_dict(evidence) for evidence in report.evidence],
         "unknowns": list(report.unknowns),
+    }
+
+
+def taint_path_generation_report_to_dict(
+    report: TaintPathGenerationReport,
+    *,
+    task: VulnerabilityInput,
+) -> dict[str, Any]:
+    """将 taint path generation report 转为稳定 JSON 结构。"""
+
+    return {
+        "schema_version": 1,
+        "kind": "taint_path_generation_report",
+        "mode": task.mode.value,
+        "target": {
+            "repo_url": task.target.repo_url,
+            "affected_version": task.target.affected_version,
+            "fixed_version": task.target.fixed_version,
+            "language": task.target.language,
+        },
+        "paths": [_taint_path_to_dict(path) for path in report.paths],
+        "evidence": [_evidence_to_dict(evidence) for evidence in report.evidence],
+        "unknowns": list(report.unknowns),
+    }
+
+
+def _taint_path_to_dict(path: TaintPath) -> dict[str, Any]:
+    return {
+        "source": {
+            "name": path.source.name,
+            "location": _location_to_dict(path.source.location),
+            "reason": path.source.reason,
+            "confidence": _confidence(path.source.confidence),
+            "evidence": [_evidence_to_dict(evidence) for evidence in path.source.evidence],
+        },
+        "sink": _candidate_to_dict(path.sink),
+        "steps": [
+            {
+                "location": _location_to_dict(step.location),
+                "role": step.role.value if step.role else None,
+                "symbol": step.symbol,
+                "description": step.description,
+                "evidence": [_evidence_to_dict(evidence) for evidence in step.evidence],
+            }
+            for step in path.steps
+        ],
+        "reachable": path.reachable,
+        "evidence": [_evidence_to_dict(evidence) for evidence in path.evidence],
     }
 
 

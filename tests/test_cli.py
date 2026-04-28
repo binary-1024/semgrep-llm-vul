@@ -75,6 +75,42 @@ def test_generate_sinks_cli_returns_error_for_bad_artifact(capsys) -> None:
     assert "无法读取 diff artifact" in captured.err
 
 
+def test_generate_taint_paths_cli_outputs_json_report(capsys) -> None:
+    exit_code = main(
+        [
+            "generate-taint-paths",
+            str(ROOT / "examples" / "analysis" / "unknown-sink.yaml"),
+            "--semgrep-json",
+            str(ROOT / "fixtures" / "semgrep" / "taint-result-with-trace.json"),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    report = json.loads(captured.out)
+    assert report["kind"] == "taint_path_generation_report"
+    assert report["mode"] == "unknown_sink"
+    assert report["paths"][0]["sink"]["signature"]["name"] == "redirect"
+    assert report["paths"][0]["reachable"] is None
+    assert report["paths"][0]["steps"]
+
+
+def test_generate_taint_paths_cli_reports_missing_semgrep_paths(capsys) -> None:
+    exit_code = main(
+        [
+            "generate-taint-paths",
+            str(ROOT / "examples" / "analysis" / "unknown-sink.yaml"),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    report = json.loads(captured.out)
+    assert report["paths"] == []
+    assert "缺少 sink candidate" in report["unknowns"][0]
+    assert "缺少 Semgrep taint path 候选。" in report["unknowns"]
+
+
 def test_evaluate_case_cli_outputs_json_report(capsys) -> None:
     exit_code = main(
         [

@@ -175,6 +175,7 @@ M1 当前已经具备：
 M2 当前已经具备：
 
 - `generate_taint_path_report` 最小候选路径生成入口。
+- `generate-taint-paths` JSON 报告入口。
 - Semgrep taint-mode `TaintPath(reachable=None)` 归一化能力。
 - sink candidate 与 Semgrep taint path 的最小对齐能力。
 
@@ -183,18 +184,18 @@ M2 当前已经具备：
 ```md
 ## 任务
 
-为 taint path candidate 增加报告序列化和 CLI 入口。
+为 taint path candidate 增加 benchmark/case 回归。
 
 ## 背景
 
-项目已经具备最小 taint path candidate generation。下一步需要提供稳定 JSON 报告和 CLI 入口，方便人工审查和后续 benchmark/case harness 接入。
+项目已经具备最小 taint path candidate generation、稳定 JSON 报告和 CLI 入口。下一步需要把 M2 case 纳入 benchmark/case harness，防止后续路径候选对齐逻辑回退。
 
 ## 范围
 
-- 为 `TaintPathGenerationReport` 增加稳定 JSON 序列化。
-- 增加 CLI 入口，串联 analysis input、sink generation 和 Semgrep taint path 输入。
-- 输出 candidate taint paths，`reachable` 保持 `None`。
-- 报告必须保留 unknowns 和 evidence。
+- 新增一个最小 M2 curated case。
+- 扩展 case evaluator 或新增 evaluator 分支，支持 M2 taint path candidate 输出。
+- 保持 M1 benchmark 行为不变。
+- M2 case 仍只验证 candidate path，不验证 reachable。
 
 ## 非目标
 
@@ -206,8 +207,7 @@ M2 当前已经具备：
 
 ## 验收标准
 
-- 新增报告序列化测试。
-- 新增 CLI 成功和失败路径测试。
-- 输出包含 source、sink、steps、reachable、evidence 和 unknowns。
+- 新增 M2 benchmark/case 测试。
+- `./scripts/benchmark` 继续通过。
 - `./scripts/check` 通过。
 ```
