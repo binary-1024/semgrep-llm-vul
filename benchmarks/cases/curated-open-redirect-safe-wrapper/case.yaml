@@ -1,0 +1,30 @@
+schema_version: 1
+id: curated-open-redirect-safe-wrapper
+type: curated_minimal
+target_stage: M1
+status: candidate
+source:
+  name: project-curated
+  url: null
+  license: project
+target:
+  repo_url: https://github.com/example/flask-app
+  affected_version: v1.0.0
+  fixed_version: v1.0.1
+  language: python
+inputs:
+  description: Open redirect through user-controlled next parameter.
+  mode: unknown_sink
+  artifacts:
+    - kind: diff
+      path: fixtures/sink/open-redirect-fix.diff
+expected:
+  sink:
+    name: redirect
+    location:
+      path: app/routes.py
+      start_line: 9
+safety:
+  contains_poc: false
+  contains_exp: false
+  requires_isolation: false

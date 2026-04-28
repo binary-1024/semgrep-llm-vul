@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "stage": "M1",
+  "expected_status": "candidate",
+  "sink_candidates": [
+    {
+      "name": "redirect",
+      "path": "app/routes.py",
+      "start_line": 9,
+      "heuristic_category": "open_redirect"
+    }
+  ],
+  "must_not_include": [
+    {
+      "name": "safe_redirect"
+    },
+    {
+      "name": "is_safe_redirect"
+    }
+  ]
+}

@@ -19,6 +19,7 @@
 - Semgrep finding 归一化已建立。
 - Semgrep taint-mode 候选路径归一化已建立。
 - 外部工具 fixture 分层与生成脚本已建立。
+- benchmark/case harness 已开始建立，用于持续验证真实/半真实 case 上的能力边界。
 
 完成标准：
 
