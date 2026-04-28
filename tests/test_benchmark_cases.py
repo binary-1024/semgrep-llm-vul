@@ -57,19 +57,36 @@ def test_evaluate_benchmark_case_reports_failed_expected_sink(tmp_path) -> None:
     assert result["checks"][0]["passed"] is False
 
 
-def test_evaluate_benchmark_cases_summarizes_curated_m1_cases() -> None:
+def test_evaluate_benchmark_case_passes_curated_m2_taint_path_case() -> None:
+    result = evaluate_benchmark_case(
+        CASES_ROOT / "curated-open-redirect-taint-path",
+        repo_root=ROOT,
+    )
+
+    assert result["kind"] == "benchmark_case_evaluation"
+    assert result["case_id"] == "curated-open-redirect-taint-path"
+    assert result["stage"] == "M2"
+    assert result["passed"] is True
+    assert result["checks"][0]["name"] == "expected_taint_path[0]"
+    assert result["taint_path_report"]["paths"][0]["sink"]["signature"]["name"] == "redirect"
+    assert result["taint_path_report"]["paths"][0]["reachable"] is None
+    assert "sink_report" not in result
+
+
+def test_evaluate_benchmark_cases_summarizes_curated_cases() -> None:
     result = evaluate_benchmark_cases(CASES_ROOT, repo_root=ROOT)
 
     assert result["kind"] == "benchmark_case_suite_evaluation"
-    assert result["total"] == 4
+    assert result["total"] == 5
     assert result["passed"] is True
-    assert result["passed_count"] == 4
+    assert result["passed_count"] == 5
     assert result["failed_count"] == 0
     assert {item["case_id"] for item in result["results"]} == {
         "curated-open-redirect-safe-wrapper",
         "curated-command-execution-system",
         "curated-deserialization-deserialize",
         "curated-open-redirect-safe-negative",
+        "curated-open-redirect-taint-path",
     }
 
 
@@ -79,7 +96,7 @@ def test_summarize_benchmark_suite_omits_full_sink_reports() -> None:
     summary = summarize_benchmark_suite(result)
 
     assert summary["kind"] == "benchmark_case_suite_summary"
-    assert summary["total"] == 4
+    assert summary["total"] == 5
     assert summary["passed"] is True
     assert all("sink_report" not in item for item in summary["cases"])
     assert all(item["failed_checks"] == [] for item in summary["cases"])

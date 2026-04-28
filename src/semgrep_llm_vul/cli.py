@@ -109,7 +109,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     evaluate_case = subparsers.add_parser(
         "evaluate-case",
-        help="评估 benchmark case 的 M1 sink candidate 期望",
+        help="评估 benchmark case 的阶段期望",
     )
     evaluate_case.add_argument("path", help="benchmark case 目录路径")
     evaluate_case.add_argument(
@@ -120,7 +120,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     evaluate_cases = subparsers.add_parser(
         "evaluate-cases",
-        help="批量评估 benchmark cases 的 M1 sink candidate 期望",
+        help="批量评估 benchmark cases 的阶段期望",
     )
     evaluate_cases.add_argument("path", help="benchmark cases 根目录路径")
     evaluate_cases.add_argument(

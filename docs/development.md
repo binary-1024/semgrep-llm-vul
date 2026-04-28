@@ -149,7 +149,7 @@ uv run python --version
 
 `./scripts/check` 会依次运行 lint、测试和构建。
 
-`./scripts/benchmark` 会批量评估当前 benchmark/case harness 的 M1 cases，作为独立回归入口，不默认并入 `./scripts/check`。
+`./scripts/benchmark` 会批量评估当前 benchmark/case harness 的 M1/M2 cases，作为独立回归入口，不默认并入 `./scripts/check`。
 
 `./scripts/update-semgrep-fixtures` 用于从 `examples/semgrep/` 中的样例项目和规则生成 Semgrep JSON fixture。
 

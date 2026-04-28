@@ -48,7 +48,8 @@ safety:
 
 ## expected.json 字段
 
-`expected.json` 用于描述当前阶段的机器可比较期望。第一版优先覆盖 M1：
+`expected.json` 用于描述当前阶段的机器可比较期望。M1 case 使用
+`sink_candidates` 和 `must_not_include`：
 
 ```json
 {
@@ -70,6 +71,10 @@ safety:
   ]
 }
 ```
+
+M2 case 使用 `inputs.semgrep_json` 指向本地 Semgrep JSON fixture，并在
+`expected.json` 中使用 `taint_paths` 描述期望的 source、sink、step roles 和
+`reachable` 状态。当前 M2 benchmark 只验证最小 taint path candidate，不验证可触达性。
 
 ## notes.md 内容
 
@@ -95,5 +100,6 @@ case id 使用小写 kebab-case：
 - `curated-command-execution-system`
 - `curated-deserialization-deserialize`
 - `curated-open-redirect-safe-negative`
+- `curated-open-redirect-taint-path`
 - `vul4j-command-injection-example`
 - `owasp-benchmark-xss-sample`

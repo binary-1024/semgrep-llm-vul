@@ -178,36 +178,37 @@ M2 当前已经具备：
 - `generate-taint-paths` JSON 报告入口。
 - Semgrep taint-mode `TaintPath(reachable=None)` 归一化能力。
 - sink candidate 与 Semgrep taint path 的最小对齐能力。
+- M2 taint path candidate 已纳入 benchmark/case harness。
 
 建议下一个 M2 具体任务：
 
 ```md
 ## 任务
 
-为 taint path candidate 增加 benchmark/case 回归。
+设计 M2 可触达确认的最小本地模型。
 
 ## 背景
 
-项目已经具备最小 taint path candidate generation、稳定 JSON 报告和 CLI 入口。下一步需要把 M2 case 纳入 benchmark/case harness，防止后续路径候选对齐逻辑回退。
+项目已经具备最小 taint path candidate generation、稳定 JSON 报告、CLI 入口和 benchmark/case 回归。下一步需要定义 reachable 从 `null` 变为 `true/false` 的最小证据标准，否则后续 PoC 生成会建立在未确认路径上。
 
 ## 范围
 
-- 新增一个最小 M2 curated case。
-- 扩展 case evaluator 或新增 evaluator 分支，支持 M2 taint path candidate 输出。
-- 保持 M1 benchmark 行为不变。
-- M2 case 仍只验证 candidate path，不验证 reachable。
+- 新增或更新 Insight，讨论入口识别、调用链、框架路由和版本对照的最小可行边界。
+- 形成 ADR，明确第一版 reachability 的输入、输出和证据链字段。
+- 只定义本地确定性实现边界，不直接进入 PoC/exp。
 
 ## 非目标
 
 - 不调用真实 LLM provider。
 - 不联网拉取真实 GitHub repo。
-- 不实现完整调用图。
+- 不实现完整跨语言调用图。
 - 不进入 PoC 或 exp 阶段。
 - 不把 candidate path 标记为 verified。
 
 ## 验收标准
 
-- 新增 M2 benchmark/case 测试。
-- `./scripts/benchmark` 继续通过。
+- `docs/Insight/` 中有 M2 reachability 最小模型讨论。
+- `docs/decisions/` 中有 accepted ADR。
+- `docs/architecture.md`、`docs/roadmap.md` 同步更新。
 - `./scripts/check` 通过。
 ```

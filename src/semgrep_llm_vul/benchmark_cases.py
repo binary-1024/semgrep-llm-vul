@@ -1,4 +1,4 @@
-"""benchmark/case harness 的最小 M1 evaluator。"""
+"""benchmark/case harness 的最小 M1/M2 evaluator。"""
 
 from __future__ import annotations
 
@@ -10,8 +10,17 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from semgrep_llm_vul.analysis_input import AnalysisInputError, parse_analysis_input
-from semgrep_llm_vul.reporting import sink_generation_report_to_dict
+from semgrep_llm_vul.reporting import (
+    sink_generation_report_to_dict,
+    taint_path_generation_report_to_dict,
+)
+from semgrep_llm_vul.semgrep import (
+    SemgrepParseError,
+    load_semgrep_findings,
+    load_semgrep_taint_paths,
+)
 from semgrep_llm_vul.sink_generation import generate_sink_report
+from semgrep_llm_vul.taint_path_generation import generate_taint_path_report
 
 
 class BenchmarkCaseError(ValueError):
@@ -23,34 +32,86 @@ def evaluate_benchmark_case(
     *,
     repo_root: str | Path | None = None,
 ) -> dict[str, Any]:
-    """评估一个 benchmark case 的 M1 sink candidate 期望。"""
+    """评估一个 benchmark case 的阶段期望。"""
 
     case_path = Path(case_dir)
     case_data = _load_case_yaml(case_path / "case.yaml")
     expected = _load_expected_json(case_path / "expected.json")
 
-    if case_data.get("target_stage") != "M1":
-        raise BenchmarkCaseError("第一版 evaluator 仅支持 target_stage=M1")
-    if expected.get("stage") != "M1":
-        raise BenchmarkCaseError("第一版 evaluator 仅支持 expected.stage=M1")
+    stage = _required_str(case_data, "target_stage")
+    if expected.get("stage") != stage:
+        raise BenchmarkCaseError("case target_stage 必须与 expected.stage 一致")
 
+    if stage == "M1":
+        return _evaluate_m1_case(case_data, expected, repo_root=repo_root)
+    if stage == "M2":
+        return _evaluate_m2_case(case_data, expected, repo_root=repo_root)
+    raise BenchmarkCaseError("第一版 evaluator 仅支持 target_stage=M1 或 M2")
+
+
+def _evaluate_m1_case(
+    case_data: dict[str, Any],
+    expected: dict[str, Any],
+    *,
+    repo_root: str | Path | None,
+) -> dict[str, Any]:
     task = _case_to_task(case_data)
-    root = Path(repo_root) if repo_root is not None else Path.cwd()
+    root = _repo_root(repo_root)
     sink_report = generate_sink_report(task, artifact_base=root)
     report_dict = sink_generation_report_to_dict(sink_report, task=task)
-    checks = [
-        *_expected_sink_checks(report_dict, expected),
-        *_must_not_include_checks(report_dict, expected),
-    ]
+    checks = _m1_checks(report_dict, expected)
 
     return {
         "schema_version": 1,
         "kind": "benchmark_case_evaluation",
         "case_id": _required_str(case_data, "id"),
-        "stage": "M1",
+        "stage": _required_str(case_data, "target_stage"),
         "passed": all(check["passed"] for check in checks),
         "checks": checks,
         "sink_report": report_dict,
+    }
+
+
+def _evaluate_m2_case(
+    case_data: dict[str, Any],
+    expected: dict[str, Any],
+    *,
+    repo_root: str | Path | None,
+) -> dict[str, Any]:
+    task = _case_to_task(case_data)
+    root = _repo_root(repo_root)
+    semgrep_json = _semgrep_json_paths(case_data, repo_root=root)
+    try:
+        findings = tuple(
+            finding
+            for result_path in semgrep_json
+            for finding in load_semgrep_findings(result_path)
+        )
+        taint_paths = tuple(
+            taint_path
+            for result_path in semgrep_json
+            for taint_path in load_semgrep_taint_paths(result_path)
+        )
+    except SemgrepParseError as exc:
+        raise BenchmarkCaseError(f"case Semgrep JSON 无法解析：{exc}") from exc
+
+    sink_report = generate_sink_report(task, semgrep_findings=findings, artifact_base=root)
+    taint_report = generate_taint_path_report(
+        task,
+        sink_report=sink_report,
+        semgrep_taint_paths=taint_paths,
+    )
+    report_dict = taint_path_generation_report_to_dict(taint_report, task=task)
+    checks = _m2_checks(report_dict, expected)
+
+    return {
+        "schema_version": 1,
+        "kind": "benchmark_case_evaluation",
+        "case_id": _required_str(case_data, "id"),
+        "stage": _required_str(case_data, "target_stage"),
+        "passed": all(check["passed"] for check in checks),
+        "checks": checks,
+        "taint_path_report": report_dict,
     }
 
 
@@ -112,6 +173,24 @@ def _case_to_task(case_data: dict[str, Any]):
         raise BenchmarkCaseError(f"case.yaml 无法转换为分析任务：{exc}") from exc
 
 
+def _repo_root(repo_root: str | Path | None) -> Path:
+    return Path(repo_root) if repo_root is not None else Path.cwd()
+
+
+def _semgrep_json_paths(case_data: dict[str, Any], *, repo_root: Path) -> tuple[Path, ...]:
+    inputs = _required_mapping(case_data, "inputs")
+    paths = inputs.get("semgrep_json", [])
+    if not isinstance(paths, list):
+        raise BenchmarkCaseError("inputs.semgrep_json 必须是 list")
+    resolved = []
+    for index, item in enumerate(paths):
+        if not isinstance(item, str) or not item:
+            raise BenchmarkCaseError(f"inputs.semgrep_json[{index}] 必须是非空字符串")
+        path = Path(item)
+        resolved.append(path if path.is_absolute() else repo_root / path)
+    return tuple(resolved)
+
+
 def _case_summary(result: dict[str, Any]) -> dict[str, Any]:
     failed_checks = [check for check in result["checks"] if not check["passed"]]
     return {
@@ -136,6 +215,32 @@ def _discover_case_dirs(cases_root: Path) -> list[Path]:
     if not case_dirs:
         raise BenchmarkCaseError(f"cases 目录未发现可评估 case：{cases_root}")
     return case_dirs
+
+
+def _m1_checks(report: dict[str, Any], expected: dict[str, Any]) -> list[dict[str, Any]]:
+    return [
+        *_expected_sink_checks(report, expected),
+        *_must_not_include_checks(report, expected),
+    ]
+
+
+def _m2_checks(report: dict[str, Any], expected: dict[str, Any]) -> list[dict[str, Any]]:
+    checks = []
+    for index, expected_path in enumerate(expected.get("taint_paths", [])):
+        if not isinstance(expected_path, dict):
+            raise BenchmarkCaseError(f"expected.taint_paths[{index}] 必须是 object")
+        matched = any(
+            _taint_path_matches(candidate, expected_path) for candidate in report["paths"]
+        )
+        checks.append(
+            {
+                "name": f"expected_taint_path[{index}]",
+                "passed": matched,
+                "expected": expected_path,
+                "message": "期望 taint path 已出现" if matched else "期望 taint path 未出现",
+            }
+        )
+    return checks
 
 
 def _expected_sink_checks(
@@ -200,6 +305,44 @@ def _candidate_matches(candidate: dict[str, Any], expected_sink: dict[str, Any])
         }
         if expected_sink["heuristic_category"] not in categories:
             return False
+    return True
+
+
+def _taint_path_matches(candidate: dict[str, Any], expected_path: dict[str, Any]) -> bool:
+    source = expected_path.get("source", {})
+    sink = expected_path.get("sink", {})
+    if not isinstance(source, dict) or not isinstance(sink, dict):
+        raise BenchmarkCaseError("expected.taint_paths[].source/sink 必须是 object")
+
+    if (
+        "source_name" in expected_path
+        and candidate["source"]["name"] != expected_path["source_name"]
+    ):
+        return False
+    if "sink_name" in expected_path:
+        if candidate["sink"]["signature"]["name"] != expected_path["sink_name"]:
+            return False
+    if "reachable" in expected_path and candidate.get("reachable") != expected_path["reachable"]:
+        return False
+    if "step_roles" in expected_path:
+        roles = [step["role"] for step in candidate["steps"]]
+        if roles != expected_path["step_roles"]:
+            return False
+    if source and not _location_matches(candidate["source"]["location"], source):
+        return False
+    sink_location = candidate["sink"]["signature"].get("location")
+    if sink and not _location_matches(sink_location, sink):
+        return False
+    return True
+
+
+def _location_matches(actual: dict[str, Any] | None, expected: dict[str, Any]) -> bool:
+    if actual is None:
+        return False
+    if "path" in expected and actual.get("path") != expected["path"]:
+        return False
+    if "start_line" in expected and actual.get("start_line") != expected["start_line"]:
+        return False
     return True
 
 

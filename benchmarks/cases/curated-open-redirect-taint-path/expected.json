@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "stage": "M2",
+  "expected_status": "candidate",
+  "taint_paths": [
+    {
+      "source_name": "request.args[\"next\"]",
+      "sink_name": "redirect",
+      "reachable": null,
+      "step_roles": ["source", "intermediate", "sink"],
+      "source": {
+        "path": "app/routes.py",
+        "start_line": 14
+      },
+      "sink": {
+        "path": "app/routes.py",
+        "start_line": 16
+      }
+    }
+  ]
+}
