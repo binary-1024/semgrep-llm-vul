@@ -48,6 +48,7 @@
 ./scripts/test
 ./scripts/lint
 ./scripts/build
+./scripts/benchmark
 ./scripts/update-semgrep-fixtures
 ```
 
@@ -56,6 +57,7 @@
 - `./scripts/test` 运行 `pytest`
 - `./scripts/lint` 运行 `ruff check .`
 - `./scripts/build` 运行 `uv build`
+- `./scripts/benchmark` 批量评估当前 benchmark cases 的 M1 sink candidate 期望
 - `./scripts/check` 依次运行 lint、test 和 build
 - `./scripts/update-semgrep-fixtures` 从样例项目生成 Semgrep fixture
 
@@ -98,7 +100,7 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root .
 日常回归可使用摘要输出：
 
 ```bash
-uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-only
+./scripts/benchmark
 ```
 
 ## 项目文档

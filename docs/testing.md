@@ -159,6 +159,7 @@ Semgrep fixture 可以通过以下命令从样例项目和规则生成：
 ```bash
 ./scripts/test
 ./scripts/check
+./scripts/benchmark
 ```
 
 底层命令：
@@ -167,4 +168,5 @@ Semgrep fixture 可以通过以下命令从样例项目和规则生成：
 uv run pytest
 uv run ruff check .
 uv build
+uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-only
 ```

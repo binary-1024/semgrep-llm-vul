@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 from semgrep_llm_vul.cli import main
@@ -128,3 +129,10 @@ def test_evaluate_cases_cli_outputs_summary_report(capsys) -> None:
     assert report["total"] == 4
     assert report["passed"] is True
     assert all("sink_report" not in item for item in report["cases"])
+
+
+def test_benchmark_script_is_executable() -> None:
+    script = ROOT / "scripts" / "benchmark"
+
+    assert script.exists()
+    assert os.access(script, os.X_OK)
