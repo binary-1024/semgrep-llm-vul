@@ -68,6 +68,8 @@
 
 当前状态：M2 已开始建立最小 taint path candidate generation，第一版只对齐 M1 sink candidate 与 Semgrep taint-mode 候选路径，不做可触达确认。
 
+M2 可触达确认已完成方法决策：第一版采用本地、确定性、证据优先的 reachability evidence model，将 `reachable` 明确为 `true`、`false`、`null` 三态。`true` 需要入口到候选路径上下文的静态证据；`false` 需要明确阻断证据；缺证据保持 `null`。
+
 输入：
 
 - sink 函数。
@@ -179,23 +181,25 @@ M2 当前已经具备：
 - Semgrep taint-mode `TaintPath(reachable=None)` 归一化能力。
 - sink candidate 与 Semgrep taint path 的最小对齐能力。
 - M2 taint path candidate 已纳入 benchmark/case harness。
+- M2 reachability evidence model 已完成 Insight 和 ADR。
 
 建议下一个 M2 具体任务：
 
 ```md
 ## 任务
 
-设计 M2 可触达确认的最小本地模型。
+实现 M2 可触达确认的最小本地模型。
 
 ## 背景
 
-项目已经具备最小 taint path candidate generation、稳定 JSON 报告、CLI 入口和 benchmark/case 回归。下一步需要定义 reachable 从 `null` 变为 `true/false` 的最小证据标准，否则后续 PoC 生成会建立在未确认路径上。
+项目已经具备最小 taint path candidate generation、稳定 JSON 报告、CLI 入口、benchmark/case 回归和 reachability evidence model 决策。下一步需要把 `ReachabilityAssessment` 落成最小实现，先支持本地 fixture 中可证明的入口到路径上下文。
 
 ## 范围
 
-- 新增或更新 Insight，讨论入口识别、调用链、框架路由和版本对照的最小可行边界。
-- 形成 ADR，明确第一版 reachability 的输入、输出和证据链字段。
-- 只定义本地确定性实现边界，不直接进入 PoC/exp。
+- 新增 reachability assessment 数据模型或报告模型。
+- 支持最小本地入口证据和调用链证据输入。
+- 生成 `reachable=true|false|null`、blocking factors、evidence 和 unknowns。
+- 新增 positive/unknown/blocked curated cases 或 fixture。
 
 ## 非目标
 
@@ -207,8 +211,9 @@ M2 当前已经具备：
 
 ## 验收标准
 
-- `docs/Insight/` 中有 M2 reachability 最小模型讨论。
-- `docs/decisions/` 中有 accepted ADR。
-- `docs/architecture.md`、`docs/roadmap.md` 同步更新。
+- 新增单元测试覆盖 `true/false/null` 状态语义。
+- 新增或扩展 benchmark/case 回归。
+- `reachable=false` 必须有明确阻断证据测试。
+- `./scripts/benchmark` 继续通过。
 - `./scripts/check` 通过。
 ```
