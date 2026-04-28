@@ -79,6 +79,26 @@ TaintPathGenerationReport
 - JSON 序列化：`semgrep_llm_vul.reporting.taint_path_generation_report_to_dict`
 - 语义边界：只保留能与 sink candidate 对齐的路径；`reachable` 保持 `None`；不做调用图、入口可达性、sanitizer 充分性或可利用确认。
 
+M2 下一步采用本地可触达证据模型：
+
+```text
+TaintPath(reachable=None)
+  + entrypoint evidence
+  + call chain evidence
+  + source control evidence
+  + blocking factors
+  ↓
+ReachabilityAssessment(reachable=true|false|null)
+```
+
+第一版 reachability 只表示静态可触达性，不表示 PoC 可触发或漏洞已验证。
+
+- `reachable=true`：存在本地静态证据支持入口到候选路径上下文可达。
+- `reachable=false`：存在明确阻断证据；不能因为缺入口模型就输出 false。
+- `reachable=null`：候选路径存在，但入口、调用链、source 可控性、sanitizer/guard 或版本证据不足。
+
+预期 assessment 字段包括候选 `TaintPath` 引用、入口证据、调用链或近似链、source 可控性、blocking factors、evidence 和 unknowns。
+
 ## 预期方向
 
 项目预计围绕以下能力展开：
