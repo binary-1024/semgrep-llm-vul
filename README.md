@@ -51,7 +51,6 @@
 ./scripts/build
 ./scripts/benchmark
 ./scripts/update-semgrep-fixtures
-./scripts/benchmark
 uv run semgrep-llm-vul validate-benchmarks
 uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .
 ```
@@ -61,10 +60,9 @@ uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .
 - `./scripts/test` 运行 `pytest`
 - `./scripts/lint` 运行 `ruff check .`
 - `./scripts/build` 运行 `uv build`
-- `./scripts/benchmark` 批量评估当前 benchmark cases 的 M1/M2 阶段期望
 - `./scripts/check` 依次运行 lint、test 和 build
 - `./scripts/update-semgrep-fixtures` 从样例项目生成 Semgrep fixture
-- `./scripts/benchmark` 校验并执行 benchmark/case harness
+- `./scripts/benchmark` 校验并执行 benchmark/case harness，覆盖 inventory/gap evaluator 和 M1/M2 case suite
 - `uv run semgrep-llm-vul validate-benchmarks` 校验 benchmark/case 目录并输出 inventory
 - `uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .` 执行 M1 benchmark/case evaluator
 
@@ -132,6 +130,7 @@ uv run semgrep-llm-vul generate-taint-paths \
 - [术语表](docs/glossary.md)
 - [漏洞分析方法论](docs/methodology.md)
 - [Benchmark 与 Case Harness](docs/benchmark.md)
+- [Benchmark Baseline](docs/benchmark-results.md)
 - [架构说明](docs/architecture.md)
 - [产品目标与需求](docs/product.md)
 - [路线图](docs/roadmap.md)
