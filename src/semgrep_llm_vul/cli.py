@@ -14,6 +14,7 @@ from semgrep_llm_vul.benchmark_cases import (
     BenchmarkCaseError,
     evaluate_benchmark_case,
     evaluate_benchmark_cases,
+    summarize_benchmark_suite,
 )
 from semgrep_llm_vul.reporting import sink_generation_report_to_dict
 from semgrep_llm_vul.semgrep import SemgrepParseError, load_semgrep_findings
@@ -37,7 +38,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "evaluate-case":
         return _evaluate_case(args.path, repo_root=args.repo_root)
     if args.command == "evaluate-cases":
-        return _evaluate_cases(args.path, repo_root=args.repo_root)
+        return _evaluate_cases(
+            args.path,
+            repo_root=args.repo_root,
+            summary_only=args.summary_only,
+        )
 
     parser.print_help()
     return 0
@@ -92,6 +97,11 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         help="解析 cases 内本地 artifact 相对路径时使用的仓库根目录",
     )
+    evaluate_cases.add_argument(
+        "--summary-only",
+        action="store_true",
+        help="仅输出 suite 摘要，不包含每个 case 的完整 sink_report",
+    )
 
     return parser
 
@@ -123,13 +133,15 @@ def _evaluate_case(path: str, *, repo_root: str | None) -> int:
     return 0 if result["passed"] else 1
 
 
-def _evaluate_cases(path: str, *, repo_root: str | None) -> int:
+def _evaluate_cases(path: str, *, repo_root: str | None, summary_only: bool) -> int:
     try:
         result = evaluate_benchmark_cases(path, repo_root=repo_root)
     except (BenchmarkCaseError, SinkGenerationError) as exc:
         print(f"evaluate cases failed: {exc}", file=sys.stderr)
         return 1
 
+    if summary_only:
+        result = summarize_benchmark_suite(result)
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     return 0 if result["passed"] else 1
 

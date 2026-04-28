@@ -80,6 +80,21 @@ def evaluate_benchmark_cases(
     }
 
 
+def summarize_benchmark_suite(result: dict[str, Any]) -> dict[str, Any]:
+    """将 suite evaluation 压缩为适合日常回归查看的摘要。"""
+
+    return {
+        "schema_version": result["schema_version"],
+        "kind": "benchmark_case_suite_summary",
+        "cases_root": result["cases_root"],
+        "total": result["total"],
+        "passed": result["passed"],
+        "passed_count": result["passed_count"],
+        "failed_count": result["failed_count"],
+        "cases": [_case_summary(item) for item in result["results"]],
+    }
+
+
 def _case_to_task(case_data: dict[str, Any]):
     inputs = _required_mapping(case_data, "inputs")
     analysis_input = {
@@ -95,6 +110,16 @@ def _case_to_task(case_data: dict[str, Any]):
         return parse_analysis_input(analysis_input)
     except AnalysisInputError as exc:
         raise BenchmarkCaseError(f"case.yaml 无法转换为分析任务：{exc}") from exc
+
+
+def _case_summary(result: dict[str, Any]) -> dict[str, Any]:
+    failed_checks = [check for check in result["checks"] if not check["passed"]]
+    return {
+        "case_id": result["case_id"],
+        "stage": result["stage"],
+        "passed": result["passed"],
+        "failed_checks": failed_checks,
+    }
 
 
 def _discover_case_dirs(cases_root: Path) -> list[Path]:

@@ -95,6 +95,12 @@ uv run semgrep-llm-vul evaluate-case \
 uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root .
 ```
 
+日常回归可使用摘要输出：
+
+```bash
+uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-only
+```
+
 ## 项目文档
 
 - [Insight 决策流程](docs/Insight/README.md)

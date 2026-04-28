@@ -4,7 +4,11 @@ from pathlib import Path
 
 import pytest
 
-from semgrep_llm_vul.benchmark_cases import evaluate_benchmark_case, evaluate_benchmark_cases
+from semgrep_llm_vul.benchmark_cases import (
+    evaluate_benchmark_case,
+    evaluate_benchmark_cases,
+    summarize_benchmark_suite,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
 CASES_ROOT = ROOT / "benchmarks" / "cases"
@@ -67,3 +71,15 @@ def test_evaluate_benchmark_cases_summarizes_curated_m1_cases() -> None:
         "curated-deserialization-deserialize",
         "curated-open-redirect-safe-negative",
     }
+
+
+def test_summarize_benchmark_suite_omits_full_sink_reports() -> None:
+    result = evaluate_benchmark_cases(CASES_ROOT, repo_root=ROOT)
+
+    summary = summarize_benchmark_suite(result)
+
+    assert summary["kind"] == "benchmark_case_suite_summary"
+    assert summary["total"] == 4
+    assert summary["passed"] is True
+    assert all("sink_report" not in item for item in summary["cases"])
+    assert all(item["failed_checks"] == [] for item in summary["cases"])
