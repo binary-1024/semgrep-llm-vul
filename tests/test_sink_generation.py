@@ -91,7 +91,23 @@ def test_unknown_sink_uses_diff_artifact_candidate() -> None:
 
     assert report.recommended is not None
     assert report.recommended.signature.name == "redirect"
+    assert report.recommended.signature.location is not None
+    assert report.recommended.signature.location.path == "app/routes.py"
+    assert report.recommended.signature.location.start_line == 9
     assert report.recommended.evidence[0].source.kind.value == "diff"
+    assert {item.source.metadata["diff_side"] for item in report.recommended.evidence} == {
+        "added",
+        "removed",
+    }
+    evidence_lines = {
+        item.source.location.start_line
+        for item in report.recommended.evidence
+        if item.source.location
+    }
+    assert evidence_lines == {
+        9,
+        12,
+    }
     assert report.recommended.confidence >= 0.6
 
 
