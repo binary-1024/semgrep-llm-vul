@@ -155,42 +155,41 @@
 
 ## 当前下一步
 
-下一步进入里程碑 1：sink 函数生成。
+下一步进入里程碑 1：sink 函数生成的最小实现。
 
-在实现前，先完成 `sink generation pipeline` 的 Insight 和 ADR。该决策会影响后续 agent 流程、证据链格式、diff 分析方式和 Semgrep/LLM 的职责边界，因此应先在 `codex/docs-sink-generation-plan` 分支中只做决策文档。
+`sink generation pipeline` 的 Insight 和 ADR 已明确采用证据优先、多阶段、本地确定性的第一版流程。决策合入 `main` 后，应在 `codex/feature-sink-generation` 分支中实现最小 sink candidate 生成能力。
 
 建议第一个具体任务：
 
 ```md
 ## 任务
 
-定义 sink 函数生成 pipeline 的决策文档。
+实现最小 sink candidate 生成 pipeline。
 
 ## 背景
 
-项目已经具备基础输入模型、Semgrep finding 归一化和候选 taint path 归一化能力。下一步需要决定如何根据漏洞描述、修复 diff、候选 PR、用户提供的 sink 信息和代码证据，生成或确认 sink 函数。
+项目已经具备基础输入模型、Semgrep finding 归一化、候选 taint path 归一化，以及 sink generation pipeline 决策。下一步需要把决策落成可测试的最小实现。
 
 ## 范围
 
-- 在 `docs/Insight/` 中完成三轮多视角讨论。
-- 明确已知 sink 和未知 sink 两种场景的处理流程。
-- 明确 diff、Semgrep、人工输入和 LLM agent 各自负责什么。
-- 明确 sink candidate 的证据链字段和置信度来源。
-- 明确最小可实现边界和后续扩展点。
-- 将最终决策同步到 `docs/decisions/`。
+- 从 `VulnerabilityInput` 生成 sink candidate report。
+- 已知 sink 场景：用户提供 signature 时生成高优先级候选，并保留 evidence。
+- 未知 sink 场景：从本地 fixture 中的 diff 线索、Semgrep finding 或代码片段生成候选。
+- 实现稳定排序和低证据时的明确失败原因。
+- 添加 fixture 和测试覆盖 known sink、unknown sink、insufficient evidence、malformed evidence。
 
 ## 非目标
 
-- 不实现 sink 生成代码。
-- 不调用 LLM provider。
-- 不拉取真实 GitHub repo。
+- 不调用真实 LLM provider。
+- 不联网拉取真实 GitHub repo。
 - 不实现完整 diff parser。
 - 不进入污点路径、PoC 或 exp 阶段。
 
 ## 验收标准
 
-- `docs/Insight/` 中有 sink generation pipeline 决策过程。
-- `docs/decisions/` 中有最终 ADR。
-- 决策明确下一步 feature 分支的实现边界和测试要求。
+- known sink 输入能生成带 evidence 的 sink candidate。
+- unknown sink fixture 能生成候选或明确说明证据不足。
+- Semgrep finding 只能作为候选证据，不能被当成最终安全结论。
+- 候选排序稳定。
 - `./scripts/check` 通过。
 ```
