@@ -1,0 +1,7 @@
+schema_version: 2
+mode: unknown_sink
+target:
+  repo_url: https://github.com/example/flask-app
+  affected_version: v1.0.0
+description: |
+  Unsupported schema version.

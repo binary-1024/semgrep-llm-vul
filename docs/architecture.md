@@ -22,6 +22,18 @@ TaintPath(reachable=None)
 
 trace 缺失或结构不完整时，不强行生成 `TaintPath`；原始 finding 仍保留为 `NormalizedFinding`。
 
+分析任务入口：
+
+```text
+YAML / JSON analysis input
+  ↓
+VulnerabilityInput
+  ↓
+sink 生成 / 污点路径分析 / PoC / exp
+```
+
+YAML 面向人工编写，JSON 面向机器生成；两者共享同一内部模型。
+
 ## 预期方向
 
 项目预计围绕以下能力展开：

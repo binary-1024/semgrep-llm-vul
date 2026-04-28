@@ -47,6 +47,7 @@
 ./scripts/test
 ./scripts/lint
 ./scripts/build
+./scripts/update-semgrep-fixtures
 ```
 
 这些脚本通过 `uv` 执行：
@@ -55,6 +56,15 @@
 - `./scripts/lint` 运行 `ruff check .`
 - `./scripts/build` 运行 `uv build`
 - `./scripts/check` 依次运行 lint、test 和 build
+- `./scripts/update-semgrep-fixtures` 从样例项目生成 Semgrep fixture
+
+## 分析任务输入
+
+分析任务可以用 YAML 或 JSON 描述。示例：
+
+- [known-sink.yaml](examples/analysis/known-sink.yaml)
+- [unknown-sink.yaml](examples/analysis/unknown-sink.yaml)
+- [known-sink.json](examples/analysis/known-sink.json)
 
 ## 项目文档
 

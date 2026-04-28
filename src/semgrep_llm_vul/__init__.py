@@ -1,6 +1,7 @@
 """semgrep-llm-vul 项目包。"""
 
 from semgrep_llm_vul.models import (
+    AnalysisArtifact,
     AnalysisTarget,
     CodeLocation,
     Evidence,
@@ -17,6 +18,7 @@ from semgrep_llm_vul.models import (
 
 __all__ = [
     "AnalysisTarget",
+    "AnalysisArtifact",
     "CodeLocation",
     "Evidence",
     "FunctionSignature",

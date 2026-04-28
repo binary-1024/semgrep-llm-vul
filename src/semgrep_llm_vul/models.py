@@ -96,6 +96,17 @@ class AnalysisTarget:
 
 
 @dataclass(frozen=True)
+class AnalysisArtifact:
+    """分析任务引用的外部材料。"""
+
+    kind: str
+    uri: str | None = None
+    path: str | None = None
+    sensitive: bool = False
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class FunctionSignature:
     """语言无关的函数或方法签名描述。"""
 
@@ -118,6 +129,7 @@ class VulnerabilityInput:
     sink_signature: FunctionSignature | None = None
     vulnerable_snippet: str | None = None
     candidate_prs: tuple[str, ...] = ()
+    artifacts: tuple[AnalysisArtifact, ...] = ()
 
     def __post_init__(self) -> None:
         if self.mode is InputMode.KNOWN_SINK and self.sink_signature is None:

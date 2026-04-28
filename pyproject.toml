@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "基于 Semgrep findings 和 LLM 工作流的 AI 辅助漏洞分析项目。"
 readme = "README.md"
 requires-python = ">=3.10,<3.11"
-dependencies = []
+dependencies = [
+    "ruamel-yaml>=0.19.1",
+]
 
 [project.scripts]
 semgrep-llm-vul = "semgrep_llm_vul.cli:main"

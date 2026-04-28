@@ -188,7 +188,7 @@ artifacts:
 ## 后续动作
 
 - [x] 同步新增 `docs/decisions/0005-use-yaml-json-analysis-input.md`
-- [ ] 实现分析任务输入解析器
-- [ ] 添加 YAML/JSON 示例和 invalid fixture
-- [ ] 增加解析测试
-- [ ] 更新 `docs/architecture.md` 和 `README.md`
+- [x] 实现分析任务输入解析器
+- [x] 添加 YAML/JSON 示例和 invalid fixture
+- [x] 增加解析测试
+- [x] 更新 `docs/architecture.md` 和 `README.md`

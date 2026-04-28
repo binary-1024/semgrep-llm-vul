@@ -1,0 +1,15 @@
+schema_version: 1
+mode: unknown_sink
+target:
+  repo_url: https://github.com/example/flask-app
+  affected_version: v1.0.0
+  fixed_version: v1.0.1
+  language: python
+description: |
+  The application may redirect users to an attacker-controlled URL.
+candidate_prs:
+  - https://github.com/example/flask-app/pull/123
+artifacts:
+  - kind: vulnerability_description
+    path: docs/advisory.md
+    sensitive: false

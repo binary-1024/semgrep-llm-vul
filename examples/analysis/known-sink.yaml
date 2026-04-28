@@ -1,0 +1,28 @@
+schema_version: 1
+mode: known_sink
+target:
+  repo_url: https://github.com/example/flask-app
+  affected_version: v1.0.0
+  fixed_version: v1.0.1
+  language: python
+description: |
+  Open redirect through the `next` query parameter.
+sink:
+  signature: flask.redirect(location)
+  name: redirect
+  parameters:
+    - location
+  location:
+    path: app/routes.py
+    start_line: 16
+    start_col: 12
+    end_line: 16
+    end_col: 30
+vulnerable_snippet: |
+  return redirect(request.args["next"])
+candidate_prs:
+  - https://github.com/example/flask-app/pull/123
+artifacts:
+  - kind: advisory
+    uri: https://example.com/advisories/open-redirect
+    sensitive: false

@@ -1,0 +1,7 @@
+schema_version: 1
+mode: known_sink
+target:
+  repo_url: https://github.com/example/flask-app
+  affected_version: v1.0.0
+description: |
+  Open redirect through the `next` query parameter.
