@@ -50,6 +50,8 @@ Sink generation report
 
 第一版 sink generation pipeline 保持本地、确定性、可测试，不调用真实 LLM provider，不联网拉取真实 GitHub repo，不实现完整 diff parser。Semgrep finding、diff artifact、用户输入和漏洞描述都只能作为候选证据来源，不能直接等同于漏洞确认结论。
 
+sink candidate extraction 将逐步使用本地内置 sink heuristic pack 组织规则。规则 pack 只负责把调用表达式映射为候选危险行为类别，并为证据链提供规则名、类别和说明；它不负责动态加载外部规则，也不把候选直接升级为可触达、可触发或已验证结论。
+
 当前实现入口：
 
 - `semgrep_llm_vul.sink_generation.generate_sink_report`
