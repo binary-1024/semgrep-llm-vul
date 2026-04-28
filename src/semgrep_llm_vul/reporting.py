@@ -5,15 +5,21 @@ from __future__ import annotations
 from typing import Any
 
 from semgrep_llm_vul.models import (
+    BlockingFactor,
     CodeLocation,
     Evidence,
     FunctionSignature,
+    ReachabilityAssessment,
+    ReachabilityCallStep,
+    ReachabilityEntrypoint,
     SinkCandidate,
     SinkGenerationReport,
+    SourceControlAssessment,
     SourceReference,
     TaintPath,
     VulnerabilityInput,
 )
+from semgrep_llm_vul.reachability import ReachabilityReport
 from semgrep_llm_vul.taint_path_generation import TaintPathGenerationReport
 
 
@@ -64,6 +70,50 @@ def taint_path_generation_report_to_dict(
     }
 
 
+def reachability_report_to_dict(
+    report: ReachabilityReport,
+    *,
+    task: VulnerabilityInput,
+) -> dict[str, Any]:
+    """将 reachability report 转为稳定 JSON 结构。"""
+
+    return {
+        "schema_version": 1,
+        "kind": "reachability_report",
+        "mode": task.mode.value,
+        "target": {
+            "repo_url": task.target.repo_url,
+            "affected_version": task.target.affected_version,
+            "fixed_version": task.target.fixed_version,
+            "language": task.target.language,
+        },
+        "assessments": [
+            _reachability_assessment_to_dict(assessment)
+            for assessment in report.assessments
+        ],
+        "evidence": [_evidence_to_dict(evidence) for evidence in report.evidence],
+        "unknowns": list(report.unknowns),
+    }
+
+
+def _reachability_assessment_to_dict(
+    assessment: ReachabilityAssessment,
+) -> dict[str, Any]:
+    return {
+        "path": _taint_path_to_dict(assessment.path),
+        "reachable": assessment.reachable,
+        "entrypoint": _entrypoint_to_dict(assessment.entrypoint),
+        "call_chain": [_call_step_to_dict(step) for step in assessment.call_chain],
+        "source_control": _source_control_to_dict(assessment.source_control),
+        "blocking_factors": [
+            _blocking_factor_to_dict(factor)
+            for factor in assessment.blocking_factors
+        ],
+        "evidence": [_evidence_to_dict(evidence) for evidence in assessment.evidence],
+        "unknowns": list(assessment.unknowns),
+    }
+
+
 def _taint_path_to_dict(path: TaintPath) -> dict[str, Any]:
     return {
         "source": {
@@ -86,6 +136,48 @@ def _taint_path_to_dict(path: TaintPath) -> dict[str, Any]:
         ],
         "reachable": path.reachable,
         "evidence": [_evidence_to_dict(evidence) for evidence in path.evidence],
+    }
+
+
+def _entrypoint_to_dict(
+    entrypoint: ReachabilityEntrypoint | None,
+) -> dict[str, Any] | None:
+    if entrypoint is None:
+        return None
+    return {
+        "kind": entrypoint.kind,
+        "name": entrypoint.name,
+        "location": _location_to_dict(entrypoint.location),
+        "evidence": [_evidence_to_dict(evidence) for evidence in entrypoint.evidence],
+    }
+
+
+def _call_step_to_dict(step: ReachabilityCallStep) -> dict[str, Any]:
+    return {
+        "symbol": step.symbol,
+        "location": _location_to_dict(step.location),
+        "evidence": [_evidence_to_dict(evidence) for evidence in step.evidence],
+    }
+
+
+def _source_control_to_dict(
+    source_control: SourceControlAssessment | None,
+) -> dict[str, Any] | None:
+    if source_control is None:
+        return None
+    return {
+        "controlled": source_control.controlled,
+        "reason": source_control.reason,
+        "evidence": [_evidence_to_dict(evidence) for evidence in source_control.evidence],
+    }
+
+
+def _blocking_factor_to_dict(factor: BlockingFactor) -> dict[str, Any]:
+    return {
+        "kind": factor.kind,
+        "summary": factor.summary,
+        "location": _location_to_dict(factor.location),
+        "evidence": [_evidence_to_dict(evidence) for evidence in factor.evidence],
     }
 
 

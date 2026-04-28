@@ -10,7 +10,13 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from semgrep_llm_vul.analysis_input import AnalysisInputError, parse_analysis_input
+from semgrep_llm_vul.reachability import (
+    ReachabilityEvidenceError,
+    generate_reachability_report,
+    load_reachability_evidence,
+)
 from semgrep_llm_vul.reporting import (
+    reachability_report_to_dict,
     sink_generation_report_to_dict,
     taint_path_generation_report_to_dict,
 )
@@ -81,6 +87,7 @@ def _evaluate_m2_case(
     task = _case_to_task(case_data)
     root = _repo_root(repo_root)
     semgrep_json = _semgrep_json_paths(case_data, repo_root=root)
+    reachability_json = _reachability_json_paths(case_data, repo_root=root)
     try:
         findings = tuple(
             finding
@@ -92,8 +99,13 @@ def _evaluate_m2_case(
             for result_path in semgrep_json
             for taint_path in load_semgrep_taint_paths(result_path)
         )
-    except SemgrepParseError as exc:
-        raise BenchmarkCaseError(f"case Semgrep JSON 无法解析：{exc}") from exc
+        reachability_records = tuple(
+            record
+            for evidence_path in reachability_json
+            for record in load_reachability_evidence(evidence_path)
+        )
+    except (ReachabilityEvidenceError, SemgrepParseError) as exc:
+        raise BenchmarkCaseError(f"case evidence 无法解析：{exc}") from exc
 
     sink_report = generate_sink_report(task, semgrep_findings=findings, artifact_base=root)
     taint_report = generate_taint_path_report(
@@ -102,9 +114,18 @@ def _evaluate_m2_case(
         semgrep_taint_paths=taint_paths,
     )
     report_dict = taint_path_generation_report_to_dict(taint_report, task=task)
-    checks = _m2_checks(report_dict, expected)
+    reachability_report = generate_reachability_report(
+        task,
+        taint_report=taint_report,
+        evidence_records=reachability_records,
+    )
+    reachability_dict = reachability_report_to_dict(reachability_report, task=task)
+    checks = [
+        *_m2_checks(report_dict, expected),
+        *_reachability_checks(reachability_dict, expected),
+    ]
 
-    return {
+    result = {
         "schema_version": 1,
         "kind": "benchmark_case_evaluation",
         "case_id": _required_str(case_data, "id"),
@@ -113,6 +134,9 @@ def _evaluate_m2_case(
         "checks": checks,
         "taint_path_report": report_dict,
     }
+    if reachability_json:
+        result["reachability_report"] = reachability_dict
+    return result
 
 
 def evaluate_benchmark_cases(
@@ -178,14 +202,31 @@ def _repo_root(repo_root: str | Path | None) -> Path:
 
 
 def _semgrep_json_paths(case_data: dict[str, Any], *, repo_root: Path) -> tuple[Path, ...]:
+    return _input_paths(case_data, field="semgrep_json", repo_root=repo_root)
+
+
+def _reachability_json_paths(
+    case_data: dict[str, Any],
+    *,
+    repo_root: Path,
+) -> tuple[Path, ...]:
+    return _input_paths(case_data, field="reachability_json", repo_root=repo_root)
+
+
+def _input_paths(
+    case_data: dict[str, Any],
+    *,
+    field: str,
+    repo_root: Path,
+) -> tuple[Path, ...]:
     inputs = _required_mapping(case_data, "inputs")
-    paths = inputs.get("semgrep_json", [])
+    paths = inputs.get(field, [])
     if not isinstance(paths, list):
-        raise BenchmarkCaseError("inputs.semgrep_json 必须是 list")
+        raise BenchmarkCaseError(f"inputs.{field} 必须是 list")
     resolved = []
     for index, item in enumerate(paths):
         if not isinstance(item, str) or not item:
-            raise BenchmarkCaseError(f"inputs.semgrep_json[{index}] 必须是非空字符串")
+            raise BenchmarkCaseError(f"inputs.{field}[{index}] 必须是非空字符串")
         path = Path(item)
         resolved.append(path if path.is_absolute() else repo_root / path)
     return tuple(resolved)
@@ -247,6 +288,33 @@ def _m2_checks(report: dict[str, Any], expected: dict[str, Any]) -> list[dict[st
                 "passed": matched,
                 "expected": expected_path,
                 "message": "期望 taint path 已出现" if matched else "期望 taint path 未出现",
+            }
+        )
+    return checks
+
+
+def _reachability_checks(
+    report: dict[str, Any],
+    expected: dict[str, Any],
+) -> list[dict[str, Any]]:
+    checks = []
+    for index, expected_assessment in enumerate(expected.get("reachability", [])):
+        if not isinstance(expected_assessment, dict):
+            raise BenchmarkCaseError(f"expected.reachability[{index}] 必须是 object")
+        matched = any(
+            _reachability_matches(candidate, expected_assessment)
+            for candidate in report["assessments"]
+        )
+        checks.append(
+            {
+                "name": f"expected_reachability[{index}]",
+                "passed": matched,
+                "expected": expected_assessment,
+                "message": (
+                    "期望 reachability assessment 已出现"
+                    if matched
+                    else "期望 reachability assessment 未出现"
+                ),
             }
         )
     return checks
@@ -352,6 +420,34 @@ def _location_matches(actual: dict[str, Any] | None, expected: dict[str, Any]) -
         return False
     if "start_line" in expected and actual.get("start_line") != expected["start_line"]:
         return False
+    return True
+
+
+def _reachability_matches(
+    candidate: dict[str, Any],
+    expected_assessment: dict[str, Any],
+) -> bool:
+    if (
+        "reachable" in expected_assessment
+        and candidate.get("reachable") != expected_assessment["reachable"]
+    ):
+        return False
+    if "sink_name" in expected_assessment:
+        sink_name = candidate["path"]["sink"]["signature"]["name"]
+        if sink_name != expected_assessment["sink_name"]:
+            return False
+    if "source_name" in expected_assessment:
+        source_name = candidate["path"]["source"]["name"]
+        if source_name != expected_assessment["source_name"]:
+            return False
+    if "entrypoint_kind" in expected_assessment:
+        entrypoint = candidate.get("entrypoint") or {}
+        if entrypoint.get("kind") != expected_assessment["entrypoint_kind"]:
+            return False
+    if "blocking_factor_kind" in expected_assessment:
+        kinds = {factor["kind"] for factor in candidate.get("blocking_factors", [])}
+        if expected_assessment["blocking_factor_kind"] not in kinds:
+            return False
     return True
 
 

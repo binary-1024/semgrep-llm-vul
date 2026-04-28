@@ -118,6 +118,15 @@ uv run semgrep-llm-vul generate-taint-paths \
   --semgrep-json fixtures/semgrep/taint-result-with-trace.json
 ```
 
+生成 reachability JSON 报告：
+
+```bash
+uv run semgrep-llm-vul confirm-reachability \
+  examples/analysis/unknown-sink.yaml \
+  --semgrep-json fixtures/semgrep/taint-result-with-trace.json \
+  --reachability-json fixtures/reachability/open-redirect-reachable.json
+```
+
 日常回归可使用摘要输出：
 
 ```bash

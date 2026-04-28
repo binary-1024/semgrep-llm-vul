@@ -182,24 +182,25 @@ M2 当前已经具备：
 - sink candidate 与 Semgrep taint path 的最小对齐能力。
 - M2 taint path candidate 已纳入 benchmark/case harness。
 - M2 reachability evidence model 已完成 Insight 和 ADR。
+- `ReachabilityAssessment`、`ReachabilityReport` 和 `confirm-reachability` 最小本地入口。
 
 建议下一个 M2 具体任务：
 
 ```md
 ## 任务
 
-实现 M2 可触达确认的最小本地模型。
+扩展 M2 可触达确认的真实入口模型。
 
 ## 背景
 
-项目已经具备最小 taint path candidate generation、稳定 JSON 报告、CLI 入口、benchmark/case 回归和 reachability evidence model 决策。下一步需要把 `ReachabilityAssessment` 落成最小实现，先支持本地 fixture 中可证明的入口到路径上下文。
+项目已经具备最小 taint path candidate generation、稳定 JSON 报告、CLI 入口、benchmark/case 回归、reachability evidence model 决策和本地 evidence JSON 驱动的最小实现。下一步需要让系统从小型 fixture 项目中提取第一类真实入口证据，而不是完全依赖手写 reachability JSON。
 
 ## 范围
 
-- 新增 reachability assessment 数据模型或报告模型。
-- 支持最小本地入口证据和调用链证据输入。
-- 生成 `reachable=true|false|null`、blocking factors、evidence 和 unknowns。
-- 新增 positive/unknown/blocked curated cases 或 fixture。
+- 选择一个最小框架入口模型，例如 Python Flask route。
+- 从本地 fixture 源码或结构化 artifact 中提取 entrypoint evidence。
+- 将入口证据接入现有 `ReachabilityAssessment`。
+- 保持 source control、blocking factors 和 unknowns 的三态语义。
 
 ## 非目标
 
@@ -211,9 +212,9 @@ M2 当前已经具备：
 
 ## 验收标准
 
-- 新增单元测试覆盖 `true/false/null` 状态语义。
-- 新增或扩展 benchmark/case 回归。
-- `reachable=false` 必须有明确阻断证据测试。
+- 新增最小入口模型单元测试。
+- 新增或扩展 M2 benchmark/case 回归。
+- 缺入口模型时继续保持 `reachable=null`。
 - `./scripts/benchmark` 继续通过。
 - `./scripts/check` 通过。
 ```

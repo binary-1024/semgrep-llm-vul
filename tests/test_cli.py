@@ -111,6 +111,27 @@ def test_generate_taint_paths_cli_reports_missing_semgrep_paths(capsys) -> None:
     assert "缺少 Semgrep taint path 候选。" in report["unknowns"]
 
 
+def test_confirm_reachability_cli_outputs_json_report(capsys) -> None:
+    exit_code = main(
+        [
+            "confirm-reachability",
+            str(ROOT / "examples" / "analysis" / "unknown-sink.yaml"),
+            "--semgrep-json",
+            str(ROOT / "fixtures" / "semgrep" / "taint-result-with-trace.json"),
+            "--reachability-json",
+            str(ROOT / "fixtures" / "reachability" / "open-redirect-reachable.json"),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    report = json.loads(captured.out)
+    assert report["kind"] == "reachability_report"
+    assert report["assessments"][0]["reachable"] is True
+    assert report["assessments"][0]["path"]["reachable"] is True
+    assert report["assessments"][0]["entrypoint"]["kind"] == "flask_route"
+
+
 def test_evaluate_case_cli_outputs_json_report(capsys) -> None:
     exit_code = main(
         [
@@ -143,7 +164,7 @@ def test_evaluate_cases_cli_outputs_json_report(capsys) -> None:
     assert exit_code == 0
     report = json.loads(captured.out)
     assert report["kind"] == "benchmark_case_suite_evaluation"
-    assert report["total"] == 12
+    assert report["total"] == 13
     assert report["passed"] is True
 
 
@@ -162,7 +183,7 @@ def test_evaluate_cases_cli_outputs_summary_report(capsys) -> None:
     assert exit_code == 0
     report = json.loads(captured.out)
     assert report["kind"] == "benchmark_case_suite_summary"
-    assert report["total"] == 12
+    assert report["total"] == 13
     assert report["passed"] is True
     assert all("sink_report" not in item for item in report["cases"])
 
@@ -179,8 +200,8 @@ def test_validate_benchmarks_cli_outputs_inventory(capsys) -> None:
     assert exit_code == 0
     inventory = json.loads(captured.out)
     assert inventory["kind"] == "benchmark_case_inventory"
-    assert inventory["summary"]["total"] == 14
-    assert inventory["summary"]["candidate"] == 12
+    assert inventory["summary"]["total"] == 15
+    assert inventory["summary"]["candidate"] == 13
 
 
 def test_benchmark_script_is_executable() -> None:

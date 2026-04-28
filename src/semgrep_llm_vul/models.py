@@ -25,6 +25,7 @@ class EvidenceKind(str, Enum):
     SEMGREP_FINDING = "semgrep_finding"
     EXECUTION_LOG = "execution_log"
     HUMAN_INPUT = "human_input"
+    REACHABILITY_EVIDENCE = "reachability_evidence"
 
 
 class ArtifactKind(str, Enum):
@@ -210,6 +211,62 @@ class TaintPath:
     steps: tuple[TaintStep, ...]
     reachable: bool | None = None
     evidence: tuple[Evidence, ...] = ()
+
+
+@dataclass(frozen=True)
+class ReachabilityEntrypoint:
+    """可触达确认中的入口证据。"""
+
+    kind: str
+    name: str
+    location: CodeLocation | None = None
+    evidence: tuple[Evidence, ...] = ()
+
+
+@dataclass(frozen=True)
+class ReachabilityCallStep:
+    """入口到候选路径上下文的调用链节点。"""
+
+    symbol: str
+    location: CodeLocation | None = None
+    evidence: tuple[Evidence, ...] = ()
+
+
+@dataclass(frozen=True)
+class BlockingFactor:
+    """阻断可触达确认的明确证据。"""
+
+    kind: str
+    summary: str
+    location: CodeLocation | None = None
+    evidence: tuple[Evidence, ...] = ()
+
+
+@dataclass(frozen=True)
+class SourceControlAssessment:
+    """source 是否可能由外部输入控制的判断。"""
+
+    controlled: bool | None
+    reason: str
+    evidence: tuple[Evidence, ...] = ()
+
+
+@dataclass(frozen=True)
+class ReachabilityAssessment:
+    """候选污点路径的可触达确认结果。"""
+
+    path: TaintPath
+    reachable: bool | None
+    entrypoint: ReachabilityEntrypoint | None = None
+    call_chain: tuple[ReachabilityCallStep, ...] = ()
+    source_control: SourceControlAssessment | None = None
+    blocking_factors: tuple[BlockingFactor, ...] = ()
+    evidence: tuple[Evidence, ...] = ()
+    unknowns: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if self.reachable is False and not self.blocking_factors:
+            raise ValueError("reachable=false 必须提供明确 blocking_factors")
 
 
 @dataclass(frozen=True)

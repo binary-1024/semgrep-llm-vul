@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "assessments": [
+    {
+      "path_match": {
+        "source_name": "request.args[\"next\"]",
+        "sink_name": "redirect",
+        "sink": {
+          "path": "app/routes.py",
+          "start_line": 16
+        }
+      },
+      "reachable": true,
+      "entrypoint": {
+        "kind": "flask_route",
+        "name": "GET /login",
+        "location": {
+          "path": "app/routes.py",
+          "start_line": 11
+        }
+      },
+      "call_chain": [
+        {
+          "symbol": "login",
+          "location": {
+            "path": "app/routes.py",
+            "start_line": 12
+          }
+        },
+        {
+          "symbol": "redirect(next_url)",
+          "location": {
+            "path": "app/routes.py",
+            "start_line": 16
+          }
+        }
+      ],
+      "source_control": {
+        "controlled": true,
+        "reason": "source 来自 HTTP query 参数 next。"
+      },
+      "blocking_factors": [],
+      "evidence": [
+        {
+          "summary": "Flask route 入口调用包含 taint path 的 handler。",
+          "reasoning": "route handler 读取 request.args[\"next\"] 并传入 redirect。",
+          "confidence": 0.75,
+          "location": {
+            "path": "app/routes.py",
+            "start_line": 11
+          }
+        }
+      ],
+      "unknowns": [
+        "尚未运行 PoC 验证重定向行为。"
+      ]
+    }
+  ]
+}

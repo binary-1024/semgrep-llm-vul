@@ -27,7 +27,13 @@ from semgrep_llm_vul.benchmark_cases import (
     evaluate_benchmark_cases,
     summarize_benchmark_suite,
 )
+from semgrep_llm_vul.reachability import (
+    ReachabilityEvidenceError,
+    generate_reachability_report,
+    load_reachability_evidence,
+)
 from semgrep_llm_vul.reporting import (
+    reachability_report_to_dict,
     sink_generation_report_to_dict,
     taint_path_generation_report_to_dict,
 )
@@ -58,6 +64,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _generate_taint_paths(
             args.path,
             semgrep_json=args.semgrep_json,
+            artifact_base=args.artifact_base,
+        )
+    if args.command == "confirm-reachability":
+        return _confirm_reachability(
+            args.path,
+            semgrep_json=args.semgrep_json,
+            reachability_json=args.reachability_json,
             artifact_base=args.artifact_base,
         )
     if args.command == "evaluate-case":
@@ -121,6 +134,29 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Semgrep JSON 结果路径，可重复传入",
     )
     generate_taint_paths.add_argument(
+        "--artifact-base",
+        default=None,
+        help="解析本地 artifact 相对路径时使用的基准目录",
+    )
+
+    confirm_reachability = subparsers.add_parser(
+        "confirm-reachability",
+        help="基于本地证据生成 reachability JSON 报告",
+    )
+    confirm_reachability.add_argument("path", help="分析任务输入文件路径")
+    confirm_reachability.add_argument(
+        "--semgrep-json",
+        action="append",
+        default=[],
+        help="Semgrep JSON 结果路径，可重复传入",
+    )
+    confirm_reachability.add_argument(
+        "--reachability-json",
+        action="append",
+        default=[],
+        help="本地 reachability evidence JSON 路径，可重复传入",
+    )
+    confirm_reachability.add_argument(
         "--artifact-base",
         default=None,
         help="解析本地 artifact 相对路径时使用的基准目录",
@@ -296,6 +332,65 @@ def _generate_taint_paths(
     print(
         json.dumps(
             taint_path_generation_report_to_dict(report, task=task),
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
+def _confirm_reachability(
+    path: str,
+    *,
+    semgrep_json: Sequence[str],
+    reachability_json: Sequence[str],
+    artifact_base: str | None,
+) -> int:
+    try:
+        task = load_analysis_input(path)
+        findings = tuple(
+            finding
+            for result_path in semgrep_json
+            for finding in load_semgrep_findings(Path(result_path))
+        )
+        taint_paths = tuple(
+            taint_path
+            for result_path in semgrep_json
+            for taint_path in load_semgrep_taint_paths(Path(result_path))
+        )
+        evidence_records = tuple(
+            record
+            for evidence_path in reachability_json
+            for record in load_reachability_evidence(Path(evidence_path))
+        )
+        sink_report = generate_sink_report(
+            task,
+            semgrep_findings=findings,
+            artifact_base=artifact_base,
+        )
+        taint_report = generate_taint_path_report(
+            task,
+            sink_report=sink_report,
+            semgrep_taint_paths=taint_paths,
+        )
+        report = generate_reachability_report(
+            task,
+            taint_report=taint_report,
+            evidence_records=evidence_records,
+        )
+    except (
+        AnalysisInputError,
+        ReachabilityEvidenceError,
+        SemgrepParseError,
+        SinkGenerationError,
+    ) as exc:
+        print(f"confirm reachability failed: {exc}", file=sys.stderr)
+        return 1
+
+    print(
+        json.dumps(
+            reachability_report_to_dict(report, task=task),
             ensure_ascii=False,
             indent=2,
             sort_keys=True,

@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "assessments": [
+    {
+      "path_match": {
+        "sink_name": "redirect"
+      },
+      "reachable": false,
+      "blocking_factors": []
+    }
+  ]
+}

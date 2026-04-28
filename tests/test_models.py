@@ -2,10 +2,12 @@ import pytest
 
 from semgrep_llm_vul import (
     AnalysisTarget,
+    BlockingFactor,
     CodeLocation,
     Evidence,
     FunctionSignature,
     InputMode,
+    ReachabilityAssessment,
     SinkCandidate,
     SourceCandidate,
     TaintPath,
@@ -120,3 +122,47 @@ def test_taint_path_links_source_and_sink_with_evidence() -> None:
 
     assert path.reachable is True
     assert path.steps[0].symbol == "redirect"
+
+
+def test_reachability_false_requires_blocking_factor() -> None:
+    location = CodeLocation(path="app/routes.py", start_line=12)
+    evidence = Evidence(
+        source=SourceReference(kind=EvidenceKind.CODE_LOCATION, location=location),
+        summary="The handler is not registered.",
+        reasoning="No route references the handler.",
+        confidence=0.7,
+    )
+    source = SourceCandidate(
+        name="request.args['next']",
+        location=location,
+        reason="User-controlled query parameter.",
+        confidence=0.8,
+    )
+    sink = SinkCandidate(
+        signature=FunctionSignature(raw="redirect(location)", name="redirect"),
+        reason="redirect can send users to attacker-controlled locations.",
+        confidence=0.8,
+    )
+    path = TaintPath(
+        source=source,
+        sink=sink,
+        steps=(TaintStep(location=location, symbol="redirect"),),
+    )
+
+    with pytest.raises(ValueError, match="blocking_factors"):
+        ReachabilityAssessment(path=path, reachable=False)
+
+    assessment = ReachabilityAssessment(
+        path=path,
+        reachable=False,
+        blocking_factors=(
+            BlockingFactor(
+                kind="unregistered_handler",
+                summary="The handler is not registered.",
+                location=location,
+                evidence=(evidence,),
+            ),
+        ),
+    )
+
+    assert assessment.reachable is False
