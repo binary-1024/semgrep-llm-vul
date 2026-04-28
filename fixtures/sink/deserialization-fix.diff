@@ -1,0 +1,8 @@
+diff --git a/app/session.py b/app/session.py
+index 5555555..6666666 100644
+--- a/app/session.py
++++ b/app/session.py
+@@ -42,5 +42,7 @@ def load_session(raw):
+-    return deserialize(raw)
++    data = parse_signed_json(raw)
++    return SessionData.from_dict(data)

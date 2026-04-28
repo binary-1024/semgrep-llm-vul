@@ -9,6 +9,7 @@
 - `unknown_with_semgrep`：未知 sink，通过 `NormalizedFinding` 提供候选证据。
 - `insufficient`：证据不足时，不应伪造高置信推荐。
 - `negative`：安全封装、校验逻辑或规则名子串不应被误判为直接 sink。
+- `benchmark`：benchmark/case harness 使用的最小本地 diff 样例。
 - `malformed`：证据结构存在问题时，应给出结构化错误。
 
 ## 规则

@@ -92,5 +92,8 @@ case id 使用小写 kebab-case：
 示例：
 
 - `curated-open-redirect-safe-wrapper`
+- `curated-command-execution-system`
+- `curated-deserialization-deserialize`
+- `curated-open-redirect-safe-negative`
 - `vul4j-command-injection-example`
 - `owasp-benchmark-xss-sample`

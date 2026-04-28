@@ -2,21 +2,40 @@ import json
 import shutil
 from pathlib import Path
 
+import pytest
+
 from semgrep_llm_vul.benchmark_cases import evaluate_benchmark_case
 
 ROOT = Path(__file__).resolve().parent.parent
-CASE_DIR = ROOT / "benchmarks" / "cases" / "curated-open-redirect-safe-wrapper"
+CASES_ROOT = ROOT / "benchmarks" / "cases"
+CASE_DIR = CASES_ROOT / "curated-open-redirect-safe-wrapper"
 
 
-def test_evaluate_benchmark_case_passes_curated_m1_case() -> None:
-    result = evaluate_benchmark_case(CASE_DIR, repo_root=ROOT)
+@pytest.mark.parametrize(
+    ("case_id", "recommended_name"),
+    [
+        ("curated-open-redirect-safe-wrapper", "redirect"),
+        ("curated-command-execution-system", "system"),
+        ("curated-deserialization-deserialize", "deserialize"),
+        ("curated-open-redirect-safe-negative", None),
+    ],
+)
+def test_evaluate_benchmark_case_passes_curated_m1_cases(
+    case_id: str,
+    recommended_name: str | None,
+) -> None:
+    result = evaluate_benchmark_case(CASES_ROOT / case_id, repo_root=ROOT)
 
     assert result["kind"] == "benchmark_case_evaluation"
-    assert result["case_id"] == "curated-open-redirect-safe-wrapper"
+    assert result["case_id"] == case_id
     assert result["stage"] == "M1"
     assert result["passed"] is True
     assert all(check["passed"] for check in result["checks"])
-    assert result["sink_report"]["recommended"]["signature"]["name"] == "redirect"
+    recommended = result["sink_report"]["recommended"]
+    if recommended_name is None:
+        assert recommended is None
+    else:
+        assert recommended["signature"]["name"] == recommended_name
 
 
 def test_evaluate_benchmark_case_reports_failed_expected_sink(tmp_path) -> None:

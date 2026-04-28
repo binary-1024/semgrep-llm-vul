@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "stage": "M1",
+  "expected_status": "candidate",
+  "sink_candidates": [
+    {
+      "name": "deserialize",
+      "path": "app/session.py",
+      "start_line": 42,
+      "heuristic_category": "deserialization"
+    }
+  ],
+  "must_not_include": [
+    {
+      "name": "parse_signed_json"
+    }
+  ]
+}
