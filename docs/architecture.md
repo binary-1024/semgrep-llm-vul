@@ -75,6 +75,8 @@ TaintPathGenerationReport
 - `semgrep_llm_vul.taint_path_generation.generate_taint_path_report`
 - 输出模型：`TaintPathGenerationReport`
 - 输入证据：`VulnerabilityInput`、`SinkGenerationReport`、已归一化的 Semgrep `TaintPath`
+- CLI：`uv run semgrep-llm-vul generate-taint-paths <analysis-input> --semgrep-json <semgrep.json>`
+- JSON 序列化：`semgrep_llm_vul.reporting.taint_path_generation_report_to_dict`
 - 语义边界：只保留能与 sink candidate 对齐的路径；`reachable` 保持 `None`；不做调用图、入口可达性、sanitizer 充分性或可利用确认。
 
 ## 预期方向

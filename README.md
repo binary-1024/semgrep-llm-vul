@@ -97,6 +97,14 @@ uv run semgrep-llm-vul evaluate-case \
 uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root .
 ```
 
+生成 taint path candidate JSON 报告：
+
+```bash
+uv run semgrep-llm-vul generate-taint-paths \
+  examples/analysis/unknown-sink.yaml \
+  --semgrep-json fixtures/semgrep/taint-result-with-trace.json
+```
+
 日常回归可使用摘要输出：
 
 ```bash
