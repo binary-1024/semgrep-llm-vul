@@ -29,6 +29,7 @@ from semgrep_llm_vul.benchmark_cases import (
 )
 from semgrep_llm_vul.reachability import (
     ReachabilityEvidenceError,
+    discover_flask_route_evidence,
     generate_reachability_report,
     load_reachability_evidence,
 )
@@ -71,6 +72,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.path,
             semgrep_json=args.semgrep_json,
             reachability_json=args.reachability_json,
+            source_root=args.source_root,
             artifact_base=args.artifact_base,
         )
     if args.command == "evaluate-case":
@@ -155,6 +157,12 @@ def _build_parser() -> argparse.ArgumentParser:
         action="append",
         default=[],
         help="本地 reachability evidence JSON 路径，可重复传入",
+    )
+    confirm_reachability.add_argument(
+        "--source-root",
+        action="append",
+        default=[],
+        help="用于提取最小入口证据的本地源码根目录，可重复传入",
     )
     confirm_reachability.add_argument(
         "--artifact-base",
@@ -345,6 +353,7 @@ def _confirm_reachability(
     *,
     semgrep_json: Sequence[str],
     reachability_json: Sequence[str],
+    source_root: Sequence[str],
     artifact_base: str | None,
 ) -> int:
     try:
@@ -363,6 +372,13 @@ def _confirm_reachability(
             record
             for evidence_path in reachability_json
             for record in load_reachability_evidence(Path(evidence_path))
+        ) + tuple(
+            record
+            for root in source_root
+            for record in discover_flask_route_evidence(
+                Path(root),
+                taint_paths=taint_paths,
+            )
         )
         sink_report = generate_sink_report(
             task,

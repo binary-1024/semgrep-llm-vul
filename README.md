@@ -127,6 +127,15 @@ uv run semgrep-llm-vul confirm-reachability \
   --reachability-json fixtures/reachability/open-redirect-reachable.json
 ```
 
+也可以从本地源码 fixture 提取最小 Flask route 入口证据：
+
+```bash
+uv run semgrep-llm-vul confirm-reachability \
+  examples/analysis/unknown-sink.yaml \
+  --semgrep-json fixtures/semgrep/taint-result-with-trace.json \
+  --source-root fixtures/reachability/flask-app
+```
+
 日常回归可使用摘要输出：
 
 ```bash

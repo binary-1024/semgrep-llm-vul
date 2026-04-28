@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -82,6 +83,40 @@ def load_reachability_evidence(path: str | Path) -> tuple[ReachabilityEvidenceRe
     return tuple(_record_from_dict(item, evidence_path=evidence_path) for item in records)
 
 
+def discover_flask_route_evidence(
+    source_root: str | Path,
+    *,
+    taint_paths: tuple[TaintPath, ...],
+) -> tuple[ReachabilityEvidenceRecord, ...]:
+    """从本地 Python 源码中提取最小 Flask route 可触达证据。"""
+
+    root = Path(source_root)
+    if not root.exists():
+        raise ReachabilityEvidenceError(f"source root 不存在：{source_root}")
+    if not root.is_dir():
+        raise ReachabilityEvidenceError(f"source root 必须是目录：{source_root}")
+
+    records: list[ReachabilityEvidenceRecord] = []
+    route_index = _flask_routes_by_path(root)
+    for taint_path in taint_paths:
+        sink_location = taint_path.sink.signature.location
+        if sink_location is None:
+            continue
+        routes = route_index.get(sink_location.path, ())
+        route = next(
+            (
+                item
+                for item in routes
+                if _line_within(sink_location.start_line, item.function)
+            ),
+            None,
+        )
+        if route is None:
+            continue
+        records.append(_record_from_flask_route(taint_path, route, source_root=root))
+    return tuple(records)
+
+
 def generate_reachability_report(
     task: VulnerabilityInput,
     *,
@@ -111,6 +146,194 @@ def generate_reachability_report(
         assessments=assessments,
         evidence=report_evidence,
         unknowns=tuple(dict.fromkeys(unknowns)),
+    )
+
+
+@dataclass(frozen=True)
+class _FlaskRoute:
+    path: str
+    route: str
+    methods: tuple[str, ...]
+    function: ast.FunctionDef
+    source_path: Path
+
+
+def _flask_routes_by_path(root: Path) -> dict[str, tuple[_FlaskRoute, ...]]:
+    routes: dict[str, list[_FlaskRoute]] = {}
+    for path in sorted(root.rglob("*.py")):
+        relative = path.relative_to(root).as_posix()
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        except (OSError, SyntaxError):
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.FunctionDef):
+                continue
+            route = _route_from_function(node, relative=relative, source_path=path)
+            if route is None:
+                continue
+            routes.setdefault(relative, []).append(route)
+    return {key: tuple(value) for key, value in routes.items()}
+
+
+def _route_from_function(
+    function: ast.FunctionDef,
+    *,
+    relative: str,
+    source_path: Path,
+) -> _FlaskRoute | None:
+    for decorator in function.decorator_list:
+        route = _route_from_decorator(decorator)
+        if route is None:
+            continue
+        route_path, methods = route
+        return _FlaskRoute(
+            path=relative,
+            route=route_path,
+            methods=methods,
+            function=function,
+            source_path=source_path,
+        )
+    return None
+
+
+def _route_from_decorator(decorator: ast.expr) -> tuple[str, tuple[str, ...]] | None:
+    if not isinstance(decorator, ast.Call):
+        return None
+    func = decorator.func
+    if not isinstance(func, ast.Attribute) or func.attr != "route":
+        return None
+    if not decorator.args or not isinstance(decorator.args[0], ast.Constant):
+        return None
+    route_path = decorator.args[0].value
+    if not isinstance(route_path, str):
+        return None
+    methods = _methods_from_decorator(decorator)
+    return route_path, methods
+
+
+def _methods_from_decorator(decorator: ast.Call) -> tuple[str, ...]:
+    for keyword in decorator.keywords:
+        if keyword.arg != "methods":
+            continue
+        value = keyword.value
+        if not isinstance(value, ast.List | ast.Tuple):
+            continue
+        methods = []
+        for item in value.elts:
+            if isinstance(item, ast.Constant) and isinstance(item.value, str):
+                methods.append(item.value.upper())
+        return tuple(methods) or ("GET",)
+    return ("GET",)
+
+
+def _record_from_flask_route(
+    taint_path: TaintPath,
+    route: _FlaskRoute,
+    *,
+    source_root: Path,
+) -> ReachabilityEvidenceRecord:
+    decorator_line = route.function.decorator_list[0].lineno
+    entrypoint_location = CodeLocation(path=route.path, start_line=decorator_line)
+    function_location = CodeLocation(path=route.path, start_line=route.function.lineno)
+    sink_location = taint_path.sink.signature.location
+    method = route.methods[0] if route.methods else "GET"
+    sink_symbol = _sink_step_symbol(taint_path)
+    source_control = SourceControlAssessment(
+        controlled=_source_looks_request_controlled(taint_path),
+        reason="source 来自 Flask request 对象。" if _source_looks_request_controlled(taint_path)
+        else "未从 source 名称确认外部可控性。",
+        evidence=(
+            _source_evidence(
+                taint_path,
+                route.source_path,
+            ),
+        ),
+    )
+    evidence = (
+        Evidence(
+            source=SourceReference(
+                kind=EvidenceKind.REACHABILITY_EVIDENCE,
+                uri=str(route.source_path),
+                location=entrypoint_location,
+                metadata={
+                    "framework": "flask",
+                    "source_root": str(source_root),
+                },
+            ),
+            summary=f"Flask route {method} {route.route} 作为入口调用 {route.function.name}。",
+            reasoning=(
+                "该入口由本地 Python AST 从 @*.route(...) 装饰器提取，"
+                "sink 位于该 handler 函数体内。"
+            ),
+            confidence=0.7,
+            reproducible_steps=(f"inspect {route.source_path}",),
+        ),
+    )
+    return ReachabilityEvidenceRecord(
+        path_match={
+            "source_name": taint_path.source.name,
+            "sink_name": _normalize_call_name(taint_path.sink.signature.name),
+            "sink": {
+                "path": sink_location.path if sink_location else route.path,
+                "start_line": sink_location.start_line if sink_location else None,
+            },
+        },
+        reachable=True,
+        entrypoint=ReachabilityEntrypoint(
+            kind="flask_route",
+            name=f"{method} {route.route}",
+            location=entrypoint_location,
+            evidence=evidence,
+        ),
+        call_chain=(
+            ReachabilityCallStep(
+                symbol=route.function.name,
+                location=function_location,
+                evidence=evidence,
+            ),
+            ReachabilityCallStep(
+                symbol=sink_symbol,
+                location=sink_location,
+                evidence=evidence,
+            ),
+        ),
+        source_control=source_control,
+        evidence=evidence,
+        unknowns=("尚未运行 PoC 验证该 Flask route 的触发行为。",),
+    )
+
+
+def _line_within(line: int | None, function: ast.FunctionDef) -> bool:
+    if line is None:
+        return False
+    end_line = function.end_lineno or function.lineno
+    return function.lineno <= line <= end_line
+
+
+def _sink_step_symbol(taint_path: TaintPath) -> str:
+    sink_steps = [step for step in taint_path.steps if step.role and step.role.value == "sink"]
+    if sink_steps and sink_steps[-1].symbol:
+        return sink_steps[-1].symbol
+    return taint_path.sink.signature.raw
+
+
+def _source_looks_request_controlled(taint_path: TaintPath) -> bool:
+    return "request." in taint_path.source.name
+
+
+def _source_evidence(taint_path: TaintPath, source_path: Path) -> Evidence:
+    return Evidence(
+        source=SourceReference(
+            kind=EvidenceKind.REACHABILITY_EVIDENCE,
+            uri=str(source_path),
+            location=taint_path.source.location,
+        ),
+        summary=f"source {taint_path.source.name} 看起来来自 Flask request 对象。",
+        reasoning="第一版 Flask 入口模型只基于 source 名称做最小可控性判断。",
+        confidence=0.55,
+        reproducible_steps=(f"inspect {source_path}",),
+        open_questions=("需要后续确认具体参数是否可由攻击者控制。",),
     )
 
 
@@ -201,7 +424,9 @@ def _path_with_reachability(path: TaintPath, reachable: bool | None) -> TaintPat
 def _matches_path(path: TaintPath, path_match: dict[str, Any]) -> bool:
     if "source_name" in path_match and path.source.name != path_match["source_name"]:
         return False
-    if "sink_name" in path_match and path.sink.signature.name != path_match["sink_name"]:
+    if "sink_name" in path_match and _normalize_call_name(
+        path.sink.signature.name
+    ) != _normalize_call_name(path_match["sink_name"]):
         return False
     source = path_match.get("source")
     if isinstance(source, dict) and not _location_matches(path.source.location, source):
@@ -418,3 +643,9 @@ def _optional_int(data: dict[str, Any], field: str) -> int | None:
     if not isinstance(value, int):
         raise ReachabilityEvidenceError(f"{field} 必须是整数")
     return value
+
+
+def _normalize_call_name(value: Any) -> str:
+    if not isinstance(value, str) or not value:
+        return ""
+    return value.strip().split(".")[-1].split("(", maxsplit=1)[0].lower()

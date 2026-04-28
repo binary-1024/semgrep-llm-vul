@@ -99,6 +99,10 @@ M2 reachability case 可以额外使用 `inputs.reachability_json` 指向本地
 reachability evidence fixture，并在 `expected.json` 中使用 `reachability` 描述期望的
 `reachable=true|false|null`、入口类型或阻断因素。
 
+也可以使用 `inputs.source_roots` 指向本地源码 fixture。当前最小实现会从 Python
+源码中提取 Flask `@*.route(...)` 入口证据，并尝试将入口所在 handler 与候选
+taint path 对齐。
+
 ## notes.md 内容
 
 `notes.md` 至少记录：

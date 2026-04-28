@@ -12,6 +12,7 @@ from ruamel.yaml.error import YAMLError
 from semgrep_llm_vul.analysis_input import AnalysisInputError, parse_analysis_input
 from semgrep_llm_vul.reachability import (
     ReachabilityEvidenceError,
+    discover_flask_route_evidence,
     generate_reachability_report,
     load_reachability_evidence,
 )
@@ -88,6 +89,7 @@ def _evaluate_m2_case(
     root = _repo_root(repo_root)
     semgrep_json = _semgrep_json_paths(case_data, repo_root=root)
     reachability_json = _reachability_json_paths(case_data, repo_root=root)
+    source_roots = _source_root_paths(case_data, repo_root=root)
     try:
         findings = tuple(
             finding
@@ -113,11 +115,22 @@ def _evaluate_m2_case(
         sink_report=sink_report,
         semgrep_taint_paths=taint_paths,
     )
+    try:
+        source_root_records = tuple(
+            record
+            for source_root in source_roots
+            for record in discover_flask_route_evidence(
+                source_root,
+                taint_paths=taint_report.paths,
+            )
+        )
+    except ReachabilityEvidenceError as exc:
+        raise BenchmarkCaseError(f"case source root 无法解析：{exc}") from exc
     report_dict = taint_path_generation_report_to_dict(taint_report, task=task)
     reachability_report = generate_reachability_report(
         task,
         taint_report=taint_report,
-        evidence_records=reachability_records,
+        evidence_records=(*reachability_records, *source_root_records),
     )
     reachability_dict = reachability_report_to_dict(reachability_report, task=task)
     checks = [
@@ -134,7 +147,7 @@ def _evaluate_m2_case(
         "checks": checks,
         "taint_path_report": report_dict,
     }
-    if reachability_json or expected.get("reachability"):
+    if reachability_json or source_roots or expected.get("reachability"):
         result["reachability_report"] = reachability_dict
     return result
 
@@ -211,6 +224,14 @@ def _reachability_json_paths(
     repo_root: Path,
 ) -> tuple[Path, ...]:
     return _input_paths(case_data, field="reachability_json", repo_root=repo_root)
+
+
+def _source_root_paths(
+    case_data: dict[str, Any],
+    *,
+    repo_root: Path,
+) -> tuple[Path, ...]:
+    return _input_paths(case_data, field="source_roots", repo_root=repo_root)
 
 
 def _input_paths(
