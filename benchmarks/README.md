@@ -56,3 +56,9 @@ uv run semgrep-llm-vul evaluate-case \
 ```bash
 uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root .
 ```
+
+日常回归可以只输出摘要：
+
+```bash
+uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-only
+```

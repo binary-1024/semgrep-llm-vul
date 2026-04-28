@@ -108,3 +108,23 @@ def test_evaluate_cases_cli_outputs_json_report(capsys) -> None:
     assert report["kind"] == "benchmark_case_suite_evaluation"
     assert report["total"] == 4
     assert report["passed"] is True
+
+
+def test_evaluate_cases_cli_outputs_summary_report(capsys) -> None:
+    exit_code = main(
+        [
+            "evaluate-cases",
+            str(ROOT / "benchmarks" / "cases"),
+            "--repo-root",
+            str(ROOT),
+            "--summary-only",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    report = json.loads(captured.out)
+    assert report["kind"] == "benchmark_case_suite_summary"
+    assert report["total"] == 4
+    assert report["passed"] is True
+    assert all("sink_report" not in item for item in report["cases"])

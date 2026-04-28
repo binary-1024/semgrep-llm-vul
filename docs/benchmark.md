@@ -119,6 +119,12 @@ uv run semgrep-llm-vul evaluate-case \
 uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root .
 ```
 
+日常回归建议使用摘要输出，避免完整 `sink_report` 干扰快速判断：
+
+```bash
+uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-only
+```
+
 第三阶段：
 
 - 扩展到 M2 taint path、M3 PoC、M4 exp。
