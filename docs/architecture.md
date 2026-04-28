@@ -55,6 +55,8 @@ Sink generation report
 - `semgrep_llm_vul.sink_generation.generate_sink_report`
 - 输出模型：`SinkGenerationReport`
 - 输入证据：`VulnerabilityInput`、可选 `NormalizedFinding`、本地 diff artifact 和漏洞代码片段
+- CLI：`uv run semgrep-llm-vul generate-sinks <analysis-input>`
+- JSON 序列化：`semgrep_llm_vul.reporting.sink_generation_report_to_dict`
 
 ## 预期方向
 

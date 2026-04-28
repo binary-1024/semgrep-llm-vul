@@ -73,6 +73,14 @@
 uv run semgrep-llm-vul validate-input examples/analysis/known-sink.yaml
 ```
 
+生成 sink candidate JSON 报告：
+
+```bash
+uv run semgrep-llm-vul generate-sinks \
+  examples/analysis/unknown-sink.yaml \
+  --semgrep-json fixtures/semgrep/basic-result.json
+```
+
 ## 项目文档
 
 - [Insight 决策流程](docs/Insight/README.md)

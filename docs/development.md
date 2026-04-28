@@ -113,6 +113,14 @@ uv run python --version
 uv run semgrep-llm-vul validate-input examples/analysis/known-sink.yaml
 ```
 
+生成 sink candidate JSON 报告：
+
+```bash
+uv run semgrep-llm-vul generate-sinks \
+  examples/analysis/unknown-sink.yaml \
+  --semgrep-json fixtures/semgrep/basic-result.json
+```
+
 ## CI
 
 GitHub Actions 会在 push 到 `main` 和 pull request 时运行：

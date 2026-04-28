@@ -159,22 +159,21 @@
 
 下一步继续完善里程碑 1：sink 函数生成。
 
-最小 sink candidate pipeline 已经建立。后续应在不破坏本地确定性 harness 的前提下，逐步增强候选提取能力和输出接口。
+最小 sink candidate pipeline 和 `generate-sinks` JSON 报告入口已经建立。后续应在不破坏本地确定性 harness 的前提下，逐步增强候选提取能力。
 
 建议第一个具体任务：
 
 ```md
 ## 任务
 
-增强 sink candidate 生成 pipeline。
+增强 sink candidate 提取能力。
 
 ## 背景
 
-项目已经具备最小 sink candidate pipeline。下一步需要提升它对真实输入的适应能力，同时保持证据链和可回归测试。
+项目已经具备最小 sink candidate pipeline 和 JSON 报告入口。下一步需要提升它对真实输入的适应能力，同时保持证据链和可回归测试。
 
 ## 范围
 
-- 设计 sink generation CLI 或报告输出格式。
 - 增强 diff artifact 解析，但仍不联网拉取真实 GitHub repo。
 - 增加更多语言或框架 fixture。
 - 引入 negative fixture，验证有反证时不会输出错误候选。
@@ -189,7 +188,7 @@
 
 ## 验收标准
 
-- CLI 或报告输出格式有测试覆盖。
+- diff、Semgrep、snippet 候选提取有更完整测试覆盖。
 - 新增 fixture 覆盖 positive、negative、insufficient、malformed。
 - 现有 sink generation 测试继续通过。
 - `./scripts/check` 通过。
