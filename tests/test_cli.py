@@ -239,11 +239,23 @@ def test_benchmark_summary_cli_outputs_short_json(capsys) -> None:
     captured = capsys.readouterr()
     assert exit_code == 0
     summary = json.loads(captured.out)
+    assert summary["schema_version"] == 2
     assert summary["kind"] == "benchmark_summary"
     assert summary["passed"] is True
+    assert "evaluation" not in summary
+    assert "inventory_evaluation" in summary
     assert summary["inventory"]["summary"]["total"] == 17
-    assert summary["evaluation"]["summary"]["unsupported"] == 5
+    assert summary["inventory"]["scope"].startswith("case inventory")
+    assert summary["inventory_evaluation"]["summary"]["unsupported"] == 5
+    assert summary["inventory_evaluation"]["scope"].startswith("M1 sink generation")
     assert summary["executable_suite"]["total"] == 15
+    assert summary["executable_suite"]["scope"].startswith("M1/M2")
+    assert summary["known_limitations"] == [
+        (
+            "inventory_evaluation 当前只评估 M1 sink generation inventory/gap；"
+            "M2 pass/fail 以 executable_suite 为准。"
+        )
+    ]
     assert "cases" not in summary
 
 
@@ -263,6 +275,10 @@ def test_benchmark_baseline_cli_outputs_markdown(capsys) -> None:
     captured = capsys.readouterr()
     assert exit_code == 0
     assert "# Benchmark Baseline" in captured.out
+    assert "## Inventory Evaluation" in captured.out
+    assert "M1 sink generation inventory/gap evaluation" in captured.out
+    assert "M1/M2 staged executable case checks" in captured.out
+    assert "## Known Limitations" in captured.out
     assert "| total | 17 |" in captured.out
     assert "`curated-open-redirect-reachability`" in captured.out
 
