@@ -6,19 +6,26 @@
 
 目标：让项目具备可开发、可验证、可回滚的基础工程环境。
 
-当前状态：
+当前状态：已完成基础 harness，进入后续里程碑时继续增量维护。
 
 - Python 3.10 + `uv` 工程已建立。
 - `pytest`、`ruff`、`uv build` 已接入 `./scripts/check`。
+- GitHub Actions 已接入 `./scripts/check`。
 - Git 管理文档已建立。
 - 项目目标已形成第一版文档。
 - 技术方向确定为语言无关核心模型 + Semgrep 适配层。
+- 语言无关核心数据模型已建立。
+- 分析任务 YAML/JSON 输入格式已建立。
+- Semgrep finding 归一化已建立。
+- Semgrep taint-mode 候选路径归一化已建立。
+- 外部工具 fixture 分层与生成脚本已建立。
 
 完成标准：
 
 - `./scripts/check` 通过。
 - Git 初始提交完成。
 - 后续任务可以在分支上开发。
+- CI 可以在 `main` push 和 pull request 中运行统一检查。
 
 ## 里程碑 1：sink 函数生成
 
@@ -148,40 +155,42 @@
 
 ## 当前下一步
 
-下一步应进入语言无关基础模型与 Semgrep 适配层建设，但先不要直接实现 agent。
+下一步进入里程碑 1：sink 函数生成。
+
+在实现前，先完成 `sink generation pipeline` 的 Insight 和 ADR。该决策会影响后续 agent 流程、证据链格式、diff 分析方式和 Semgrep/LLM 的职责边界，因此应先在 `codex/docs-sink-generation-plan` 分支中只做决策文档。
 
 建议第一个具体任务：
 
 ```md
 ## 任务
 
-定义语言无关的漏洞分析数据模型与 Semgrep finding 归一化模型。
+定义 sink 函数生成 pipeline 的决策文档。
 
 ## 背景
 
-后续 sink 生成、污点路径分析、PoC 和 exp 都依赖统一输入、输出、finding 和证据链格式。Semgrep 将作为跨语言扫描入口之一。
+项目已经具备基础输入模型、Semgrep finding 归一化和候选 taint path 归一化能力。下一步需要决定如何根据漏洞描述、修复 diff、候选 PR、用户提供的 sink 信息和代码证据，生成或确认 sink 函数。
 
 ## 范围
 
-- 定义 Python 数据模型。
-- 覆盖已知 sink 和未知 sink 两种场景。
-- 定义 evidence、confidence、source reference、artifact 等基础结构。
-- 定义 Semgrep JSON 到内部 `NormalizedFinding` 的最小映射。
-- 每个对象可携带 language 信息，但核心模型不绑定具体语言。
-- 增加测试。
+- 在 `docs/Insight/` 中完成三轮多视角讨论。
+- 明确已知 sink 和未知 sink 两种场景的处理流程。
+- 明确 diff、Semgrep、人工输入和 LLM agent 各自负责什么。
+- 明确 sink candidate 的证据链字段和置信度来源。
+- 明确最小可实现边界和后续扩展点。
+- 将最终决策同步到 `docs/decisions/`。
 
 ## 非目标
 
-- 不调用 LLM。
-- 不拉取 GitHub repo。
-- 不做完整污点路径搜索。
-- 不写具体语言 Semgrep 规则集。
-- 不生成 PoC。
+- 不实现 sink 生成代码。
+- 不调用 LLM provider。
+- 不拉取真实 GitHub repo。
+- 不实现完整 diff parser。
+- 不进入污点路径、PoC 或 exp 阶段。
 
 ## 验收标准
 
-- 数据模型能表达当前 `docs/product.md` 中定义的输入输出。
-- 已知 sink 和未知 sink 场景都有测试。
-- Semgrep JSON fixture 能归一化为内部 finding。
+- `docs/Insight/` 中有 sink generation pipeline 决策过程。
+- `docs/decisions/` 中有最终 ADR。
+- 决策明确下一步 feature 分支的实现边界和测试要求。
 - `./scripts/check` 通过。
 ```

@@ -111,7 +111,11 @@ uv run python --version
 
 ## 下一步
 
-1. 定义漏洞分析任务输入模型与证据链数据模型。
-2. 围绕已知 sink 和未知 sink 场景补测试。
-3. 再进入 sink 函数生成里程碑。
-4. 当核心流程稳定后，补充 CI。
+当前基础 harness、分析任务输入模型、Semgrep finding 归一化、Semgrep taint-mode 候选路径归一化和 CI 已建立。
+
+下一步进入 sink 函数生成里程碑：
+
+1. 先在 `codex/docs-sink-generation-plan` 分支完成 `sink generation pipeline` 的 Insight 和 ADR。
+2. 决策合入 `main` 后，再开 `codex/feature-sink-generation` 实现最小 sink candidate 生成能力。
+3. 实现时覆盖已知 sink 和未知 sink 两种输入场景，并补充 fixture 与回归测试。
+4. 每次提交前运行 `./scripts/check`。
