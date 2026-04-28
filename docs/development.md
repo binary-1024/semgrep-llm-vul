@@ -99,6 +99,12 @@ uv run python --version
 
 `./scripts/update-semgrep-fixtures` 用于从 `examples/semgrep/` 中的样例项目和规则生成 Semgrep JSON fixture。
 
+校验分析任务输入：
+
+```bash
+uv run semgrep-llm-vul validate-input examples/analysis/known-sink.yaml
+```
+
 ## Python 项目约定
 
 - 源码放在 `src/semgrep_llm_vul/`。

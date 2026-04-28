@@ -66,6 +66,12 @@
 - [unknown-sink.yaml](examples/analysis/unknown-sink.yaml)
 - [known-sink.json](examples/analysis/known-sink.json)
 
+校验输入文件：
+
+```bash
+uv run semgrep-llm-vul validate-input examples/analysis/known-sink.yaml
+```
+
 ## 项目文档
 
 - [Insight 决策流程](docs/Insight/README.md)
