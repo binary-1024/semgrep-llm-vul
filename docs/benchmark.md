@@ -122,7 +122,27 @@ uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .
 和 `expected.json`，调用本地 deterministic sink pipeline，并比较 `sink_candidates`
 与 `must_not_include`。
 
+当前最小 evaluator 已支持评估单个 M1/M2 case：
+
+```bash
+uv run semgrep-llm-vul evaluate-case \
+  benchmarks/cases/curated-open-redirect-safe-wrapper \
+  --repo-root .
+```
+
+也可以批量评估当前 `benchmarks/cases/` 下的 M1/M2 cases：
+
+```bash
+uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root .
+```
+
+日常回归建议使用摘要输出，避免完整阶段报告干扰快速判断：
+
+```bash
+./scripts/benchmark
+```
+
 第三阶段：
 
-- 扩展到 M2 taint path、M3 PoC、M4 exp。
+- 扩展到 M2 reachability、M3 PoC、M4 exp。
 - 支持外部 benchmark 下载缓存，但不提交原始大数据。

@@ -22,6 +22,7 @@
 │   ├── architecture.md
 │   ├── development.md
 │   ├── git.md
+│   ├── glossary.md
 │   ├── methodology.md
 │   ├── product.md
 │   ├── roadmap.md
@@ -48,6 +49,7 @@
 ./scripts/test
 ./scripts/lint
 ./scripts/build
+./scripts/benchmark
 ./scripts/update-semgrep-fixtures
 ./scripts/benchmark
 uv run semgrep-llm-vul validate-benchmarks
@@ -59,6 +61,7 @@ uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .
 - `./scripts/test` 运行 `pytest`
 - `./scripts/lint` 运行 `ruff check .`
 - `./scripts/build` 运行 `uv build`
+- `./scripts/benchmark` 批量评估当前 benchmark cases 的 M1/M2 阶段期望
 - `./scripts/check` 依次运行 lint、test 和 build
 - `./scripts/update-semgrep-fixtures` 从样例项目生成 Semgrep fixture
 - `./scripts/benchmark` 校验并执行 benchmark/case harness
@@ -95,9 +98,38 @@ uv run semgrep-llm-vul validate-benchmarks
 uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .
 ```
 
+评估一个 benchmark case 的阶段期望：
+
+```bash
+uv run semgrep-llm-vul evaluate-case \
+  benchmarks/cases/curated-open-redirect-safe-wrapper \
+  --repo-root .
+```
+
+批量评估 `benchmarks/cases/` 下的 M1/M2 cases：
+
+```bash
+uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root .
+```
+
+生成 taint path candidate JSON 报告：
+
+```bash
+uv run semgrep-llm-vul generate-taint-paths \
+  examples/analysis/unknown-sink.yaml \
+  --semgrep-json fixtures/semgrep/taint-result-with-trace.json
+```
+
+日常回归可使用摘要输出：
+
+```bash
+./scripts/benchmark
+```
+
 ## 项目文档
 
 - [Insight 决策流程](docs/Insight/README.md)
+- [术语表](docs/glossary.md)
 - [漏洞分析方法论](docs/methodology.md)
 - [Benchmark 与 Case Harness](docs/benchmark.md)
 - [架构说明](docs/architecture.md)

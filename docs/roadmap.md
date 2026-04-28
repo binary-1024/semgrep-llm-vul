@@ -66,6 +66,10 @@
 
 目标：从 sink 出发，在项目中找到潜在污点路径，并确认哪些路径可触达。
 
+当前状态：M2 已开始建立最小 taint path candidate generation，第一版只对齐 M1 sink candidate 与 Semgrep taint-mode 候选路径，不做可触达确认。
+
+M2 可触达确认已完成方法决策：第一版采用本地、确定性、证据优先的 reachability evidence model，将 `reachable` 明确为 `true`、`false`、`null` 三态。`true` 需要入口到候选路径上下文的静态证据；`false` 需要明确阻断证据；缺证据保持 `null`。
+
 输入：
 
 - sink 函数。
@@ -158,39 +162,58 @@
 
 ## 当前下一步
 
-下一步继续完善里程碑 1：sink 函数生成。
+下一步继续推进里程碑 2：污点路径生成与可触达确认。
 
-最小 sink candidate pipeline 和 `generate-sinks` JSON 报告入口已经建立。后续应在不破坏本地确定性 harness 的前提下，逐步增强候选提取能力。
+M1 当前已经具备：
 
-建议第一个具体任务：
+- 最小 sink candidate pipeline。
+- `generate-sinks` JSON 报告入口。
+- 本地 sink heuristic pack。
+- benchmark/case harness。
+- `./scripts/benchmark` 独立回归入口。
+
+这些能力已足够支撑 M2 的第一版输入。除非 M2 实现暴露新的 M1 blocker，否则暂停继续加深 benchmark 工具链和 sink heuristic 支线。
+
+M2 当前已经具备：
+
+- `generate_taint_path_report` 最小候选路径生成入口。
+- `generate-taint-paths` JSON 报告入口。
+- Semgrep taint-mode `TaintPath(reachable=None)` 归一化能力。
+- sink candidate 与 Semgrep taint path 的最小对齐能力。
+- M2 taint path candidate 已纳入 benchmark/case harness。
+- M2 reachability evidence model 已完成 Insight 和 ADR。
+
+建议下一个 M2 具体任务：
 
 ```md
 ## 任务
 
-增强 sink candidate 提取能力。
+实现 M2 可触达确认的最小本地模型。
 
 ## 背景
 
-项目已经具备最小 sink candidate pipeline 和 JSON 报告入口。下一步需要提升它对真实输入的适应能力，同时保持证据链和可回归测试。
+项目已经具备最小 taint path candidate generation、稳定 JSON 报告、CLI 入口、benchmark/case 回归和 reachability evidence model 决策。下一步需要把 `ReachabilityAssessment` 落成最小实现，先支持本地 fixture 中可证明的入口到路径上下文。
 
 ## 范围
 
-- 增强 diff artifact 解析，但仍不联网拉取真实 GitHub repo。
-- 增加更多语言或框架 fixture。
-- 引入 negative fixture，验证有反证时不会输出错误候选。
-- 评估是否需要抽象 provider 接口。
+- 新增 reachability assessment 数据模型或报告模型。
+- 支持最小本地入口证据和调用链证据输入。
+- 生成 `reachable=true|false|null`、blocking factors、evidence 和 unknowns。
+- 新增 positive/unknown/blocked curated cases 或 fixture。
 
 ## 非目标
 
 - 不调用真实 LLM provider。
 - 不联网拉取真实 GitHub repo。
-- 不实现完整 diff parser。
-- 不进入污点路径、PoC 或 exp 阶段。
+- 不实现完整跨语言调用图。
+- 不进入 PoC 或 exp 阶段。
+- 不把 candidate path 标记为 verified。
 
 ## 验收标准
 
-- diff、Semgrep、snippet 候选提取有更完整测试覆盖。
-- 新增 fixture 覆盖 positive、negative、insufficient、malformed。
-- 现有 sink generation 测试继续通过。
+- 新增单元测试覆盖 `true/false/null` 状态语义。
+- 新增或扩展 benchmark/case 回归。
+- `reachable=false` 必须有明确阻断证据测试。
+- `./scripts/benchmark` 继续通过。
 - `./scripts/check` 通过。
 ```

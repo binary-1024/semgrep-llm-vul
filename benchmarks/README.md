@@ -89,3 +89,25 @@ uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .
 - `forbidden_candidate`：不应生成的候选被误报。
 
 `gaps` 只用于工程排队和能力边界记录，不代表漏洞最终结论。
+
+## 运行单个阶段 case
+
+当前 evaluator 支持 M1 sink candidate case 和 M2 taint path candidate case：
+
+```bash
+uv run semgrep-llm-vul evaluate-case \
+  benchmarks/cases/curated-open-redirect-safe-wrapper \
+  --repo-root .
+```
+
+批量评估当前目录下的 M1/M2 cases：
+
+```bash
+uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root .
+```
+
+日常回归可以只输出摘要：
+
+```bash
+./scripts/benchmark
+```

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "stage": "M1",
+  "expected_status": "candidate",
+  "sink_candidates": [
+    {
+      "name": "system",
+      "path": "app/tasks.py",
+      "start_line": 20,
+      "heuristic_category": "command_execution"
+    }
+  ],
+  "must_not_include": [
+    {
+      "name": "run"
+    }
+  ]
+}

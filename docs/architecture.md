@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-仓库已经完成 M0 基础 harness，并具备语言无关数据模型、分析任务输入模型、Semgrep finding 归一化、Semgrep taint-mode trace 到候选 `TaintPath` 的最小归一化能力，以及 M1 最小 sink generation pipeline。
+仓库已经完成 M0 基础 harness，并具备语言无关数据模型、分析任务输入模型、Semgrep finding 归一化、Semgrep taint-mode trace 到候选 `TaintPath` 的最小归一化能力、M1 最小 sink generation pipeline，以及 M2 最小 taint path generation 入口。
 
 ## 当前数据流
 
@@ -59,6 +59,45 @@ sink candidate extraction 将逐步使用本地内置 sink heuristic pack 组织
 - 输入证据：`VulnerabilityInput`、可选 `NormalizedFinding`、本地 diff artifact 和漏洞代码片段
 - CLI：`uv run semgrep-llm-vul generate-sinks <analysis-input>`
 - JSON 序列化：`semgrep_llm_vul.reporting.sink_generation_report_to_dict`
+
+M2 第一版 taint path generation 只做候选路径对齐：
+
+```text
+VulnerabilityInput
+  + SinkGenerationReport
+  + Semgrep-derived TaintPath(reachable=None)
+  ↓
+TaintPathGenerationReport
+```
+
+当前实现入口：
+
+- `semgrep_llm_vul.taint_path_generation.generate_taint_path_report`
+- 输出模型：`TaintPathGenerationReport`
+- 输入证据：`VulnerabilityInput`、`SinkGenerationReport`、已归一化的 Semgrep `TaintPath`
+- CLI：`uv run semgrep-llm-vul generate-taint-paths <analysis-input> --semgrep-json <semgrep.json>`
+- JSON 序列化：`semgrep_llm_vul.reporting.taint_path_generation_report_to_dict`
+- 语义边界：只保留能与 sink candidate 对齐的路径；`reachable` 保持 `None`；不做调用图、入口可达性、sanitizer 充分性或可利用确认。
+
+M2 下一步采用本地可触达证据模型：
+
+```text
+TaintPath(reachable=None)
+  + entrypoint evidence
+  + call chain evidence
+  + source control evidence
+  + blocking factors
+  ↓
+ReachabilityAssessment(reachable=true|false|null)
+```
+
+第一版 reachability 只表示静态可触达性，不表示 PoC 可触发或漏洞已验证。
+
+- `reachable=true`：存在本地静态证据支持入口到候选路径上下文可达。
+- `reachable=false`：存在明确阻断证据；不能因为缺入口模型就输出 false。
+- `reachable=null`：候选路径存在，但入口、调用链、source 可控性、sanitizer/guard 或版本证据不足。
+
+预期 assessment 字段包括候选 `TaintPath` 引用、入口证据、调用链或近似链、source 可控性、blocking factors、evidence 和 unknowns。
 
 ## 预期方向
 
