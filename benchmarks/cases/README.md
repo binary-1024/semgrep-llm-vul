@@ -130,6 +130,10 @@ case id 使用小写 kebab-case：
 ## 当前 curated cases
 
 - `curated-open-redirect-safe-wrapper`：positive case，期望从 diff 中生成 `redirect` candidate，同时不包含安全封装名。
+- `curated-open-redirect-taint-path`：M2 taint path candidate case，验证 Semgrep trace 与 `redirect` sink candidate 对齐。
+- `curated-open-redirect-reachability`：M2 reachability positive case，验证本地入口证据可以输出 `reachable=true`。
+- `curated-open-redirect-reachability-blocked`：M2 reachability blocked case，验证明确阻断因素可以输出 `reachable=false`。
+- `curated-open-redirect-reachability-unknown`：M2 reachability unknown case，验证缺入口证据时保持 `reachable=null`。
 - `curated-open-redirect-safe-diff`：negative case，安全封装 diff 不应生成 direct sink candidate。
 - `curated-insufficient-evidence`：insufficient evidence case，没有代码、diff 或 Semgrep 证据时不应生成候选。
 - `curated-safe-deserialization-wrapper`：negative case，`safe_loads` 不应误判为 `loads`。

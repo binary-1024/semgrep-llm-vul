@@ -134,7 +134,7 @@ def _evaluate_m2_case(
         "checks": checks,
         "taint_path_report": report_dict,
     }
-    if reachability_json:
+    if reachability_json or expected.get("reachability"):
         result["reachability_report"] = reachability_dict
     return result
 

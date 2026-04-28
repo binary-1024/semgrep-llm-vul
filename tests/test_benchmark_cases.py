@@ -92,13 +92,47 @@ def test_evaluate_benchmark_case_passes_curated_m2_reachability_case() -> None:
     )
 
 
+def test_evaluate_benchmark_case_passes_curated_m2_reachability_blocked_case() -> None:
+    result = evaluate_benchmark_case(
+        CASES_ROOT / "curated-open-redirect-reachability-blocked",
+        repo_root=ROOT,
+    )
+
+    assert result["kind"] == "benchmark_case_evaluation"
+    assert result["case_id"] == "curated-open-redirect-reachability-blocked"
+    assert result["stage"] == "M2"
+    assert result["passed"] is True
+    assert result["taint_path_report"]["paths"][0]["reachable"] is None
+    assessment = result["reachability_report"]["assessments"][0]
+    assert assessment["reachable"] is False
+    assert assessment["path"]["reachable"] is False
+    assert assessment["blocking_factors"][0]["kind"] == "unregistered_handler"
+
+
+def test_evaluate_benchmark_case_passes_curated_m2_reachability_unknown_case() -> None:
+    result = evaluate_benchmark_case(
+        CASES_ROOT / "curated-open-redirect-reachability-unknown",
+        repo_root=ROOT,
+    )
+
+    assert result["kind"] == "benchmark_case_evaluation"
+    assert result["case_id"] == "curated-open-redirect-reachability-unknown"
+    assert result["stage"] == "M2"
+    assert result["passed"] is True
+    assert result["taint_path_report"]["paths"][0]["reachable"] is None
+    assessment = result["reachability_report"]["assessments"][0]
+    assert assessment["reachable"] is None
+    assert assessment["path"]["reachable"] is None
+    assert "未找到匹配该 taint path" in assessment["unknowns"][0]
+
+
 def test_evaluate_benchmark_cases_summarizes_curated_cases() -> None:
     result = evaluate_benchmark_cases(CASES_ROOT, repo_root=ROOT)
 
     assert result["kind"] == "benchmark_case_suite_evaluation"
-    assert result["total"] == 13
+    assert result["total"] == 15
     assert result["passed"] is True
-    assert result["passed_count"] == 13
+    assert result["passed_count"] == 15
     assert result["failed_count"] == 0
     assert {item["case_id"] for item in result["results"]} == {
         "curated-command-execution-system",
@@ -108,6 +142,8 @@ def test_evaluate_benchmark_cases_summarizes_curated_cases() -> None:
         "curated-open-redirect-safe-negative",
         "curated-open-redirect-safe-wrapper",
         "curated-open-redirect-reachability",
+        "curated-open-redirect-reachability-blocked",
+        "curated-open-redirect-reachability-unknown",
         "curated-open-redirect-taint-path",
         "curated-safe-deserialization-wrapper",
         "curated-safe-executor-submit",
@@ -123,7 +159,7 @@ def test_summarize_benchmark_suite_omits_full_sink_reports() -> None:
     summary = summarize_benchmark_suite(result)
 
     assert summary["kind"] == "benchmark_case_suite_summary"
-    assert summary["total"] == 13
+    assert summary["total"] == 15
     assert summary["passed"] is True
     assert all("sink_report" not in item for item in summary["cases"])
     assert all(item["failed_checks"] == [] for item in summary["cases"])
