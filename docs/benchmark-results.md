@@ -15,8 +15,8 @@
 当前结果显示：
 
 - M1 sink candidate pipeline 在现有 candidate M1 cases 上稳定通过。
-- M2 taint path candidate 已进入 executable suite，并能通过当前 curated M2 case。
-- inventory evaluator 仍只支持 M1 sink generation，所以会把 M2 case 作为 `unsupported_stage` gap 记录。
+- M2 taint path candidate 与 reachability positive case 已进入 executable suite，并能通过当前 curated M2 cases。
+- inventory evaluator 仍只支持 M1 sink generation，所以会把 M2 cases 作为 `unsupported_stage` gap 记录。
 - 完整外部数据集 ingestion 和需要隔离运行环境的真实漏洞 case 仍处于边界记录阶段，不作为当前自动回归失败。
 
 ## 命令
@@ -38,12 +38,12 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 
 ## Inventory Baseline
 
-当前 `benchmarks/cases/` 共收录 14 个 case：
+当前 `benchmarks/cases/` 共收录 15 个 case：
 
 | 维度 | 数量 |
 | --- | ---: |
-| total | 14 |
-| candidate | 12 |
+| total | 15 |
+| candidate | 13 |
 | unsupported | 1 |
 | blocked | 1 |
 
@@ -52,14 +52,14 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 | 阶段 | 数量 |
 | --- | ---: |
 | M1 | 12 |
-| M2 | 1 |
+| M2 | 2 |
 | M3 | 1 |
 
 按 case 类型：
 
 | 类型 | 数量 |
 | --- | ---: |
-| curated_minimal | 9 |
+| curated_minimal | 10 |
 | real_vulnerability | 3 |
 | synthetic_benchmark | 2 |
 
@@ -67,7 +67,7 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 
 | 来源 | 数量 |
 | --- | ---: |
-| project-curated | 9 |
+| project-curated | 10 |
 | CVEfixes | 1 |
 | NIST SARD / Juliet-style CWE sample | 1 |
 | OWASP Benchmark | 1 |
@@ -81,16 +81,17 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 | outcome | 数量 |
 | --- | ---: |
 | passed | 11 |
-| unsupported | 2 |
+| unsupported | 3 |
 | blocked | 1 |
 | failed | 0 |
 | error | 0 |
-| total | 14 |
+| total | 15 |
 
 当前 gaps：
 
 | case | code | 说明 |
 | --- | --- | --- |
+| `curated-open-redirect-reachability` | `unsupported_stage` | inventory evaluator 当前不支持 M2。 |
 | `curated-open-redirect-taint-path` | `unsupported_stage` | inventory evaluator 当前不支持 M2。 |
 | `cvefixes-dataset-intake-unsupported` | `unsupported_source_ingestion` | 当前不支持直接导入完整 CVEfixes 数据库。 |
 | `vul4j-real-java-intake-blocked` | `blocked_runtime` | 需要隔离环境、checkout 或运行边界后才能执行。 |
@@ -99,8 +100,8 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 
 | 指标 | 数量 |
 | --- | ---: |
-| total | 12 |
-| passed_count | 12 |
+| total | 13 |
+| passed_count | 13 |
 | failed_count | 0 |
 
 ## 能力边界
@@ -109,12 +110,12 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 
 - M1 known sink、Semgrep finding、diff artifact、vulnerable snippet 和 evidence insufficient 场景的 deterministic sink candidate 回归。
 - M1 negative case 回归，包括安全 wrapper、safe API、diff 删除行和证据不足场景。
-- M2 taint path candidate 的最小 curated case 回归。
+- M2 taint path candidate 和 reachability positive 的最小 curated case 回归。
 - benchmark inventory、gap 和 executable suite 三层输出。
 
 当前未覆盖或暂不自动化：
 
-- M2 reachability `true|false|null` 的本地证据模型尚未落成。
+- M2 reachability `true|false|null` 已有最小本地证据模型，但尚未从真实源码自动提取入口证据。
 - 完整 CVEfixes ingestion 尚未实现。
 - Vul4J 等需要 checkout、构建、运行或隔离环境的 case 尚未进入自动执行。
 - 真实外部项目的大规模 benchmark 下载、缓存和采样流程尚未建立。
@@ -124,7 +125,8 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 
 优先扩展能揭示缺陷的 case，而不是只增加 happy path：
 
-- M2 reachability positive、negative 和 unknown curated cases。
+- M2 reachability blocked 和 unknown curated cases。
+- 从 fixture 源码中提取最小框架入口证据，而不是完全依赖手写 reachability JSON。
 - Semgrep 有候选路径但入口证据不足的 case。
 - wrapper、alias、indirect call 造成的误报或漏报边界。
 - 名称相似但语义不同的 sink negative case。
