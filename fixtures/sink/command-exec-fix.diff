@@ -1,0 +1,8 @@
+diff --git a/app/tasks.py b/app/tasks.py
+index 3333333..4444444 100644
+--- a/app/tasks.py
++++ b/app/tasks.py
+@@ -20,5 +20,7 @@ def run_backup():
+-    return os.system(request.args["cmd"])
++    command = ["backup", "--target", request.args["target"]]
++    return subprocess.run(command, shell=False, check=True)

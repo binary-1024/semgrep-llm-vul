@@ -1,0 +1,26 @@
+schema_version: 1
+id: curated-open-redirect-safe-negative
+type: curated_minimal
+target_stage: M1
+status: candidate
+source:
+  name: project-curated
+  url: null
+  license: project
+target:
+  repo_url: https://github.com/example/flask-app
+  affected_version: v1.0.0
+  fixed_version: v1.0.1
+  language: python
+inputs:
+  description: Safe redirect validation should not be treated as a direct sink.
+  mode: unknown_sink
+  artifacts:
+    - kind: diff
+      path: fixtures/sink/safe-redirect-fix.diff
+expected:
+  sink: null
+safety:
+  contains_poc: false
+  contains_exp: false
+  requires_isolation: false
