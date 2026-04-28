@@ -105,6 +105,14 @@ notes.md
 - 实现 M1 sink generation evaluator。
 - 输出 per-case pass/fail/blocked/unsupported 报告。
 
+当前最小 evaluator 已支持评估单个 M1 case：
+
+```bash
+uv run semgrep-llm-vul evaluate-case \
+  benchmarks/cases/curated-open-redirect-safe-wrapper \
+  --repo-root .
+```
+
 第三阶段：
 
 - 扩展到 M2 taint path、M3 PoC、M4 exp。

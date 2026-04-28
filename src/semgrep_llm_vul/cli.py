@@ -10,6 +10,7 @@ from pathlib import Path
 
 from semgrep_llm_vul import __version__
 from semgrep_llm_vul.analysis_input import AnalysisInputError, load_analysis_input
+from semgrep_llm_vul.benchmark_cases import BenchmarkCaseError, evaluate_benchmark_case
 from semgrep_llm_vul.reporting import sink_generation_report_to_dict
 from semgrep_llm_vul.semgrep import SemgrepParseError, load_semgrep_findings
 from semgrep_llm_vul.sink_generation import SinkGenerationError, generate_sink_report
@@ -29,6 +30,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             semgrep_json=args.semgrep_json,
             artifact_base=args.artifact_base,
         )
+    if args.command == "evaluate-case":
+        return _evaluate_case(args.path, repo_root=args.repo_root)
 
     parser.print_help()
     return 0
@@ -62,6 +65,17 @@ def _build_parser() -> argparse.ArgumentParser:
         help="解析本地 artifact 相对路径时使用的基准目录",
     )
 
+    evaluate_case = subparsers.add_parser(
+        "evaluate-case",
+        help="评估 benchmark case 的 M1 sink candidate 期望",
+    )
+    evaluate_case.add_argument("path", help="benchmark case 目录路径")
+    evaluate_case.add_argument(
+        "--repo-root",
+        default=None,
+        help="解析 case 内本地 artifact 相对路径时使用的仓库根目录",
+    )
+
     return parser
 
 
@@ -79,6 +93,17 @@ def _validate_input(path: str) -> int:
         f"affected={task.target.affected_version}"
     )
     return 0
+
+
+def _evaluate_case(path: str, *, repo_root: str | None) -> int:
+    try:
+        result = evaluate_benchmark_case(path, repo_root=repo_root)
+    except (BenchmarkCaseError, SinkGenerationError) as exc:
+        print(f"evaluate case failed: {exc}", file=sys.stderr)
+        return 1
+
+    print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0 if result["passed"] else 1
 
 
 def _generate_sinks(

@@ -81,6 +81,14 @@ uv run semgrep-llm-vul generate-sinks \
   --semgrep-json fixtures/semgrep/basic-result.json
 ```
 
+评估一个 benchmark case 的 M1 sink candidate 期望：
+
+```bash
+uv run semgrep-llm-vul evaluate-case \
+  benchmarks/cases/curated-open-redirect-safe-wrapper \
+  --repo-root .
+```
+
 ## 项目文档
 
 - [Insight 决策流程](docs/Insight/README.md)
