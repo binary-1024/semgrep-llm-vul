@@ -9,6 +9,10 @@ benchmark/case harness 不替代单元测试。它的职责是持续回答：
 - 哪些结论只有 candidate，哪些已经 reachable、triggerable 或 verified？
 - 哪些失败应转化为规则、fixture、测试或架构调整？
 
+这个 worktree 的目标是建立一套轻量、可持续的 benchmark/case 收集方式，用知名
+benchmark、真实漏洞 case 和 curated minimal case 变相测试当前开发能力、边界和缺陷。
+具体来源候选记录在 [`benchmarks/sources.md`](../benchmarks/sources.md)。
+
 ## 数据来源分层
 
 ### synthetic_benchmark
@@ -98,12 +102,25 @@ notes.md
 
 - 固化 `benchmarks/` 目录和 case schema。
 - 维护 3 到 5 个小型 curated cases。
+- 建立 benchmark/case 来源目录，记录来源价值、采样方向和暂不采样原因。
 
 第二阶段：
 
 - 实现 case loader。
 - 实现 M1 sink generation evaluator。
 - 输出 per-case pass/fail/blocked/unsupported 报告。
+
+当前最小 evaluator 已提供 CLI：
+
+```bash
+uv run semgrep-llm-vul validate-benchmarks
+uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .
+```
+
+`validate-benchmarks` 只校验 case 目录并输出 inventory；`evaluate-benchmarks`
+第一版只支持 M1 sink generation case。它会读取 `benchmarks/cases/<case-id>/case.yaml`
+和 `expected.json`，调用本地 deterministic sink pipeline，并比较 `sink_candidates`
+与 `must_not_include`。
 
 当前最小 evaluator 已支持评估单个 M1/M2 case：
 

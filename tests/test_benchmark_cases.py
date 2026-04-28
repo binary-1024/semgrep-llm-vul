@@ -77,16 +77,23 @@ def test_evaluate_benchmark_cases_summarizes_curated_cases() -> None:
     result = evaluate_benchmark_cases(CASES_ROOT, repo_root=ROOT)
 
     assert result["kind"] == "benchmark_case_suite_evaluation"
-    assert result["total"] == 5
+    assert result["total"] == 12
     assert result["passed"] is True
-    assert result["passed_count"] == 5
+    assert result["passed_count"] == 12
     assert result["failed_count"] == 0
     assert {item["case_id"] for item in result["results"]} == {
-        "curated-open-redirect-safe-wrapper",
         "curated-command-execution-system",
         "curated-deserialization-deserialize",
+        "curated-insufficient-evidence",
+        "curated-open-redirect-safe-diff",
         "curated-open-redirect-safe-negative",
+        "curated-open-redirect-safe-wrapper",
         "curated-open-redirect-taint-path",
+        "curated-safe-deserialization-wrapper",
+        "curated-safe-executor-submit",
+        "owasp-benchmark-command-injection-distilled",
+        "real-pypickle-cve-2025-5174-m1",
+        "sard-juliet-deserialization-distilled",
     }
 
 
@@ -96,7 +103,7 @@ def test_summarize_benchmark_suite_omits_full_sink_reports() -> None:
     summary = summarize_benchmark_suite(result)
 
     assert summary["kind"] == "benchmark_case_suite_summary"
-    assert summary["total"] == 5
+    assert summary["total"] == 12
     assert summary["passed"] is True
     assert all("sink_report" not in item for item in summary["cases"])
     assert all(item["failed_checks"] == [] for item in summary["cases"])

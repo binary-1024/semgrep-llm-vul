@@ -10,6 +10,17 @@ from pathlib import Path
 
 from semgrep_llm_vul import __version__
 from semgrep_llm_vul.analysis_input import AnalysisInputError, load_analysis_input
+from semgrep_llm_vul.benchmark import (
+    BenchmarkCaseError as BenchmarkInventoryError,
+)
+from semgrep_llm_vul.benchmark import (
+    benchmark_cases_to_dict,
+    benchmark_evaluations_to_dict,
+    discover_benchmark_cases,
+)
+from semgrep_llm_vul.benchmark import (
+    evaluate_benchmark_case as evaluate_benchmark_inventory_case,
+)
 from semgrep_llm_vul.benchmark_cases import (
     BenchmarkCaseError,
     evaluate_benchmark_case,
@@ -57,6 +68,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             repo_root=args.repo_root,
             summary_only=args.summary_only,
         )
+    if args.command == "evaluate-benchmarks":
+        return _evaluate_benchmarks(
+            args.path,
+            artifact_base=args.artifact_base,
+            include_reports=args.include_reports,
+        )
+    if args.command == "validate-benchmarks":
+        return _validate_benchmarks(args.path)
 
     parser.print_help()
     return 0
@@ -132,6 +151,38 @@ def _build_parser() -> argparse.ArgumentParser:
         "--summary-only",
         action="store_true",
         help="仅输出 suite 摘要，不包含每个 case 的完整 sink_report",
+    )
+
+    evaluate_benchmarks = subparsers.add_parser(
+        "evaluate-benchmarks",
+        help="执行 benchmark/case harness 的 inventory evaluator",
+    )
+    evaluate_benchmarks.add_argument(
+        "path",
+        nargs="?",
+        default="benchmarks/cases",
+        help="case 目录或 cases 根目录，默认 benchmarks/cases",
+    )
+    evaluate_benchmarks.add_argument(
+        "--artifact-base",
+        default=None,
+        help="解析本地 artifact 相对路径时使用的基准目录",
+    )
+    evaluate_benchmarks.add_argument(
+        "--include-reports",
+        action="store_true",
+        help="在输出中包含每个 case 的 sink generation report",
+    )
+
+    validate_benchmarks = subparsers.add_parser(
+        "validate-benchmarks",
+        help="校验 benchmark/case 目录并输出 inventory",
+    )
+    validate_benchmarks.add_argument(
+        "path",
+        nargs="?",
+        default="benchmarks/cases",
+        help="case 目录或 cases 根目录，默认 benchmarks/cases",
     )
 
     return parser
@@ -245,6 +296,55 @@ def _generate_taint_paths(
     print(
         json.dumps(
             taint_path_generation_report_to_dict(report, task=task),
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
+def _evaluate_benchmarks(
+    path: str,
+    *,
+    artifact_base: str | None,
+    include_reports: bool,
+) -> int:
+    try:
+        cases = discover_benchmark_cases(path)
+        evaluations = tuple(
+            evaluate_benchmark_inventory_case(case, artifact_base=artifact_base)
+            for case in cases
+        )
+    except BenchmarkInventoryError as exc:
+        print(f"evaluate benchmarks failed: {exc}", file=sys.stderr)
+        return 1
+
+    print(
+        json.dumps(
+            benchmark_evaluations_to_dict(
+                evaluations,
+                include_reports=include_reports,
+                cases=cases,
+            ),
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 1 if any(item.outcome in {"failed", "error"} for item in evaluations) else 0
+
+
+def _validate_benchmarks(path: str) -> int:
+    try:
+        cases = discover_benchmark_cases(path)
+    except BenchmarkInventoryError as exc:
+        print(f"validate benchmarks failed: {exc}", file=sys.stderr)
+        return 1
+
+    print(
+        json.dumps(
+            benchmark_cases_to_dict(cases),
             ensure_ascii=False,
             indent=2,
             sort_keys=True,

@@ -3,6 +3,11 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+uv run semgrep-llm-vul validate-benchmarks "${repo_root}/benchmarks/cases"
+uv run semgrep-llm-vul evaluate-benchmarks "${repo_root}/benchmarks/cases" \
+  --artifact-base "${repo_root}"
 uv run semgrep-llm-vul evaluate-cases "${repo_root}/benchmarks/cases" \
   --repo-root "${repo_root}" \
   --summary-only
+
+echo "Benchmark/case harness check passed."

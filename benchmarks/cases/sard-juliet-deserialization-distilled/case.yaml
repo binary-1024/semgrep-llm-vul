@@ -1,0 +1,30 @@
+schema_version: 1
+id: sard-juliet-deserialization-distilled
+type: synthetic_benchmark
+target_stage: M1
+status: candidate
+source:
+  name: NIST SARD / Juliet-style CWE sample
+  url: https://www.nist.gov/itl/ssd/software-quality-group/samate/software-assurance-reference-dataset-sard
+  license: see-upstream
+target:
+  repo_url: https://samate.nist.gov/SARD/
+  affected_version: distilled-local-sample
+  fixed_version: distilled-local-fix
+  language: python
+inputs:
+  description: Distilled unsafe deserialization case inspired by SARD/Juliet-style CWE coverage.
+  mode: unknown_sink
+  artifacts:
+    - kind: diff
+      path: fixtures/sink/benchmark-deserialization-fix.diff
+      metadata:
+        fixture_origin: project-authored-distillation
+        upstream_reference: https://www.nist.gov/itl/ssd/software-quality-group/samate/software-assurance-reference-dataset-sard
+expected:
+  sink:
+    name: loads
+safety:
+  contains_poc: false
+  contains_exp: false
+  requires_isolation: false

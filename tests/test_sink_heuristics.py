@@ -18,6 +18,15 @@ def test_does_not_match_safe_wrapper_by_substring() -> None:
     assert matches == ()
 
 
+def test_matches_qualified_pickle_load_without_generic_load() -> None:
+    matches = find_sink_heuristic_matches("return pickle.load(file_obj)")
+
+    assert len(matches) == 1
+    assert matches[0].call_name == "pickle.load"
+    assert matches[0].heuristic.category == "deserialization"
+    assert find_sink_heuristic_matches("return load(file_obj)") == ()
+
+
 def test_respects_optional_language_scope() -> None:
     heuristic = SinkHeuristic(
         name="python_only_eval",

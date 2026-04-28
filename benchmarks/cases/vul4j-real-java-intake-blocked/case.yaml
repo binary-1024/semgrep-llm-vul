@@ -1,0 +1,23 @@
+schema_version: 1
+id: vul4j-real-java-intake-blocked
+type: real_vulnerability
+target_stage: M3
+status: blocked
+source:
+  name: Vul4J
+  url: https://github.com/tuhh-softsec/vul4j
+  license: CC-BY-4.0 dataset / GPL-3.0 code
+target:
+  repo_url: https://github.com/tuhh-softsec/vul4j
+  affected_version: dataset-case-not-selected
+  fixed_version: dataset-case-not-selected
+  language: java
+inputs:
+  description: Real Java vulnerability reproduction case is blocked until a specific Vul4J ID is selected and checked out in an isolated environment.
+  mode: unknown_sink
+expected:
+  status: blocked
+safety:
+  contains_poc: true
+  contains_exp: false
+  requires_isolation: true

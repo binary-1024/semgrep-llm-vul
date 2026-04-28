@@ -49,7 +49,7 @@ DEFAULT_SINK_HEURISTICS: tuple[SinkHeuristic, ...] = (
     ),
     SinkHeuristic(
         name="deserialization",
-        call_names=("deserialize", "loads"),
+        call_names=("deserialize", "loads", "pickle.load"),
         category="deserialization",
         confidence=0.65,
         description="反序列化入口可能处理外部可控数据，需验证格式、类型与执行副作用。",

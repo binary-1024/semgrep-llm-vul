@@ -207,11 +207,20 @@ def _discover_case_dirs(cases_root: Path) -> list[Path]:
     if not cases_root.is_dir():
         raise BenchmarkCaseError(f"cases 路径必须是目录：{cases_root}")
 
-    case_dirs = [
-        path
-        for path in sorted(cases_root.iterdir())
-        if path.is_dir() and (path / "case.yaml").exists() and (path / "expected.json").exists()
-    ]
+    case_dirs = []
+    for path in sorted(cases_root.iterdir()):
+        if (
+            not path.is_dir()
+            or not (path / "case.yaml").exists()
+            or not (path / "expected.json").exists()
+        ):
+            continue
+        case_data = _load_case_yaml(path / "case.yaml")
+        if case_data.get("status") != "candidate":
+            continue
+        if case_data.get("target_stage") not in {"M1", "M2"}:
+            continue
+        case_dirs.append(path)
     if not case_dirs:
         raise BenchmarkCaseError(f"cases 目录未发现可评估 case：{cases_root}")
     return case_dirs

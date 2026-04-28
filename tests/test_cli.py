@@ -143,7 +143,7 @@ def test_evaluate_cases_cli_outputs_json_report(capsys) -> None:
     assert exit_code == 0
     report = json.loads(captured.out)
     assert report["kind"] == "benchmark_case_suite_evaluation"
-    assert report["total"] == 5
+    assert report["total"] == 12
     assert report["passed"] is True
 
 
@@ -162,9 +162,25 @@ def test_evaluate_cases_cli_outputs_summary_report(capsys) -> None:
     assert exit_code == 0
     report = json.loads(captured.out)
     assert report["kind"] == "benchmark_case_suite_summary"
-    assert report["total"] == 5
+    assert report["total"] == 12
     assert report["passed"] is True
     assert all("sink_report" not in item for item in report["cases"])
+
+
+def test_validate_benchmarks_cli_outputs_inventory(capsys) -> None:
+    exit_code = main(
+        [
+            "validate-benchmarks",
+            str(ROOT / "benchmarks" / "cases"),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    inventory = json.loads(captured.out)
+    assert inventory["kind"] == "benchmark_case_inventory"
+    assert inventory["summary"]["total"] == 14
+    assert inventory["summary"]["candidate"] == 12
 
 
 def test_benchmark_script_is_executable() -> None:

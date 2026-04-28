@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "stage": "M1",
+  "expected_status": "candidate",
+  "sink_candidates": [
+    {
+      "name": "exec",
+      "path": "src/main/java/org/example/BenchmarkCommandInjection.java",
+      "heuristic_category": "command_execution"
+    }
+  ],
+  "must_not_include": [
+    {
+      "name": "isAllowedCommand"
+    }
+  ]
+}

@@ -11,6 +11,9 @@
   notes.md
 ```
 
+新增 case 时可从 `../templates/` 复制 `case.yaml`、`expected.json` 和 `notes.md`，
+再替换所有 `replace-with-*` 占位内容。
+
 ## case.yaml 字段
 
 ```yaml
@@ -46,6 +49,15 @@ safety:
   requires_isolation: false
 ```
 
+字段约束：
+
+- `schema_version` 当前必须是 `1`。
+- `type` 只能是 `curated_minimal`、`synthetic_benchmark` 或 `real_vulnerability`。
+- `target_stage` 只能是 `M1`、`M2`、`M3` 或 `M4`。
+- `status` 只能是 `candidate`、`blocked` 或 `unsupported`。
+- `source.name` 和 `source.license` 必填；`source.url` 可以为 `null`。
+- `safety.contains_poc`、`safety.contains_exp`、`safety.requires_isolation` 必须是 bool。
+
 ## expected.json 字段
 
 `expected.json` 用于描述当前阶段的机器可比较期望。M1 case 使用
@@ -71,6 +83,13 @@ safety:
   ]
 }
 ```
+
+字段约束：
+
+- `schema_version` 当前必须是 `1`。
+- `stage` 只能是 `M1`、`M2`、`M3` 或 `M4`。
+- `expected_status` 只能是 `candidate`、`blocked` 或 `unsupported`。
+- `sink_candidates` 和 `must_not_include` 必须是 object list。
 
 M2 case 使用 `inputs.semgrep_json` 指向本地 Semgrep JSON fixture，并在
 `expected.json` 中使用 `taint_paths` 描述期望的 source、sink、step roles 和
@@ -103,3 +122,16 @@ case id 使用小写 kebab-case：
 - `curated-open-redirect-taint-path`
 - `vul4j-command-injection-example`
 - `owasp-benchmark-xss-sample`
+
+## 当前 curated cases
+
+- `curated-open-redirect-safe-wrapper`：positive case，期望从 diff 中生成 `redirect` candidate，同时不包含安全封装名。
+- `curated-open-redirect-safe-diff`：negative case，安全封装 diff 不应生成 direct sink candidate。
+- `curated-insufficient-evidence`：insufficient evidence case，没有代码、diff 或 Semgrep 证据时不应生成候选。
+- `curated-safe-deserialization-wrapper`：negative case，`safe_loads` 不应误判为 `loads`。
+- `curated-safe-executor-submit`：negative case，`executor.submit` 不应误判为 `exec`。
+- `owasp-benchmark-command-injection-distilled`：OWASP Benchmark 风格 command injection distillation，验证 `exec` sink。
+- `sard-juliet-deserialization-distilled`：SARD/Juliet 风格 deserialization distillation，验证 `loads` sink。
+- `real-pypickle-cve-2025-5174-m1`：真实 CVE patch 裁剪 case，验证 `pickle.load` deserialization sink。
+- `vul4j-real-java-intake-blocked`：真实 Java 漏洞来源 intake，占位记录 Vul4J case 需要隔离 checkout/compile/PoV。
+- `cvefixes-dataset-intake-unsupported`：真实漏洞数据集 intake，占位记录当前不支持直接导入 CVEfixes 数据库。

@@ -1,0 +1,23 @@
+schema_version: 1
+id: cvefixes-dataset-intake-unsupported
+type: real_vulnerability
+target_stage: M1
+status: unsupported
+source:
+  name: CVEfixes
+  url: https://github.com/secureIT-project/CVEfixes
+  license: see-upstream
+target:
+  repo_url: https://github.com/secureIT-project/CVEfixes
+  affected_version: dataset-v1.0.8
+  fixed_version: null
+  language: null
+inputs:
+  description: CVEfixes is a large relational vulnerability dataset; direct database ingestion is unsupported in the current local M1 harness.
+  mode: unknown_sink
+expected:
+  status: unsupported
+safety:
+  contains_poc: false
+  contains_exp: false
+  requires_isolation: false
