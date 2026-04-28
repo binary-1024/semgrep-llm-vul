@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "assessments": [
+    {
+      "path_match": {
+        "source_name": "request.args[\"next\"]",
+        "sink_name": "redirect",
+        "sink": {
+          "path": "app/routes.py",
+          "start_line": 16
+        }
+      },
+      "reachable": false,
+      "entrypoint": null,
+      "call_chain": [],
+      "source_control": {
+        "controlled": null,
+        "reason": "未确认 source 是否能从外部入口到达。"
+      },
+      "blocking_factors": [
+        {
+          "kind": "unregistered_handler",
+          "summary": "目标 handler 未被路由或其他公开入口注册。",
+          "location": {
+            "path": "app/routes.py",
+            "start_line": 12
+          }
+        }
+      ],
+      "evidence": [
+        {
+          "summary": "本地入口清单未包含该 handler。",
+          "reasoning": "该证据用于验证 reachable=false 必须由明确阻断因素支撑。",
+          "confidence": 0.65,
+          "location": {
+            "path": "app/routes.py",
+            "start_line": 12
+          }
+        }
+      ],
+      "unknowns": [
+        "该 fixture 是最小阻断样例，未覆盖动态注册。"
+      ]
+    }
+  ]
+}

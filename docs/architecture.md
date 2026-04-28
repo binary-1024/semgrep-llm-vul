@@ -79,7 +79,7 @@ TaintPathGenerationReport
 - JSON 序列化：`semgrep_llm_vul.reporting.taint_path_generation_report_to_dict`
 - 语义边界：只保留能与 sink candidate 对齐的路径；`reachable` 保持 `None`；不做调用图、入口可达性、sanitizer 充分性或可利用确认。
 
-M2 下一步采用本地可触达证据模型：
+M2 第一版 reachability 采用本地可触达证据模型：
 
 ```text
 TaintPath(reachable=None)
@@ -98,6 +98,15 @@ ReachabilityAssessment(reachable=true|false|null)
 - `reachable=null`：候选路径存在，但入口、调用链、source 可控性、sanitizer/guard 或版本证据不足。
 
 预期 assessment 字段包括候选 `TaintPath` 引用、入口证据、调用链或近似链、source 可控性、blocking factors、evidence 和 unknowns。
+
+当前实现入口：
+
+- `semgrep_llm_vul.reachability.generate_reachability_report`
+- 输出模型：`ReachabilityReport`
+- 输入证据：`VulnerabilityInput`、`TaintPathGenerationReport`、本地 reachability evidence JSON
+- CLI：`uv run semgrep-llm-vul confirm-reachability <analysis-input> --semgrep-json <semgrep.json> --reachability-json <reachability.json>`
+- JSON 序列化：`semgrep_llm_vul.reporting.reachability_report_to_dict`
+- 语义边界：只消费本地结构化证据；不扫描真实 repo；不构建完整跨语言调用图；不做 PoC/exp 验证。
 
 ## 预期方向
 

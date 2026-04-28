@@ -91,9 +91,13 @@ safety:
 - `expected_status` 只能是 `candidate`、`blocked` 或 `unsupported`。
 - `sink_candidates` 和 `must_not_include` 必须是 object list。
 
-M2 case 使用 `inputs.semgrep_json` 指向本地 Semgrep JSON fixture，并在
+M2 taint path case 使用 `inputs.semgrep_json` 指向本地 Semgrep JSON fixture，并在
 `expected.json` 中使用 `taint_paths` 描述期望的 source、sink、step roles 和
-`reachable` 状态。当前 M2 benchmark 只验证最小 taint path candidate，不验证可触达性。
+candidate path 的 `reachable` 状态。
+
+M2 reachability case 可以额外使用 `inputs.reachability_json` 指向本地
+reachability evidence fixture，并在 `expected.json` 中使用 `reachability` 描述期望的
+`reachable=true|false|null`、入口类型或阻断因素。
 
 ## notes.md 内容
 

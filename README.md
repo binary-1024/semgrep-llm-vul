@@ -51,7 +51,6 @@
 ./scripts/build
 ./scripts/benchmark
 ./scripts/update-semgrep-fixtures
-./scripts/benchmark
 uv run semgrep-llm-vul validate-benchmarks
 uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .
 ```
@@ -61,7 +60,6 @@ uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .
 - `./scripts/test` 运行 `pytest`
 - `./scripts/lint` 运行 `ruff check .`
 - `./scripts/build` 运行 `uv build`
-- `./scripts/benchmark` 批量评估当前 benchmark cases 的 M1/M2 阶段期望
 - `./scripts/check` 依次运行 lint、test 和 build
 - `./scripts/update-semgrep-fixtures` 从样例项目生成 Semgrep fixture
 - `./scripts/benchmark` 校验并执行 benchmark/case harness
@@ -118,6 +116,15 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root .
 uv run semgrep-llm-vul generate-taint-paths \
   examples/analysis/unknown-sink.yaml \
   --semgrep-json fixtures/semgrep/taint-result-with-trace.json
+```
+
+生成 reachability JSON 报告：
+
+```bash
+uv run semgrep-llm-vul confirm-reachability \
+  examples/analysis/unknown-sink.yaml \
+  --semgrep-json fixtures/semgrep/taint-result-with-trace.json \
+  --reachability-json fixtures/reachability/open-redirect-reachable.json
 ```
 
 日常回归可使用摘要输出：

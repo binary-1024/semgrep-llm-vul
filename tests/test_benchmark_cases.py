@@ -73,13 +73,32 @@ def test_evaluate_benchmark_case_passes_curated_m2_taint_path_case() -> None:
     assert "sink_report" not in result
 
 
+def test_evaluate_benchmark_case_passes_curated_m2_reachability_case() -> None:
+    result = evaluate_benchmark_case(
+        CASES_ROOT / "curated-open-redirect-reachability",
+        repo_root=ROOT,
+    )
+
+    assert result["kind"] == "benchmark_case_evaluation"
+    assert result["case_id"] == "curated-open-redirect-reachability"
+    assert result["stage"] == "M2"
+    assert result["passed"] is True
+    assert result["checks"][1]["name"] == "expected_reachability[0]"
+    assert result["taint_path_report"]["paths"][0]["reachable"] is None
+    assert result["reachability_report"]["assessments"][0]["reachable"] is True
+    assert (
+        result["reachability_report"]["assessments"][0]["entrypoint"]["kind"]
+        == "flask_route"
+    )
+
+
 def test_evaluate_benchmark_cases_summarizes_curated_cases() -> None:
     result = evaluate_benchmark_cases(CASES_ROOT, repo_root=ROOT)
 
     assert result["kind"] == "benchmark_case_suite_evaluation"
-    assert result["total"] == 12
+    assert result["total"] == 13
     assert result["passed"] is True
-    assert result["passed_count"] == 12
+    assert result["passed_count"] == 13
     assert result["failed_count"] == 0
     assert {item["case_id"] for item in result["results"]} == {
         "curated-command-execution-system",
@@ -88,6 +107,7 @@ def test_evaluate_benchmark_cases_summarizes_curated_cases() -> None:
         "curated-open-redirect-safe-diff",
         "curated-open-redirect-safe-negative",
         "curated-open-redirect-safe-wrapper",
+        "curated-open-redirect-reachability",
         "curated-open-redirect-taint-path",
         "curated-safe-deserialization-wrapper",
         "curated-safe-executor-submit",
@@ -103,7 +123,7 @@ def test_summarize_benchmark_suite_omits_full_sink_reports() -> None:
     summary = summarize_benchmark_suite(result)
 
     assert summary["kind"] == "benchmark_case_suite_summary"
-    assert summary["total"] == 12
+    assert summary["total"] == 13
     assert summary["passed"] is True
     assert all("sink_report" not in item for item in summary["cases"])
     assert all(item["failed_checks"] == [] for item in summary["cases"])
