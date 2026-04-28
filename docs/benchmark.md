@@ -113,6 +113,12 @@ uv run semgrep-llm-vul evaluate-case \
   --repo-root .
 ```
 
+也可以批量评估当前 `benchmarks/cases/` 下的 M1 cases：
+
+```bash
+uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root .
+```
+
 第三阶段：
 
 - 扩展到 M2 taint path、M3 PoC、M4 exp。

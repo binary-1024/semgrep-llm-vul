@@ -54,6 +54,32 @@ def evaluate_benchmark_case(
     }
 
 
+def evaluate_benchmark_cases(
+    cases_root: str | Path,
+    *,
+    repo_root: str | Path | None = None,
+) -> dict[str, Any]:
+    """评估目录下的多个 benchmark cases。"""
+
+    root = Path(cases_root)
+    case_dirs = _discover_case_dirs(root)
+    results = [
+        evaluate_benchmark_case(case_dir, repo_root=repo_root)
+        for case_dir in case_dirs
+    ]
+    passed_count = sum(1 for result in results if result["passed"])
+    return {
+        "schema_version": 1,
+        "kind": "benchmark_case_suite_evaluation",
+        "cases_root": str(root),
+        "total": len(results),
+        "passed": passed_count == len(results),
+        "passed_count": passed_count,
+        "failed_count": len(results) - passed_count,
+        "results": results,
+    }
+
+
 def _case_to_task(case_data: dict[str, Any]):
     inputs = _required_mapping(case_data, "inputs")
     analysis_input = {
@@ -69,6 +95,22 @@ def _case_to_task(case_data: dict[str, Any]):
         return parse_analysis_input(analysis_input)
     except AnalysisInputError as exc:
         raise BenchmarkCaseError(f"case.yaml 无法转换为分析任务：{exc}") from exc
+
+
+def _discover_case_dirs(cases_root: Path) -> list[Path]:
+    if not cases_root.exists():
+        raise BenchmarkCaseError(f"cases 目录不存在：{cases_root}")
+    if not cases_root.is_dir():
+        raise BenchmarkCaseError(f"cases 路径必须是目录：{cases_root}")
+
+    case_dirs = [
+        path
+        for path in sorted(cases_root.iterdir())
+        if path.is_dir() and (path / "case.yaml").exists() and (path / "expected.json").exists()
+    ]
+    if not case_dirs:
+        raise BenchmarkCaseError(f"cases 目录未发现可评估 case：{cases_root}")
+    return case_dirs
 
 
 def _expected_sink_checks(

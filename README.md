@@ -89,6 +89,12 @@ uv run semgrep-llm-vul evaluate-case \
   --repo-root .
 ```
 
+批量评估 `benchmarks/cases/` 下的 M1 cases：
+
+```bash
+uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root .
+```
+
 ## 项目文档
 
 - [Insight 决策流程](docs/Insight/README.md)
