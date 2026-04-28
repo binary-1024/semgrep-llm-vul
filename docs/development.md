@@ -105,6 +105,17 @@ uv run python --version
 uv run semgrep-llm-vul validate-input examples/analysis/known-sink.yaml
 ```
 
+## CI
+
+GitHub Actions 会在 push 到 `main` 和 pull request 时运行：
+
+```bash
+uv sync --dev
+./scripts/check
+```
+
+CI 配置位于 `.github/workflows/check.yml`。本地提交前仍需先运行 `./scripts/check`。
+
 ## Python 项目约定
 
 - 源码放在 `src/semgrep_llm_vul/`。
