@@ -13,6 +13,8 @@ benchmark/case harness 不替代单元测试。它的职责是持续回答：
 benchmark、真实漏洞 case 和 curated minimal case 变相测试当前开发能力、边界和缺陷。
 具体来源候选记录在 [`benchmarks/sources.md`](../benchmarks/sources.md)。
 
+当前可复现的 baseline 记录在 [`benchmark-results.md`](benchmark-results.md)。
+
 ## 数据来源分层
 
 ### synthetic_benchmark
