@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-仓库已经完成 M0 基础 harness，并具备语言无关数据模型、分析任务输入模型、Semgrep finding 归一化、Semgrep taint-mode trace 到候选 `TaintPath` 的最小归一化能力，以及 M1 最小 sink generation pipeline。
+仓库已经完成 M0 基础 harness，并具备语言无关数据模型、分析任务输入模型、Semgrep finding 归一化、Semgrep taint-mode trace 到候选 `TaintPath` 的最小归一化能力、M1 最小 sink generation pipeline，以及 M2 最小 taint path generation 入口。
 
 ## 当前数据流
 
@@ -59,6 +59,23 @@ sink candidate extraction 将逐步使用本地内置 sink heuristic pack 组织
 - 输入证据：`VulnerabilityInput`、可选 `NormalizedFinding`、本地 diff artifact 和漏洞代码片段
 - CLI：`uv run semgrep-llm-vul generate-sinks <analysis-input>`
 - JSON 序列化：`semgrep_llm_vul.reporting.sink_generation_report_to_dict`
+
+M2 第一版 taint path generation 只做候选路径对齐：
+
+```text
+VulnerabilityInput
+  + SinkGenerationReport
+  + Semgrep-derived TaintPath(reachable=None)
+  ↓
+TaintPathGenerationReport
+```
+
+当前实现入口：
+
+- `semgrep_llm_vul.taint_path_generation.generate_taint_path_report`
+- 输出模型：`TaintPathGenerationReport`
+- 输入证据：`VulnerabilityInput`、`SinkGenerationReport`、已归一化的 Semgrep `TaintPath`
+- 语义边界：只保留能与 sink candidate 对齐的路径；`reachable` 保持 `None`；不做调用图、入口可达性、sanitizer 充分性或可利用确认。
 
 ## 预期方向
 
