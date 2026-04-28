@@ -22,6 +22,7 @@
 │   ├── architecture.md
 │   ├── development.md
 │   ├── git.md
+│   ├── glossary.md
 │   ├── methodology.md
 │   ├── product.md
 │   ├── roadmap.md
@@ -114,6 +115,7 @@ uv run semgrep-llm-vul generate-taint-paths \
 ## 项目文档
 
 - [Insight 决策流程](docs/Insight/README.md)
+- [术语表](docs/glossary.md)
 - [漏洞分析方法论](docs/methodology.md)
 - [Benchmark 与 Case Harness](docs/benchmark.md)
 - [架构说明](docs/architecture.md)
