@@ -99,6 +99,25 @@ test_regression_nested_semgrep_trace_location()
 
 并在 `scripts/test` 中区分快速测试和完整测试。
 
+### 报告契约测试
+
+报告契约测试用于保护 agent 和后续阶段会消费的 JSON 输出结构。
+
+适用范围：
+
+- sink generation report。
+- taint path generation report。
+- reachability report。
+- benchmark summary 和 baseline 输出。
+- 未来 PoC/exp report。
+
+要求：
+
+- 对关键字段、枚举值和三态语义做稳定性断言。
+- 对 evidence、location、unknowns、blocking factors 等证据链字段做结构断言。
+- 避免对非关键排序或完整大 JSON 做脆弱断言；必要时先生成摘要再断言。
+- 如果需要 snapshot，应优先 snapshot 小型、脱敏、稳定的报告片段。
+
 ## 回归测试触发条件
 
 以下情况必须补回归测试：
@@ -153,6 +172,18 @@ Semgrep fixture 可以通过以下命令从样例项目和规则生成：
 ```
 
 该命令应在更新 Semgrep adapter 或 Semgrep 规则样例时运行。
+
+### Fixture Provenance
+
+新增或修改外部工具 fixture 时，应在就近 README、case notes 或 fixture manifest 中说明：
+
+- fixture 类型：`minimal`、`realistic`、`malformed` 或 generated。
+- 来源：真实工具输出、真实输出裁剪、官方文档样例、项目内合成样例。
+- 生成或裁剪命令。
+- 是否经过脱敏。
+- 覆盖的失败模式或回归点。
+
+如果当前没有统一 manifest 文件，至少要在相关 `README.md` 或 benchmark `notes.md` 中记录这些信息。等 fixture 数量继续增加后，再通过 Insight/ADR 决定是否引入统一 `fixture_manifest` schema。
 
 ## 命令
 
