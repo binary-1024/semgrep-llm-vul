@@ -105,7 +105,7 @@ notes.md
 - 实现 M1 sink generation evaluator。
 - 输出 per-case pass/fail/blocked/unsupported 报告。
 
-当前最小 evaluator 已支持评估单个 M1 case：
+当前最小 evaluator 已支持评估单个 M1/M2 case：
 
 ```bash
 uv run semgrep-llm-vul evaluate-case \
@@ -113,13 +113,13 @@ uv run semgrep-llm-vul evaluate-case \
   --repo-root .
 ```
 
-也可以批量评估当前 `benchmarks/cases/` 下的 M1 cases：
+也可以批量评估当前 `benchmarks/cases/` 下的 M1/M2 cases：
 
 ```bash
 uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root .
 ```
 
-日常回归建议使用摘要输出，避免完整 `sink_report` 干扰快速判断：
+日常回归建议使用摘要输出，避免完整阶段报告干扰快速判断：
 
 ```bash
 ./scripts/benchmark
@@ -127,5 +127,5 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root .
 
 第三阶段：
 
-- 扩展到 M2 taint path、M3 PoC、M4 exp。
+- 扩展到 M2 reachability、M3 PoC、M4 exp。
 - 支持外部 benchmark 下载缓存，但不提交原始大数据。

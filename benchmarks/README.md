@@ -43,7 +43,7 @@ benchmarks/
 
 ## 运行单个 case
 
-当前 evaluator 支持 M1 sink candidate case：
+当前 evaluator 支持 M1 sink candidate case 和 M2 taint path candidate case：
 
 ```bash
 uv run semgrep-llm-vul evaluate-case \
@@ -51,7 +51,7 @@ uv run semgrep-llm-vul evaluate-case \
   --repo-root .
 ```
 
-批量评估当前目录下的 M1 cases：
+批量评估当前目录下的 M1/M2 cases：
 
 ```bash
 uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root .
