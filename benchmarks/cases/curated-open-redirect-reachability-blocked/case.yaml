@@ -1,0 +1,29 @@
+schema_version: 1
+id: curated-open-redirect-reachability-blocked
+type: curated_minimal
+target_stage: M2
+status: candidate
+source:
+  name: project-curated
+  url: null
+  license: project
+target:
+  repo_url: https://github.com/example/flask-app
+  affected_version: v1.0.0
+  fixed_version: v1.0.1
+  language: python
+inputs:
+  description: Open redirect candidate path exists, but local evidence proves the handler is not registered as an entrypoint.
+  mode: unknown_sink
+  semgrep_json:
+    - fixtures/semgrep/taint-result-with-trace.json
+  reachability_json:
+    - fixtures/reachability/open-redirect-blocked.json
+expected:
+  taint_path:
+    source_name: request.args["next"]
+    sink_name: redirect
+safety:
+  contains_poc: false
+  contains_exp: false
+  requires_isolation: false
