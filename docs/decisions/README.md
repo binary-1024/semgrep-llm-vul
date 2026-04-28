@@ -16,6 +16,7 @@
 | 0006 | [使用证据优先的 sink generation pipeline](0006-use-evidence-first-sink-generation-pipeline.md) | Accepted | [sink 函数生成 pipeline](../Insight/20260428-sink-generation-pipeline.md) | M1 sink 生成 |
 | 0007 | [使用可反驳的证据优先漏洞分析方法论](0007-use-falsifiable-evidence-first-methodology.md) | Accepted | [漏洞分析方法论基础](../Insight/20260428-methodology-foundation.md) | 全项目分析方法论 |
 | 0008 | [使用本地内置 sink heuristic pack](0008-use-local-sink-heuristic-pack.md) | Accepted | [sink heuristic pack](../Insight/20260428-sink-heuristic-pack.md) | M1 sink 生成 |
+| 0009 | [建立 benchmark 与 case harness](0009-use-benchmark-case-harness.md) | Accepted | [benchmark 与 case harness](../Insight/20260428-benchmark-case-harness.md) | 跨里程碑验证 |
 
 ## 使用方式
 

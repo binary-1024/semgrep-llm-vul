@@ -85,6 +85,7 @@ uv run semgrep-llm-vul generate-sinks \
 
 - [Insight 决策流程](docs/Insight/README.md)
 - [漏洞分析方法论](docs/methodology.md)
+- [Benchmark 与 Case Harness](docs/benchmark.md)
 - [架构说明](docs/architecture.md)
 - [产品目标与需求](docs/product.md)
 - [路线图](docs/roadmap.md)
