@@ -66,6 +66,8 @@ def test_unknown_sink_uses_semgrep_finding_as_candidate_evidence() -> None:
     assert report.recommended.signature.location is not None
     assert report.recommended.signature.location.path == "app/routes.py"
     assert report.recommended.evidence
+    assert report.recommended.evidence[-1].source.metadata["heuristic_name"] == "open_redirect"
+    assert report.recommended.evidence[-1].source.metadata["heuristic_category"] == "open_redirect"
     assert "Semgrep finding 是静态候选证据" in report.recommended.evidence[-1].reasoning
 
 
@@ -98,6 +100,12 @@ def test_unknown_sink_uses_diff_artifact_candidate() -> None:
     assert {item.source.metadata["diff_side"] for item in report.recommended.evidence} == {
         "added",
         "removed",
+    }
+    assert {item.source.metadata["heuristic_name"] for item in report.recommended.evidence} == {
+        "open_redirect",
+    }
+    assert {item.source.metadata["heuristic_category"] for item in report.recommended.evidence} == {
+        "open_redirect",
     }
     evidence_lines = {
         item.source.location.start_line

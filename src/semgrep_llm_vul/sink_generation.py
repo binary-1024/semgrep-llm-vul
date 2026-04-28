@@ -19,19 +19,8 @@ from semgrep_llm_vul.models import (
     SourceReference,
     VulnerabilityInput,
 )
+from semgrep_llm_vul.sink_heuristics import SinkHeuristicMatch, find_sink_heuristic_matches
 
-DANGEROUS_CALL_NAMES = (
-    "redirect",
-    "exec",
-    "eval",
-    "system",
-    "popen",
-    "subprocess",
-    "deserialize",
-    "loads",
-)
-
-CALL_RE = re.compile(r"\b([A-Za-z_][A-Za-z0-9_\.]*)\s*\(")
 DIFF_HUNK_RE = re.compile(
     r"@@ -(?P<old_start>\d+)(?:,\d+)? \+(?P<new_start>\d+)(?:,\d+)? @@"
 )
@@ -69,15 +58,16 @@ def generate_sink_report(
         )
 
     for finding in semgrep_findings:
-        signature = _signature_from_finding(finding)
-        if signature is None:
+        match = _first_sink_match(finding.code or finding.message, language=finding.language)
+        if match is None:
             unknowns.append(
                 f"Semgrep finding {finding.rule_id} 缺少可识别调用表达式，无法生成 sink candidate。"
             )
             continue
+        signature = _signature_from_finding(finding, match)
         evidence = (
             *finding.evidence,
-            _semgrep_candidate_evidence(finding, signature),
+            _semgrep_candidate_evidence(finding, signature, match),
         )
         _add_draft(
             drafts,
@@ -258,14 +248,13 @@ def _known_sink_evidence(task: VulnerabilityInput) -> tuple[Evidence, ...]:
     return tuple(evidence)
 
 
-def _signature_from_finding(finding: NormalizedFinding) -> FunctionSignature | None:
-    name = _first_dangerous_call(finding.code or finding.message)
-    if name is None:
-        return None
-
+def _signature_from_finding(
+    finding: NormalizedFinding,
+    match: SinkHeuristicMatch,
+) -> FunctionSignature:
     return FunctionSignature(
-        raw=f"{name}(...)",
-        name=name.split(".")[-1],
+        raw=f"{match.call_name}(...)",
+        name=match.call_name.split(".")[-1],
         location=finding.location,
         language=finding.language,
     )
@@ -274,16 +263,25 @@ def _signature_from_finding(finding: NormalizedFinding) -> FunctionSignature | N
 def _semgrep_candidate_evidence(
     finding: NormalizedFinding,
     signature: FunctionSignature,
+    match: SinkHeuristicMatch,
 ) -> Evidence:
     return Evidence(
         source=SourceReference(
             kind=EvidenceKind.SEMGREP_FINDING,
             location=finding.location,
-            metadata={"rule_id": finding.rule_id, "severity": finding.severity},
+            metadata={
+                "rule_id": finding.rule_id,
+                "severity": finding.severity,
+                "heuristic_name": match.heuristic.name,
+                "heuristic_category": match.heuristic.category,
+            },
         ),
         summary=f"Semgrep finding 指向候选 sink：{signature.raw}",
-        reasoning="Semgrep finding 是静态候选证据，不能直接等同最终漏洞结论。",
-        confidence=0.65,
+        reasoning=(
+            f"{match.heuristic.description} "
+            "Semgrep finding 是静态候选证据，不能直接等同最终漏洞结论。"
+        ),
+        confidence=match.heuristic.confidence,
         reproducible_steps=("重新运行对应 Semgrep 规则并检查 JSON finding。",),
     )
 
@@ -321,8 +319,8 @@ def _signatures_from_diff(
             new_line += 1
         if side == "removed" and old_line is not None:
             old_line += 1
-        name = _first_dangerous_call(line)
-        if name is None:
+        match = _first_sink_match(line)
+        if match is None:
             continue
         path = (
             (new_path if side == "added" else old_path)
@@ -332,8 +330,8 @@ def _signatures_from_diff(
         )
         location = CodeLocation(path=path, start_line=line_number)
         signature = FunctionSignature(
-            raw=f"{name}(...)",
-            name=name.split(".")[-1],
+            raw=f"{match.call_name}(...)",
+            name=match.call_name.split(".")[-1],
             location=location,
         )
         evidence = Evidence(
@@ -344,15 +342,18 @@ def _signatures_from_diff(
                 metadata={
                     "artifact_path": artifact.path,
                     "diff_side": side,
+                    "heuristic_name": match.heuristic.name,
+                    "heuristic_category": match.heuristic.category,
                     "line": line[:200],
                 },
             ),
-            summary=f"diff 中出现候选危险调用：{name}",
+            summary=f"diff 中出现候选危险调用：{match.call_name}",
             reasoning=(
+                f"{match.heuristic.description} "
                 "修复 diff 中的危险调用或相关修改可作为 sink 推断线索，"
                 "但需要后续代码和路径验证。"
             ),
-            confidence=0.6,
+            confidence=match.heuristic.confidence,
             reproducible_steps=(f"inspect diff artifact {artifact.path or artifact.uri}",),
         )
         candidates.append((signature, evidence))
@@ -366,22 +367,32 @@ def _signatures_from_snippet(
 ) -> list[tuple[FunctionSignature, Evidence]]:
     candidates = []
     seen: set[str] = set()
-    for name in _dangerous_calls(snippet):
-        if name in seen:
+    for match in find_sink_heuristic_matches(snippet, language=task.target.language):
+        if match.call_name in seen:
             continue
-        seen.add(name)
+        seen.add(match.call_name)
         location = task.sink_signature.location if task.sink_signature else None
         signature = FunctionSignature(
-            raw=f"{name}(...)",
-            name=name.split(".")[-1],
+            raw=f"{match.call_name}(...)",
+            name=match.call_name.split(".")[-1],
             location=location,
             language=task.target.language,
         )
         evidence = Evidence(
-            source=SourceReference(kind=EvidenceKind.CODE_LOCATION, location=location),
-            summary=f"代码片段中出现候选危险调用：{name}",
-            reasoning="漏洞片段中的危险调用可作为 sink 候选线索，但仍需定位到项目真实版本。",
-            confidence=0.45,
+            source=SourceReference(
+                kind=EvidenceKind.CODE_LOCATION,
+                location=location,
+                metadata={
+                    "heuristic_name": match.heuristic.name,
+                    "heuristic_category": match.heuristic.category,
+                },
+            ),
+            summary=f"代码片段中出现候选危险调用：{match.call_name}",
+            reasoning=(
+                f"{match.heuristic.description} "
+                "漏洞片段中的危险调用可作为 sink 候选线索，但仍需定位到项目真实版本。"
+            ),
+            confidence=min(match.heuristic.confidence, 0.45),
             open_questions=("需要确认片段文件位置和完整调用上下文。",),
         )
         candidates.append((signature, evidence))
@@ -404,19 +415,11 @@ def _read_artifact_text(
         raise SinkGenerationError(f"无法读取 diff artifact：{artifact.path}") from exc
 
 
-def _first_dangerous_call(text: str | None) -> str | None:
-    for name in _dangerous_calls(text):
-        return name
+def _first_sink_match(
+    text: str | None,
+    *,
+    language: str | None = None,
+) -> SinkHeuristicMatch | None:
+    for match in find_sink_heuristic_matches(text, language=language):
+        return match
     return None
-
-
-def _dangerous_calls(text: str | None) -> tuple[str, ...]:
-    if not text:
-        return ()
-    calls = []
-    for match in CALL_RE.finditer(text):
-        name = match.group(1)
-        short_name = name.split(".")[-1].lower()
-        if short_name in DANGEROUS_CALL_NAMES:
-            calls.append(name)
-    return tuple(calls)
