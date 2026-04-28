@@ -4,7 +4,13 @@
 
 ## 当前状态
 
-当前目录尚未初始化为 Git 仓库。首次纳入版本管理时执行：
+当前仓库已经使用 Git 管理：
+
+- 主干分支：`main`
+- 远端仓库：`https://github.com/binary-1024/semgrep-llm-vul.git`
+- CI：push 到 `main` 和 pull request 时运行 `./scripts/check`
+
+如果未来在新目录中从零初始化同类项目，可以参考：
 
 ```bash
 git init

@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-仓库处于 Python/uv 基础工程阶段。当前已有语言无关数据模型、Semgrep finding 归一化，以及 Semgrep taint-mode trace 到候选 `TaintPath` 的最小归一化能力。
+仓库已经完成 M0 基础 harness，并具备语言无关数据模型、分析任务输入模型、Semgrep finding 归一化、Semgrep taint-mode trace 到候选 `TaintPath` 的最小归一化能力，以及 M1 sink generation pipeline 决策。
 
 ## 当前数据流
 

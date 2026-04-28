@@ -6,7 +6,7 @@
 
 技术栈定位：Python 3.10 系列，使用 `uv` 管理虚拟环境、依赖、测试和构建。
 
-当前阶段：Python/uv 基础工程。后续优先实现 Semgrep JSON 解析与 finding 归一化能力。
+当前阶段：M0 基础 harness 已完成，M1 sink generation pipeline 决策已完成。下一步优先实现本地、确定性、证据优先的最小 sink candidate 生成能力。
 
 `uv.toml` 已配置国内镜像。运行 `uv sync`、`uv run`、`uv build` 时应优先使用项目内配置，不要绕过该配置。
 

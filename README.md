@@ -2,14 +2,14 @@
 
 围绕 Semgrep findings 和 LLM 审查工作流构建的 AI 辅助漏洞分析项目。
 
-当前仓库处于 Python/uv 基础工程阶段。第一目标是在加入业务逻辑前，让后续开发过程可观察、可测试、可审查。
+当前仓库已经完成基础 Python/uv harness、分析任务输入模型、Semgrep finding 归一化、Semgrep taint-mode 候选路径归一化和 CI。下一步进入 M1：sink 函数生成的最小实现。
 
 ## 项目状态
 
-- 阶段：Python/uv 基础工程
+- 阶段：M1 sink 函数生成准备完成，下一步实现最小 sink candidate pipeline
 - 主要规范：`项目开发管理规范.md`
 - 技术栈：Python 3.10 系列，使用 `uv` 管理虚拟环境、依赖和构建
-- 当前重点：Semgrep JSON 解析任务前的工程基础
+- 当前重点：按证据优先的 sink generation pipeline 实现最小候选生成能力
 
 ## 仓库结构
 

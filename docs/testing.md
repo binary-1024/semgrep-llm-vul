@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-仓库已经接入 Python/uv 测试 harness。当前包含一个最小包级测试，用于确认 `pytest` 能通过 `uv` 正常运行。
+仓库已经接入 Python/uv 测试 harness。当前测试覆盖包导入、核心数据模型、分析任务 YAML/JSON 输入解析、CLI 行为、Semgrep finding 归一化和 Semgrep taint trace 归一化。
 
 ## 测试策略
 
