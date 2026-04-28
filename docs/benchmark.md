@@ -98,6 +98,37 @@ notes.md
 - 外部 benchmark 或 case 的许可证、来源和裁剪方式必须可追溯。
 - 大数据集、下载缓存和生成产物不得进入版本库。
 
+## 当前不足与优化优先级
+
+当前 harness 已能提供日常摘要、baseline 生成和 M1/M2 executable suite，但仍然偏小、偏 curated，不应解释为整体漏洞分析准确率。
+
+已经解决或已有入口的点：
+
+- `./scripts/benchmark-summary` 提供日常短摘要，避免开发者只看完整 JSON 报告。
+- `uv run semgrep-llm-vul benchmark-baseline --markdown` 可生成 baseline 计数和 gaps，减少手工更新漂移。
+- `validate-benchmarks`、`evaluate-benchmarks` 和 `evaluate-cases` 已经分层，但仍需要在文档和输出中持续强调职责边界。
+
+仍需优化的点按优先级排列：
+
+1. 明确 inventory evaluator 与 executable suite 的语义边界。
+   `evaluate-benchmarks` 当前主要回答 inventory/gap 问题，`evaluate-cases` 回答 M1/M2 case 是否满足阶段期望。新增文档、CLI 输出或 baseline 时，不能把 `unsupported_stage` 误读为 executable suite 不支持 M2。
+2. 增加能力边界 case，而不是只增加 happy path。
+   优先补 wrapper、alias、indirect call、多文件路径、trace 缺失、sanitizer 充分/不充分、source/sink 名称相似但语义不同等 case。
+3. 建立 known gap 机制。
+   对当前明确做不到、但希望未来打穿的 case，应能记录为已知能力缺口，而不是只能在 `blocked`、`unsupported` 或失败之间选择。该机制会影响 case schema，进入实现前需要先做 Insight/ADR。
+4. 强化 fixture provenance。
+   外部工具 fixture 应明确标注是 `minimal`、真实输出裁剪、generated output，还是合成近似结构，并说明生成命令、来源和覆盖的失败模式。
+5. 增加 report contract 测试。
+   sink、taint path、reachability 和后续 PoC/exp report 是 agent 消费的接口，字段结构、三态语义和证据链位置需要稳定性测试。
+6. 在 M3/M4 前建立安全执行 harness。
+   PoC/exp 进入可执行阶段前，需要隔离、timeout、资源限制、危险动作分类和默认禁止联网/敏感路径写入等边界。
+
+优化 harness 时遵循“主线支撑够用即停”：
+
+- 当前主线仍是 M2 污点路径与可触达确认。
+- harness 支线优先补能暴露 M2 缺陷的 case 和契约测试。
+- 除非 M3/M4 即将进入实现，否则不提前构建完整 PoC/exp 执行平台。
+
 ## 后续实现方向
 
 第一阶段：
