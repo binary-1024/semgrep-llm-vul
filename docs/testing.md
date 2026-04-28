@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-仓库已经接入 Python/uv 测试 harness。当前测试覆盖包导入、核心数据模型、分析任务 YAML/JSON 输入解析、CLI 行为、Semgrep finding 归一化和 Semgrep taint trace 归一化。
+仓库已经接入 Python/uv 测试 harness。当前测试覆盖包导入、核心数据模型、分析任务 YAML/JSON 输入解析、CLI 行为、Semgrep finding 归一化、Semgrep taint trace 归一化和最小 sink generation pipeline。
 
 ## 测试策略
 
@@ -27,6 +27,7 @@
 - 输入解析
 - Semgrep finding 归一化
 - Semgrep taint trace 归一化
+- sink candidate 生成、排序、证据链和证据不足场景
 - CLI 参数解析和 exit code
 - 错误处理和边界输入
 

@@ -1,0 +1,10 @@
+diff --git a/app/routes.py b/app/routes.py
+index 1111111..2222222 100644
+--- a/app/routes.py
++++ b/app/routes.py
+@@ -9,5 +9,8 @@ def login():
+-    return redirect(request.args["next"])
++    target = request.args["next"]
++    if not is_safe_redirect(target):
++        abort(400)
++    return redirect(target)

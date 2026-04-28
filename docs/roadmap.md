@@ -31,6 +31,8 @@
 
 目标：根据输入线索生成或确认漏洞 sink 函数。
 
+当前状态：最小 sink candidate pipeline 已实现，支持 known sink、Semgrep finding、diff artifact、漏洞片段、证据不足和 malformed artifact 场景。
+
 输入：
 
 - 漏洞描述。
@@ -155,28 +157,28 @@
 
 ## 当前下一步
 
-下一步进入里程碑 1：sink 函数生成的最小实现。
+下一步继续完善里程碑 1：sink 函数生成。
 
-`sink generation pipeline` 的 Insight 和 ADR 已明确采用证据优先、多阶段、本地确定性的第一版流程。决策合入 `main` 后，应在 `codex/feature-sink-generation` 分支中实现最小 sink candidate 生成能力。
+最小 sink candidate pipeline 已经建立。后续应在不破坏本地确定性 harness 的前提下，逐步增强候选提取能力和输出接口。
 
 建议第一个具体任务：
 
 ```md
 ## 任务
 
-实现最小 sink candidate 生成 pipeline。
+增强 sink candidate 生成 pipeline。
 
 ## 背景
 
-项目已经具备基础输入模型、Semgrep finding 归一化、候选 taint path 归一化，以及 sink generation pipeline 决策。下一步需要把决策落成可测试的最小实现。
+项目已经具备最小 sink candidate pipeline。下一步需要提升它对真实输入的适应能力，同时保持证据链和可回归测试。
 
 ## 范围
 
-- 从 `VulnerabilityInput` 生成 sink candidate report。
-- 已知 sink 场景：用户提供 signature 时生成高优先级候选，并保留 evidence。
-- 未知 sink 场景：从本地 fixture 中的 diff 线索、Semgrep finding 或代码片段生成候选。
-- 实现稳定排序和低证据时的明确失败原因。
-- 添加 fixture 和测试覆盖 known sink、unknown sink、insufficient evidence、malformed evidence。
+- 设计 sink generation CLI 或报告输出格式。
+- 增强 diff artifact 解析，但仍不联网拉取真实 GitHub repo。
+- 增加更多语言或框架 fixture。
+- 引入 negative fixture，验证有反证时不会输出错误候选。
+- 评估是否需要抽象 provider 接口。
 
 ## 非目标
 
@@ -187,9 +189,8 @@
 
 ## 验收标准
 
-- known sink 输入能生成带 evidence 的 sink candidate。
-- unknown sink fixture 能生成候选或明确说明证据不足。
-- Semgrep finding 只能作为候选证据，不能被当成最终安全结论。
-- 候选排序稳定。
+- CLI 或报告输出格式有测试覆盖。
+- 新增 fixture 覆盖 positive、negative、insufficient、malformed。
+- 现有 sink generation 测试继续通过。
 - `./scripts/check` 通过。
 ```

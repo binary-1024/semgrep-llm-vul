@@ -166,6 +166,16 @@ class SinkCandidate:
 
 
 @dataclass(frozen=True)
+class SinkGenerationReport:
+    """sink 生成阶段的结构化报告。"""
+
+    candidates: tuple[SinkCandidate, ...]
+    recommended: SinkCandidate | None = None
+    evidence: tuple[Evidence, ...] = ()
+    unknowns: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class SourceCandidate:
     """候选 source。"""
 

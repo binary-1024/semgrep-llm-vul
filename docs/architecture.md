@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-仓库已经完成 M0 基础 harness，并具备语言无关数据模型、分析任务输入模型、Semgrep finding 归一化、Semgrep taint-mode trace 到候选 `TaintPath` 的最小归一化能力，以及 M1 sink generation pipeline 决策。
+仓库已经完成 M0 基础 harness，并具备语言无关数据模型、分析任务输入模型、Semgrep finding 归一化、Semgrep taint-mode trace 到候选 `TaintPath` 的最小归一化能力，以及 M1 最小 sink generation pipeline。
 
 ## 当前数据流
 
@@ -49,6 +49,12 @@ Sink generation report
 ```
 
 第一版 sink generation pipeline 保持本地、确定性、可测试，不调用真实 LLM provider，不联网拉取真实 GitHub repo，不实现完整 diff parser。Semgrep finding、diff artifact、用户输入和漏洞描述都只能作为候选证据来源，不能直接等同于漏洞确认结论。
+
+当前实现入口：
+
+- `semgrep_llm_vul.sink_generation.generate_sink_report`
+- 输出模型：`SinkGenerationReport`
+- 输入证据：`VulnerabilityInput`、可选 `NormalizedFinding`、本地 diff artifact 和漏洞代码片段
 
 ## 预期方向
 
