@@ -26,6 +26,7 @@
 再根据任务类型选择性读取：
 
 - 产品或目标变化：`docs/product.md`
+- 漏洞分析方法论、阶段结论语义、证据链原则：`docs/methodology.md`
 - 里程碑和下一步：`docs/roadmap.md`
 - 架构和模块边界：`docs/architecture.md`
 - 开发流程：`docs/development.md`
@@ -38,6 +39,7 @@
 ## 文档职责边界
 
 - `README.md` 保持稳定，负责说明项目是什么、如何开始、常用命令和核心文档入口。
+- `docs/methodology.md` 负责说明漏洞分析方法论、证据链原则、阶段结论语义和工具/LLM 分工。
 - `docs/roadmap.md` 负责记录当前阶段、下一步任务和里程碑计划。
 - 高频变化的计划、阶段状态和下一步清单不要放在 `README.md` 中，避免 README 与路线图漂移。
 

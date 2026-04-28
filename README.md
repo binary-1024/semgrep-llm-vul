@@ -22,6 +22,7 @@
 │   ├── architecture.md
 │   ├── development.md
 │   ├── git.md
+│   ├── methodology.md
 │   ├── product.md
 │   ├── roadmap.md
 │   ├── testing.md
@@ -75,6 +76,7 @@ uv run semgrep-llm-vul validate-input examples/analysis/known-sink.yaml
 ## 项目文档
 
 - [Insight 决策流程](docs/Insight/README.md)
+- [漏洞分析方法论](docs/methodology.md)
 - [架构说明](docs/architecture.md)
 - [产品目标与需求](docs/product.md)
 - [路线图](docs/roadmap.md)

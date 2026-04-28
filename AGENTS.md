@@ -50,6 +50,7 @@
 第二层，按任务类型选择性读取：
 
 - `docs/product.md`
+- `docs/methodology.md`
 - `docs/roadmap.md`
 - `docs/architecture.md`
 - `docs/development.md`
