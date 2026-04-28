@@ -112,12 +112,12 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 
 - M1 known sink、Semgrep finding、diff artifact、vulnerable snippet 和 evidence insufficient 场景的 deterministic sink candidate 回归。
 - M1 negative case 回归，包括安全 wrapper、safe API、diff 删除行和证据不足场景。
-- M2 taint path candidate 和 reachability `true|false|null` 的最小 curated case 回归。
+- M2 taint path candidate、reachability `true|false|null` 和 Flask route positive 的最小 curated case 回归。
 - benchmark inventory、gap 和 executable suite 三层输出。
 
 当前未覆盖或暂不自动化：
 
-- M2 reachability `true|false|null` 已有最小本地证据模型和 curated 回归，但尚未从真实源码自动提取入口证据。
+- M2 reachability `true|false|null` 已有最小本地证据模型和 curated 回归，且已能从本地 Flask fixture 源码提取入口证据。
 - 完整 CVEfixes ingestion 尚未实现。
 - Vul4J 等需要 checkout、构建、运行或隔离环境的 case 尚未进入自动执行。
 - 真实外部项目的大规模 benchmark 下载、缓存和采样流程尚未建立。
@@ -127,7 +127,7 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 
 优先扩展能揭示缺陷的 case，而不是只增加 happy path：
 
-- 从 fixture 源码中提取最小框架入口证据，而不是完全依赖手写 reachability JSON。
+- 扩展更多框架入口模型或更真实的调用链证据。
 - Semgrep 有候选路径但入口证据不足的 case。
 - wrapper、alias、indirect call 造成的误报或漏报边界。
 - 名称相似但语义不同的 sink negative case。

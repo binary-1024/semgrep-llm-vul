@@ -132,6 +132,26 @@ def test_confirm_reachability_cli_outputs_json_report(capsys) -> None:
     assert report["assessments"][0]["entrypoint"]["kind"] == "flask_route"
 
 
+def test_confirm_reachability_cli_can_extract_flask_source_root(capsys) -> None:
+    exit_code = main(
+        [
+            "confirm-reachability",
+            str(ROOT / "examples" / "analysis" / "unknown-sink.yaml"),
+            "--semgrep-json",
+            str(ROOT / "fixtures" / "semgrep" / "taint-result-with-trace.json"),
+            "--source-root",
+            str(ROOT / "fixtures" / "reachability" / "flask-app"),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    report = json.loads(captured.out)
+    assert report["kind"] == "reachability_report"
+    assert report["assessments"][0]["reachable"] is True
+    assert report["assessments"][0]["entrypoint"]["name"] == "GET /login"
+
+
 def test_evaluate_case_cli_outputs_json_report(capsys) -> None:
     exit_code = main(
         [

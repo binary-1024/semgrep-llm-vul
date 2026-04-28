@@ -5,6 +5,7 @@ import pytest
 from semgrep_llm_vul import AnalysisTarget, InputMode, VulnerabilityInput
 from semgrep_llm_vul.reachability import (
     ReachabilityEvidenceError,
+    discover_flask_route_evidence,
     generate_reachability_report,
     load_reachability_evidence,
 )
@@ -15,6 +16,7 @@ from semgrep_llm_vul.taint_path_generation import generate_taint_path_report
 ROOT = Path(__file__).resolve().parent.parent
 SEMGREP_DIR = ROOT / "fixtures" / "semgrep"
 REACHABILITY_DIR = ROOT / "fixtures" / "reachability"
+FLASK_APP_DIR = REACHABILITY_DIR / "flask-app"
 
 
 def _task() -> VulnerabilityInput:
@@ -66,6 +68,34 @@ def test_generate_reachability_report_marks_matching_path_reachable() -> None:
     assert assessment.source_control is not None
     assert assessment.source_control.controlled is True
     assert "尚未运行 PoC" in assessment.unknowns[0]
+
+
+def test_discover_flask_route_evidence_marks_same_handler_path_reachable() -> None:
+    task = _task()
+    taint_report = _taint_report()
+    records = discover_flask_route_evidence(
+        FLASK_APP_DIR,
+        taint_paths=taint_report.paths,
+    )
+
+    report = generate_reachability_report(
+        task,
+        taint_report=taint_report,
+        evidence_records=records,
+    )
+
+    assessment = report.assessments[0]
+    assert assessment.reachable is True
+    assert assessment.entrypoint is not None
+    assert assessment.entrypoint.name == "GET /login"
+    assert assessment.entrypoint.location is not None
+    assert assessment.entrypoint.location.start_line == 11
+    assert [step.symbol for step in assessment.call_chain] == [
+        "login",
+        "redirect(next_url)",
+    ]
+    assert assessment.source_control is not None
+    assert assessment.source_control.controlled is True
 
 
 def test_generate_reachability_report_keeps_unmatched_path_unknown() -> None:

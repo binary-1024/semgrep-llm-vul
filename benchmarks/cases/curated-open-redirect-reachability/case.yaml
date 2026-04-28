@@ -17,8 +17,8 @@ inputs:
   mode: unknown_sink
   semgrep_json:
     - fixtures/semgrep/taint-result-with-trace.json
-  reachability_json:
-    - fixtures/reachability/open-redirect-reachable.json
+  source_roots:
+    - fixtures/reachability/flask-app
 expected:
   taint_path:
     source_name: request.args["next"]

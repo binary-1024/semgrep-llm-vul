@@ -7,7 +7,7 @@
 ## 关键证据
 
 - Semgrep fixture：`fixtures/semgrep/taint-result-with-trace.json`
-- Reachability fixture：`fixtures/reachability/open-redirect-reachable.json`
+- Source root fixture：`fixtures/reachability/flask-app`
 - 期望 source：`request.args["next"]`
 - 期望 sink：`redirect`
 - 期望入口类型：`flask_route`
@@ -15,7 +15,7 @@
 ## 当前已知失败模式
 
 - 如果 evaluator 把 taint path candidate 自身改成 reachable，会破坏 M2 的阶段边界。
-- 如果 reachability evidence 没有 entrypoint 和 call chain 就输出 `true`，会让 PoC 建立在弱证据上。
+- 如果 Flask route 提取没有 entrypoint 和 call chain 就输出 `true`，会让 PoC 建立在弱证据上。
 
 ## 后续升级
 
