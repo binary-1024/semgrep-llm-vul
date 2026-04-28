@@ -144,6 +144,7 @@ uv run python --version
 ./scripts/lint
 ./scripts/build
 ./scripts/benchmark
+./scripts/benchmark-summary
 ./scripts/update-semgrep-fixtures
 ```
 
@@ -152,7 +153,20 @@ uv run python --version
 `./scripts/benchmark` 会先校验 benchmark/case 目录，再执行当前 benchmark/case harness。
 它作为独立回归入口，不默认并入 `./scripts/check`，避免未来真实 case 扩展后拖慢基础 harness。
 
+`./scripts/benchmark-summary` 输出 benchmark/case harness 的短摘要，适合日常人工查看。
+需要更新 baseline 文档时，优先使用 `uv run semgrep-llm-vul benchmark-baseline --markdown`
+生成当前计数和 gaps，再人工补充能力边界解释。
+
 `./scripts/update-semgrep-fixtures` 用于从 `examples/semgrep/` 中的样例项目和规则生成 Semgrep JSON fixture。
+
+## Worktree 与分支
+
+本项目可能同时存在多个 Git worktree。新任务开始前必须：
+
+- 运行 `git fetch origin main`。
+- 查看 `git log --oneline --decorate --graph --left-right HEAD...origin/main`，确认主干是否已有相同方向的工作。
+- 从 `origin/main` 创建新任务分支，例如 `git switch -c codex/feature-topic origin/main`。
+- 如果发现本地实现已被主干 supersede，优先缩小为真实增量，避免提交重复实现。
 
 校验分析任务输入：
 

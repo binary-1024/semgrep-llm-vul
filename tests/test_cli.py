@@ -224,8 +224,58 @@ def test_validate_benchmarks_cli_outputs_inventory(capsys) -> None:
     assert inventory["summary"]["candidate"] == 15
 
 
+def test_benchmark_summary_cli_outputs_short_json(capsys) -> None:
+    exit_code = main(
+        [
+            "benchmark-summary",
+            str(ROOT / "benchmarks" / "cases"),
+            "--artifact-base",
+            str(ROOT),
+            "--repo-root",
+            str(ROOT),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    summary = json.loads(captured.out)
+    assert summary["kind"] == "benchmark_summary"
+    assert summary["passed"] is True
+    assert summary["inventory"]["summary"]["total"] == 17
+    assert summary["evaluation"]["summary"]["unsupported"] == 5
+    assert summary["executable_suite"]["total"] == 15
+    assert "cases" not in summary
+
+
+def test_benchmark_baseline_cli_outputs_markdown(capsys) -> None:
+    exit_code = main(
+        [
+            "benchmark-baseline",
+            str(ROOT / "benchmarks" / "cases"),
+            "--artifact-base",
+            str(ROOT),
+            "--repo-root",
+            str(ROOT),
+            "--markdown",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert "# Benchmark Baseline" in captured.out
+    assert "| total | 17 |" in captured.out
+    assert "`curated-open-redirect-reachability`" in captured.out
+
+
 def test_benchmark_script_is_executable() -> None:
     script = ROOT / "scripts" / "benchmark"
+
+    assert script.exists()
+    assert os.access(script, os.X_OK)
+
+
+def test_benchmark_summary_script_is_executable() -> None:
+    script = ROOT / "scripts" / "benchmark-summary"
 
     assert script.exists()
     assert os.access(script, os.X_OK)
