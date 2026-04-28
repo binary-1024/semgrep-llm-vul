@@ -111,6 +111,17 @@ test_regression_nested_semgrep_trace_location()
 
 如果暂时无法补自动化回归测试，必须在最终说明中写明原因和人工验证步骤。
 
+## 任务收尾验证
+
+每次任务完成后，需要在交付前做一次综合性检讨：
+
+- 新功能：确认有单元测试或集成测试覆盖主要成功路径和至少一个失败路径。
+- bug fix：确认有回归测试覆盖已修复问题。
+- 外部工具 adapter：确认 fixture 类型覆盖 minimal、realistic、malformed 中相关类别。
+- CLI 变更：确认测试覆盖 exit code、stdout 和 stderr。
+- 文档变更：确认本地相对链接不缺失，并运行 `./scripts/check`。
+- 如果验证无法自动化，必须记录人工验证步骤和残余风险。
+
 ## Fixtures
 
 使用 `fixtures/` 存放代表性的 Semgrep 输出和最小漏洞代码样例。除非明确允许包含真实项目数据，否则 fixture 应使用合成数据或脱敏数据。

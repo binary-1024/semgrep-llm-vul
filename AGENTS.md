@@ -167,6 +167,18 @@ Insight 形成最终决策后，如该决策需要长期保留，应同步新增
 
 当前 Python/uv harness 已接入 `pytest`、`ruff` 和 `uv build`。如果验证失败，需要先修复失败项，再交付总结。
 
+## 任务收尾检讨
+
+每次任务完成后，必须做一次综合性检讨与 check：
+
+- 查看 `git status --short --branch`，确认只包含本任务相关改动。
+- 查看 `git diff --stat` 和关键 diff，确认没有无关格式化、缓存、构建产物或敏感数据。
+- 根据变更范围运行最相关的验证命令；默认优先运行 `./scripts/check`。
+- 文档变更需要检查本地 Markdown 相对链接。
+- 对照任务目标、非目标和验收标准，确认没有越界实现或遗漏测试。
+- 检查是否需要同步更新 `README.md`、`AGENTS.md`、`docs/roadmap.md`、`docs/architecture.md`、`docs/testing.md`、`fixtures/` 或 ADR。
+- 如果存在失败、未验证项或残余风险，先修复；暂时无法修复时必须在交付总结中说明。
+
 ## 单元测试与回归测试
 
 测试规范见 `docs/testing.md`。
