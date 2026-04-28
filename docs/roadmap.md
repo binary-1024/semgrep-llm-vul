@@ -66,6 +66,8 @@
 
 目标：从 sink 出发，在项目中找到潜在污点路径，并确认哪些路径可触达。
 
+当前状态：M2 已开始建立最小 taint path candidate generation，第一版只对齐 M1 sink candidate 与 Semgrep taint-mode 候选路径，不做可触达确认。
+
 输入：
 
 - sink 函数。
@@ -158,7 +160,7 @@
 
 ## 当前下一步
 
-下一步应从 M1 支线回到主线骨架，开始里程碑 2：污点路径生成与可触达确认。
+下一步继续推进里程碑 2：污点路径生成与可触达确认。
 
 M1 当前已经具备：
 
@@ -170,23 +172,29 @@ M1 当前已经具备：
 
 这些能力已足够支撑 M2 的第一版输入。除非 M2 实现暴露新的 M1 blocker，否则暂停继续加深 benchmark 工具链和 sink heuristic 支线。
 
-建议第一个 M2 具体任务：
+M2 当前已经具备：
+
+- `generate_taint_path_report` 最小候选路径生成入口。
+- Semgrep taint-mode `TaintPath(reachable=None)` 归一化能力。
+- sink candidate 与 Semgrep taint path 的最小对齐能力。
+
+建议下一个 M2 具体任务：
 
 ```md
 ## 任务
 
-生成最小 taint path candidate。
+为 taint path candidate 增加报告序列化和 CLI 入口。
 
 ## 背景
 
-项目已经可以生成带证据链的 sink candidate。下一步需要从 sink candidate 出发，建立最小污点路径候选生成能力，为后续可触达确认、PoC 和 exp 阶段铺主线骨架。
+项目已经具备最小 taint path candidate generation。下一步需要提供稳定 JSON 报告和 CLI 入口，方便人工审查和后续 benchmark/case harness 接入。
 
 ## 范围
 
-- 复用已有 `TaintPath`、`SourceCandidate`、`TaintStep` 模型。
-- 输入可以先来自 `VulnerabilityInput`、`SinkGenerationReport` 和已归一化的 Semgrep taint paths。
-- 输出 candidate taint paths，`reachable` 默认为 `None`。
-- 证据链必须说明路径来自静态候选，不代表可触达或可利用。
+- 为 `TaintPathGenerationReport` 增加稳定 JSON 序列化。
+- 增加 CLI 入口，串联 analysis input、sink generation 和 Semgrep taint path 输入。
+- 输出 candidate taint paths，`reachable` 保持 `None`。
+- 报告必须保留 unknowns 和 evidence。
 
 ## 非目标
 
@@ -198,8 +206,8 @@ M1 当前已经具备：
 
 ## 验收标准
 
-- 新增最小 taint path generation 模块或入口。
-- 至少覆盖有路径候选、无路径候选、证据不足三类测试。
-- 输出包含 source、sink、steps、reachable 和 evidence。
+- 新增报告序列化测试。
+- 新增 CLI 成功和失败路径测试。
+- 输出包含 source、sink、steps、reachable、evidence 和 unknowns。
 - `./scripts/check` 通过。
 ```
