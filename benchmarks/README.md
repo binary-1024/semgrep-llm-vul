@@ -50,3 +50,9 @@ uv run semgrep-llm-vul evaluate-case \
   benchmarks/cases/curated-open-redirect-safe-wrapper \
   --repo-root .
 ```
+
+批量评估当前目录下的 M1 cases：
+
+```bash
+uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root .
+```

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from semgrep_llm_vul.benchmark_cases import evaluate_benchmark_case
+from semgrep_llm_vul.benchmark_cases import evaluate_benchmark_case, evaluate_benchmark_cases
 
 ROOT = Path(__file__).resolve().parent.parent
 CASES_ROOT = ROOT / "benchmarks" / "cases"
@@ -51,3 +51,19 @@ def test_evaluate_benchmark_case_reports_failed_expected_sink(tmp_path) -> None:
     assert result["passed"] is False
     assert result["checks"][0]["name"] == "expected_sink[0]"
     assert result["checks"][0]["passed"] is False
+
+
+def test_evaluate_benchmark_cases_summarizes_curated_m1_cases() -> None:
+    result = evaluate_benchmark_cases(CASES_ROOT, repo_root=ROOT)
+
+    assert result["kind"] == "benchmark_case_suite_evaluation"
+    assert result["total"] == 4
+    assert result["passed"] is True
+    assert result["passed_count"] == 4
+    assert result["failed_count"] == 0
+    assert {item["case_id"] for item in result["results"]} == {
+        "curated-open-redirect-safe-wrapper",
+        "curated-command-execution-system",
+        "curated-deserialization-deserialize",
+        "curated-open-redirect-safe-negative",
+    }

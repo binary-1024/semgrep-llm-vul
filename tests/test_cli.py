@@ -90,3 +90,21 @@ def test_evaluate_case_cli_outputs_json_report(capsys) -> None:
     assert report["kind"] == "benchmark_case_evaluation"
     assert report["case_id"] == "curated-open-redirect-safe-wrapper"
     assert report["passed"] is True
+
+
+def test_evaluate_cases_cli_outputs_json_report(capsys) -> None:
+    exit_code = main(
+        [
+            "evaluate-cases",
+            str(ROOT / "benchmarks" / "cases"),
+            "--repo-root",
+            str(ROOT),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    report = json.loads(captured.out)
+    assert report["kind"] == "benchmark_case_suite_evaluation"
+    assert report["total"] == 4
+    assert report["passed"] is True
