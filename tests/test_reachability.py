@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SEMGREP_DIR = ROOT / "fixtures" / "semgrep"
 REACHABILITY_DIR = ROOT / "fixtures" / "reachability"
 FLASK_APP_DIR = REACHABILITY_DIR / "flask-app"
+FLASK_ASYNC_APP_DIR = REACHABILITY_DIR / "flask-async-app"
 
 
 def _task() -> VulnerabilityInput:
@@ -96,6 +97,30 @@ def test_discover_flask_route_evidence_marks_same_handler_path_reachable() -> No
     ]
     assert assessment.source_control is not None
     assert assessment.source_control.controlled is True
+
+
+def test_discover_flask_route_evidence_supports_async_route_handler() -> None:
+    task = _task()
+    taint_report = _taint_report()
+    records = discover_flask_route_evidence(
+        FLASK_ASYNC_APP_DIR,
+        taint_paths=taint_report.paths,
+    )
+
+    report = generate_reachability_report(
+        task,
+        taint_report=taint_report,
+        evidence_records=records,
+    )
+
+    assessment = report.assessments[0]
+    assert assessment.reachable is True
+    assert assessment.entrypoint is not None
+    assert assessment.entrypoint.name == "GET /login"
+    assert [step.symbol for step in assessment.call_chain] == [
+        "login",
+        "redirect(next_url)",
+    ]
 
 
 def test_generate_reachability_report_keeps_unmatched_path_unknown() -> None:

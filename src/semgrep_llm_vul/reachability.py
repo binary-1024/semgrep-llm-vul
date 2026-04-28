@@ -23,6 +23,8 @@ from semgrep_llm_vul.models import (
 )
 from semgrep_llm_vul.taint_path_generation import TaintPathGenerationReport
 
+_RouteFunction = ast.FunctionDef | ast.AsyncFunctionDef
+
 
 class ReachabilityEvidenceError(ValueError):
     """可触达证据输入无法读取或无法解析。"""
@@ -154,7 +156,7 @@ class _FlaskRoute:
     path: str
     route: str
     methods: tuple[str, ...]
-    function: ast.FunctionDef
+    function: _RouteFunction
     source_path: Path
 
 
@@ -167,7 +169,7 @@ def _flask_routes_by_path(root: Path) -> dict[str, tuple[_FlaskRoute, ...]]:
         except (OSError, SyntaxError):
             continue
         for node in ast.walk(tree):
-            if not isinstance(node, ast.FunctionDef):
+            if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
                 continue
             route = _route_from_function(node, relative=relative, source_path=path)
             if route is None:
@@ -177,7 +179,7 @@ def _flask_routes_by_path(root: Path) -> dict[str, tuple[_FlaskRoute, ...]]:
 
 
 def _route_from_function(
-    function: ast.FunctionDef,
+    function: _RouteFunction,
     *,
     relative: str,
     source_path: Path,
@@ -304,7 +306,7 @@ def _record_from_flask_route(
     )
 
 
-def _line_within(line: int | None, function: ast.FunctionDef) -> bool:
+def _line_within(line: int | None, function: _RouteFunction) -> bool:
     if line is None:
         return False
     end_line = function.end_lineno or function.lineno
