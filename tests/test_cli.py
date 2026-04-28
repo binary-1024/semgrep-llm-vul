@@ -72,3 +72,19 @@ def test_generate_sinks_cli_returns_error_for_bad_artifact(capsys) -> None:
     assert exit_code == 1
     assert "generate sinks failed" in captured.err
     assert "无法读取 diff artifact" in captured.err
+
+
+def test_validate_benchmarks_cli_outputs_inventory(capsys) -> None:
+    exit_code = main(
+        [
+            "validate-benchmarks",
+            str(ROOT / "benchmarks" / "cases"),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    inventory = json.loads(captured.out)
+    assert inventory["kind"] == "benchmark_case_inventory"
+    assert inventory["summary"]["total"] == 10
+    assert inventory["summary"]["candidate"] == 8

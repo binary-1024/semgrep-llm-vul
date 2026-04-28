@@ -1,0 +1,10 @@
+--- a/src/main/java/org/example/BenchmarkCommandInjection.java
++++ b/src/main/java/org/example/BenchmarkCommandInjection.java
+@@ -10,7 +10,9 @@ public class BenchmarkCommandInjection {
+     public void runCommand(String cmd) throws Exception {
+-        Runtime.getRuntime().exec(cmd);
++        if (isAllowedCommand(cmd)) {
++            Runtime.getRuntime().exec(cmd);
++        }
+     }
+ }

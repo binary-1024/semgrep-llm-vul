@@ -1,0 +1,6 @@
+--- a/app/jobs.py
++++ b/app/jobs.py
+@@ -5,6 +5,6 @@ from concurrent.futures import ThreadPoolExecutor
+ def schedule_job(executor: ThreadPoolExecutor, job) -> None:
+-    executor.submit(job)
++    executor.submit(wrap_job(job))

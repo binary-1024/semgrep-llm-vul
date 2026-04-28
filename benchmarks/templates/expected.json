@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "stage": "M1",
+  "expected_status": "candidate",
+  "sink_candidates": [
+    {
+      "name": "replace-with-expected-sink-name",
+      "path": "replace/with/path.py",
+      "heuristic_category": "replace-with-category"
+    }
+  ],
+  "must_not_include": [
+    {
+      "name": "replace-with-forbidden-candidate"
+    }
+  ]
+}

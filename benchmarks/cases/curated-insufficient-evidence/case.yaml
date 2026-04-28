@@ -1,0 +1,23 @@
+schema_version: 1
+id: curated-insufficient-evidence
+type: curated_minimal
+target_stage: M1
+status: candidate
+source:
+  name: project-curated
+  url: null
+  license: project
+target:
+  repo_url: https://github.com/example/flask-app
+  affected_version: v1.0.0
+  fixed_version: null
+  language: python
+inputs:
+  description: The report mentions suspicious behavior but provides no code, diff, or Semgrep evidence.
+  mode: unknown_sink
+expected:
+  sink: null
+safety:
+  contains_poc: false
+  contains_exp: false
+  requires_isolation: false

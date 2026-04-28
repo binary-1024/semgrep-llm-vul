@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+uv run semgrep-llm-vul validate-benchmarks
+uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .
+
+echo "Benchmark/case harness check passed."

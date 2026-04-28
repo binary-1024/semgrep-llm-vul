@@ -115,10 +115,14 @@ uv run python --version
 ./scripts/test
 ./scripts/lint
 ./scripts/build
+./scripts/benchmark
 ./scripts/update-semgrep-fixtures
 ```
 
 `./scripts/check` 会依次运行 lint、测试和构建。
+
+`./scripts/benchmark` 会先校验 benchmark/case 目录，再执行当前 M1 evaluator。它不默认纳入
+`./scripts/check`，避免未来真实 case 扩展后拖慢基础 harness。
 
 `./scripts/update-semgrep-fixtures` 用于从 `examples/semgrep/` 中的样例项目和规则生成 Semgrep JSON fixture。
 

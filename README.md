@@ -49,6 +49,9 @@
 ./scripts/lint
 ./scripts/build
 ./scripts/update-semgrep-fixtures
+./scripts/benchmark
+uv run semgrep-llm-vul validate-benchmarks
+uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .
 ```
 
 这些脚本通过 `uv` 执行：
@@ -58,6 +61,9 @@
 - `./scripts/build` 运行 `uv build`
 - `./scripts/check` 依次运行 lint、test 和 build
 - `./scripts/update-semgrep-fixtures` 从样例项目生成 Semgrep fixture
+- `./scripts/benchmark` 校验并执行 benchmark/case harness
+- `uv run semgrep-llm-vul validate-benchmarks` 校验 benchmark/case 目录并输出 inventory
+- `uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .` 执行 M1 benchmark/case evaluator
 
 ## 分析任务输入
 
@@ -79,6 +85,14 @@ uv run semgrep-llm-vul validate-input examples/analysis/known-sink.yaml
 uv run semgrep-llm-vul generate-sinks \
   examples/analysis/unknown-sink.yaml \
   --semgrep-json fixtures/semgrep/basic-result.json
+```
+
+执行 benchmark/case harness：
+
+```bash
+./scripts/benchmark
+uv run semgrep-llm-vul validate-benchmarks
+uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .
 ```
 
 ## 项目文档

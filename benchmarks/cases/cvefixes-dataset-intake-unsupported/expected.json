@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "stage": "M1",
+  "expected_status": "unsupported",
+  "sink_candidates": [],
+  "must_not_include": []
+}

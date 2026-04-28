@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "stage": "M1",
+  "expected_status": "candidate",
+  "sink_candidates": [],
+  "must_not_include": [
+    {
+      "name": "redirect"
+    },
+    {
+      "name": "safe_redirect"
+    }
+  ]
+}

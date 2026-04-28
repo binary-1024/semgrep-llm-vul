@@ -1,0 +1,30 @@
+schema_version: 1
+id: owasp-benchmark-command-injection-distilled
+type: synthetic_benchmark
+target_stage: M1
+status: candidate
+source:
+  name: OWASP Benchmark
+  url: https://owasp.org/www-project-benchmark/
+  license: see-upstream
+target:
+  repo_url: https://github.com/OWASP-Benchmark/BenchmarkJava
+  affected_version: distilled-local-sample
+  fixed_version: distilled-local-fix
+  language: java
+inputs:
+  description: Distilled command injection case inspired by OWASP Benchmark CWE-78 coverage.
+  mode: unknown_sink
+  artifacts:
+    - kind: diff
+      path: fixtures/sink/benchmark-command-injection-fix.diff
+      metadata:
+        fixture_origin: project-authored-distillation
+        upstream_reference: https://owasp.org/www-project-benchmark/
+expected:
+  sink:
+    name: exec
+safety:
+  contains_poc: false
+  contains_exp: false
+  requires_isolation: false

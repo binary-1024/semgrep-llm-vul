@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "stage": "M1",
+  "expected_status": "candidate",
+  "sink_candidates": [
+    {
+      "name": "loads",
+      "path": "app/parser.py",
+      "heuristic_category": "deserialization"
+    }
+  ],
+  "must_not_include": [
+    {
+      "name": "safe_loads"
+    }
+  ]
+}

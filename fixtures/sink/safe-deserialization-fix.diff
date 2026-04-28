@@ -1,0 +1,6 @@
+--- a/app/parser.py
++++ b/app/parser.py
+@@ -3,6 +3,6 @@ from app.safe import safe_json_parse
+ def parse_payload(payload: str) -> object:
+-    return safe_loads(payload)
++    return safe_json_parse(payload)

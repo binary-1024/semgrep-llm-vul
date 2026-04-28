@@ -1,0 +1,26 @@
+schema_version: 1
+id: curated-safe-executor-submit
+type: curated_minimal
+target_stage: M1
+status: candidate
+source:
+  name: project-curated
+  url: null
+  license: project
+target:
+  repo_url: https://github.com/example/jobs-app
+  affected_version: v1.0.0
+  fixed_version: v1.0.1
+  language: python
+inputs:
+  description: Executor scheduling should not be treated as exec command execution.
+  mode: unknown_sink
+  artifacts:
+    - kind: diff
+      path: fixtures/sink/safe-executor-fix.diff
+expected:
+  sink: null
+safety:
+  contains_poc: false
+  contains_exp: false
+  requires_isolation: false

@@ -1,0 +1,26 @@
+schema_version: 1
+id: curated-safe-deserialization-wrapper
+type: curated_minimal
+target_stage: M1
+status: candidate
+source:
+  name: project-curated
+  url: null
+  license: project
+target:
+  repo_url: https://github.com/example/parser-app
+  affected_version: v1.0.0
+  fixed_version: v1.0.1
+  language: python
+inputs:
+  description: Safe deserialization helper should not be treated as an unsafe loads sink.
+  mode: unknown_sink
+  artifacts:
+    - kind: diff
+      path: fixtures/sink/safe-deserialization-fix.diff
+expected:
+  sink: null
+safety:
+  contains_poc: false
+  contains_exp: false
+  requires_isolation: false

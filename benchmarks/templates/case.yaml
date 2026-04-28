@@ -1,0 +1,29 @@
+schema_version: 1
+id: replace-with-kebab-case-id
+type: curated_minimal
+target_stage: M1
+status: candidate
+source:
+  name: replace-with-source-name
+  url: null
+  license: replace-with-license-or-see-upstream
+target:
+  repo_url: https://github.com/example/project
+  affected_version: replace-with-affected-version
+  fixed_version: replace-with-fixed-version-or-null
+  language: replace-with-language-or-null
+inputs:
+  description: Replace with the vulnerability or benchmark scenario description.
+  mode: unknown_sink
+  artifacts:
+    - kind: diff
+      path: fixtures/sink/replace-with-fixture.diff
+      metadata:
+        fixture_origin: project-authored-distillation
+expected:
+  sink:
+    name: replace-with-expected-sink-name
+safety:
+  contains_poc: false
+  contains_exp: false
+  requires_isolation: false
