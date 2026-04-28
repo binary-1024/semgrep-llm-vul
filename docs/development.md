@@ -6,13 +6,40 @@
 
 1. 理解目标。
 2. 阅读相关文件。
-3. 确认实现边界。
+3. 确认任务服务的主线里程碑和实现边界。
 4. 制定简短计划。
 5. 实施范围内变更。
 6. 运行验证命令。
 7. 修复失败项。
 8. 做任务收尾检讨。
 9. 总结变更、验证结果和风险。
+
+## 主线校准
+
+项目优先推进 M1 到 M4 的主线骨架：
+
+```text
+M1 sink 函数生成
+  ↓
+M2 污点路径生成与可触达确认
+  ↓
+M3 PoC 生成
+  ↓
+M4 exp 验证与生成
+```
+
+支线任务可以做，但必须服务主线。常见支线包括 benchmark/case harness、CI、fixture 生成、文档导航和开发体验。
+
+开始任务前，必须回答：
+
+- 这个任务推进哪个主线里程碑？
+- 如果它是支线，解除哪个 blocker 或支撑哪个验证？
+- 做到什么程度就停？
+- 本次明确不做什么？
+
+支线做到“能支撑下一个主线决策或验证”就应暂停，不追求在支线上一次性做完整平台。
+
+每 3 到 5 个 PR，或者连续多个 PR 都在同一支线时，必须回看 `docs/roadmap.md` 并做主线校准。校准结论应写进任务总结；如果形成长期规则，应更新 `AGENTS.md`、`docs/development.md` 或 `docs/roadmap.md`。
 
 ## 任务收尾检讨
 
@@ -25,6 +52,7 @@
 - 根据变更范围运行最相关的验证命令；默认优先运行 `./scripts/check`。
 - 文档变更需要检查本地 Markdown 相对链接。
 - 对照任务目标、非目标和验收标准，确认没有越界实现或遗漏测试。
+- 对照主线校准规则，确认本次任务没有让支线替代主线。
 - 检查是否需要同步更新 `README.md`、`AGENTS.md`、`docs/roadmap.md`、`docs/architecture.md`、`docs/testing.md`、`fixtures/` 或 ADR。
 - 如果发现失败、未验证项或残余风险，先修复；暂时无法修复时必须在交付总结中说明。
 
@@ -115,10 +143,13 @@ uv run python --version
 ./scripts/test
 ./scripts/lint
 ./scripts/build
+./scripts/benchmark
 ./scripts/update-semgrep-fixtures
 ```
 
 `./scripts/check` 会依次运行 lint、测试和构建。
+
+`./scripts/benchmark` 会批量评估当前 benchmark/case harness 的 M1 cases，作为独立回归入口，不默认并入 `./scripts/check`。
 
 `./scripts/update-semgrep-fixtures` 用于从 `examples/semgrep/` 中的样例项目和规则生成 Semgrep JSON fixture。
 

@@ -158,39 +158,48 @@
 
 ## 当前下一步
 
-下一步继续完善里程碑 1：sink 函数生成。
+下一步应从 M1 支线回到主线骨架，开始里程碑 2：污点路径生成与可触达确认。
 
-最小 sink candidate pipeline 和 `generate-sinks` JSON 报告入口已经建立。后续应在不破坏本地确定性 harness 的前提下，逐步增强候选提取能力。
+M1 当前已经具备：
 
-建议第一个具体任务：
+- 最小 sink candidate pipeline。
+- `generate-sinks` JSON 报告入口。
+- 本地 sink heuristic pack。
+- benchmark/case harness。
+- `./scripts/benchmark` 独立回归入口。
+
+这些能力已足够支撑 M2 的第一版输入。除非 M2 实现暴露新的 M1 blocker，否则暂停继续加深 benchmark 工具链和 sink heuristic 支线。
+
+建议第一个 M2 具体任务：
 
 ```md
 ## 任务
 
-增强 sink candidate 提取能力。
+生成最小 taint path candidate。
 
 ## 背景
 
-项目已经具备最小 sink candidate pipeline 和 JSON 报告入口。下一步需要提升它对真实输入的适应能力，同时保持证据链和可回归测试。
+项目已经可以生成带证据链的 sink candidate。下一步需要从 sink candidate 出发，建立最小污点路径候选生成能力，为后续可触达确认、PoC 和 exp 阶段铺主线骨架。
 
 ## 范围
 
-- 增强 diff artifact 解析，但仍不联网拉取真实 GitHub repo。
-- 增加更多语言或框架 fixture。
-- 引入 negative fixture，验证有反证时不会输出错误候选。
-- 评估是否需要抽象 provider 接口。
+- 复用已有 `TaintPath`、`SourceCandidate`、`TaintStep` 模型。
+- 输入可以先来自 `VulnerabilityInput`、`SinkGenerationReport` 和已归一化的 Semgrep taint paths。
+- 输出 candidate taint paths，`reachable` 默认为 `None`。
+- 证据链必须说明路径来自静态候选，不代表可触达或可利用。
 
 ## 非目标
 
 - 不调用真实 LLM provider。
 - 不联网拉取真实 GitHub repo。
-- 不实现完整 diff parser。
-- 不进入污点路径、PoC 或 exp 阶段。
+- 不实现完整调用图。
+- 不进入 PoC 或 exp 阶段。
+- 不把 candidate path 标记为 verified。
 
 ## 验收标准
 
-- diff、Semgrep、snippet 候选提取有更完整测试覆盖。
-- 新增 fixture 覆盖 positive、negative、insufficient、malformed。
-- 现有 sink generation 测试继续通过。
+- 新增最小 taint path generation 模块或入口。
+- 至少覆盖有路径候选、无路径候选、证据不足三类测试。
+- 输出包含 source、sink、steps、reachable 和 evidence。
 - `./scripts/check` 通过。
 ```
