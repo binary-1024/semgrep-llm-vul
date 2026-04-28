@@ -1,0 +1,15 @@
+diff --git a/app/routes.py b/app/routes.py
+index 1111111..2222222 100644
+--- a/app/routes.py
++++ b/app/routes.py
+@@ -1,7 +1,10 @@
+ from flask import abort, request
+ 
++from app.security import safe_redirect_target
++
+ 
+ def login():
+     target = request.args.get("next", "/")
++    if not safe_redirect_target(target):
++        abort(400)
++    return render_login_page(next_url=target)

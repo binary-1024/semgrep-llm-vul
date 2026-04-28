@@ -258,8 +258,6 @@ def _known_sink_evidence(task: VulnerabilityInput) -> tuple[Evidence, ...]:
 def _signature_from_finding(finding: NormalizedFinding) -> FunctionSignature | None:
     name = _first_dangerous_call(finding.code or finding.message)
     if name is None:
-        name = _name_from_rule_id(finding.rule_id)
-    if name is None:
         return None
 
     return FunctionSignature(
@@ -390,10 +388,3 @@ def _dangerous_calls(text: str | None) -> tuple[str, ...]:
             calls.append(name)
     return tuple(calls)
 
-
-def _name_from_rule_id(rule_id: str) -> str | None:
-    lowered = rule_id.lower()
-    for name in DANGEROUS_CALL_NAMES:
-        if name in lowered:
-            return name
-    return None

@@ -5,8 +5,10 @@ import pytest
 from semgrep_llm_vul import (
     AnalysisArtifact,
     AnalysisTarget,
+    CodeLocation,
     FunctionSignature,
     InputMode,
+    NormalizedFinding,
     SinkGenerationReport,
     VulnerabilityInput,
 )
@@ -136,6 +138,88 @@ def test_insufficient_evidence_does_not_fabricate_recommendation() -> None:
     assert report.candidates == ()
     assert report.recommended is None
     assert "证据不足" in report.unknowns[-1]
+
+
+def test_safe_diff_does_not_match_dangerous_call_by_substring() -> None:
+    task = VulnerabilityInput(
+        target=AnalysisTarget(
+            repo_url="https://github.com/example/flask-app",
+            affected_version="v1.0.0",
+            fixed_version="v1.0.1",
+            language="python",
+        ),
+        description="The patch replaces an unsafe redirect with validation and a safe render path.",
+        mode=InputMode.UNKNOWN_SINK,
+        artifacts=(
+            AnalysisArtifact(
+                kind="diff",
+                path="fixtures/sink/safe-redirect-fix.diff",
+            ),
+        ),
+    )
+
+    report = generate_sink_report(task, artifact_base=ROOT)
+
+    assert report.candidates == ()
+    assert report.recommended is None
+    assert (
+        "diff artifact fixtures/sink/safe-redirect-fix.diff 未发现可识别危险调用。"
+        in report.unknowns
+    )
+    assert "证据不足，无法推荐 sink candidate。" in report.unknowns
+
+
+def test_safe_snippet_does_not_match_dangerous_call_by_substring() -> None:
+    task = VulnerabilityInput(
+        target=AnalysisTarget(
+            repo_url="https://github.com/example/flask-app",
+            affected_version="v1.0.0",
+            language="python",
+        ),
+        description="Snippet calls a safety wrapper rather than a direct redirect sink.",
+        mode=InputMode.UNKNOWN_SINK,
+        vulnerable_snippet='return safe_redirect(request.args["next"])',
+    )
+
+    report = generate_sink_report(task)
+
+    assert report.candidates == ()
+    assert report.recommended is None
+    assert "vulnerable_snippet 未发现可识别危险调用。" in report.unknowns
+    assert "证据不足，无法推荐 sink candidate。" in report.unknowns
+
+
+def test_semgrep_rule_id_does_not_fabricate_sink_without_call_evidence() -> None:
+    task = VulnerabilityInput(
+        target=AnalysisTarget(
+            repo_url="https://github.com/example/flask-app",
+            affected_version="v1.0.0",
+            language="python",
+        ),
+        description=(
+            "Finding metadata mentions redirect, but matched code only calls a safe wrapper."
+        ),
+        mode=InputMode.UNKNOWN_SINK,
+    )
+    finding = NormalizedFinding(
+        tool="semgrep",
+        rule_id="python.flask.open-redirect",
+        message="Potential redirect issue",
+        severity="WARNING",
+        location=CodeLocation(path="app/routes.py", start_line=10),
+        language="python",
+        code='return safe_redirect(request.args["next"])',
+    )
+
+    report = generate_sink_report(task, semgrep_findings=(finding,))
+
+    assert report.candidates == ()
+    assert report.recommended is None
+    assert (
+        "Semgrep finding python.flask.open-redirect 缺少可识别调用表达式，无法生成 sink candidate。"
+        in report.unknowns
+    )
+    assert "证据不足，无法推荐 sink candidate。" in report.unknowns
 
 
 def test_malformed_diff_artifact_raises_structured_error() -> None:
