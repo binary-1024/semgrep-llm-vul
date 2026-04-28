@@ -72,3 +72,21 @@ def test_generate_sinks_cli_returns_error_for_bad_artifact(capsys) -> None:
     assert exit_code == 1
     assert "generate sinks failed" in captured.err
     assert "无法读取 diff artifact" in captured.err
+
+
+def test_evaluate_case_cli_outputs_json_report(capsys) -> None:
+    exit_code = main(
+        [
+            "evaluate-case",
+            str(ROOT / "benchmarks" / "cases" / "curated-open-redirect-safe-wrapper"),
+            "--repo-root",
+            str(ROOT),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    report = json.loads(captured.out)
+    assert report["kind"] == "benchmark_case_evaluation"
+    assert report["case_id"] == "curated-open-redirect-safe-wrapper"
+    assert report["passed"] is True

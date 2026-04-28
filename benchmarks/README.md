@@ -40,3 +40,13 @@ benchmarks/
 - 期望输出：sink、路径、PoC、exp 或明确的 unsupported/blocked。
 - 证据链：文件、行号、patch、规则命中或人工说明。
 - 安全边界：是否包含 PoC/exp、是否需要隔离环境。
+
+## 运行单个 case
+
+当前 evaluator 支持 M1 sink candidate case：
+
+```bash
+uv run semgrep-llm-vul evaluate-case \
+  benchmarks/cases/curated-open-redirect-safe-wrapper \
+  --repo-root .
+```
