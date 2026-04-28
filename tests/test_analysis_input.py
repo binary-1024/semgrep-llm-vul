@@ -51,3 +51,15 @@ def test_known_sink_requires_signature() -> None:
 def test_unsupported_schema_version_fails() -> None:
     with pytest.raises(AnalysisInputError, match="schema_version"):
         load_analysis_input(ROOT / "fixtures" / "analysis" / "invalid-schema-version.yaml")
+
+
+def test_artifact_requires_uri_or_path() -> None:
+    with pytest.raises(AnalysisInputError, match="uri 或 path"):
+        load_analysis_input(
+            ROOT / "fixtures" / "analysis" / "invalid-artifact-missing-reference.yaml"
+        )
+
+
+def test_location_line_rejects_bool() -> None:
+    with pytest.raises(AnalysisInputError, match="location.start_line"):
+        load_analysis_input(ROOT / "fixtures" / "analysis" / "invalid-location-bool-line.yaml")

@@ -161,12 +161,16 @@ def _parse_artifacts(value: Any) -> list[AnalysisArtifact]:
         metadata = item.get("metadata", {})
         if not isinstance(metadata, dict):
             raise AnalysisInputError(f"artifacts[{index}].metadata 必须是 object")
+        uri = _optional_str(item.get("uri"))
+        path = _optional_str(item.get("path"))
+        if uri is None and path is None:
+            raise AnalysisInputError(f"artifacts[{index}] 必须提供 uri 或 path")
 
         artifacts.append(
             AnalysisArtifact(
                 kind=_required_str(item, "kind"),
-                uri=_optional_str(item.get("uri")),
-                path=_optional_str(item.get("path")),
+                uri=uri,
+                path=path,
                 sensitive=sensitive,
                 metadata=metadata,
             )
@@ -199,7 +203,7 @@ def _optional_str(value: Any) -> str | None:
 def _optional_int(value: Any, *, field: str) -> int | None:
     if value is None:
         return None
-    if not isinstance(value, int):
+    if not isinstance(value, int) or isinstance(value, bool):
         raise AnalysisInputError(f"{field} 必须是 int 或 null")
     return value
 

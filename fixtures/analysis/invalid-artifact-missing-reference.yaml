@@ -1,0 +1,10 @@
+schema_version: 1
+mode: unknown_sink
+target:
+  repo_url: https://github.com/example/flask-app
+  affected_version: v1.0.0
+description: |
+  Artifact is missing both uri and path.
+artifacts:
+  - kind: advisory
+    sensitive: false
