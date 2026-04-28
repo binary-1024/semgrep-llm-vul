@@ -165,3 +165,15 @@ Insight 形成最终决策后，如该决策需要长期保留，应同步新增
 - 未来 UI 变更：运行 `./scripts/test`、`./scripts/lint` 和 `./scripts/build`。
 
 当前 Python/uv harness 已接入 `pytest`、`ruff` 和 `uv build`。如果验证失败，需要先修复失败项，再交付总结。
+
+## 单元测试与回归测试
+
+测试规范见 `docs/testing.md`。
+
+默认要求：
+
+- 新功能必须补单元测试。
+- bug fix 必须补回归测试，证明修复前会失败、修复后通过。
+- 外部工具 adapter 必须覆盖 minimal / realistic / malformed 中相关 fixture 类型。
+- Insight 中列出的失败模式，应转化为测试或明确记录无法自动化的原因。
+- CLI 行为需要测试 exit code、stdout 和 stderr。
