@@ -590,18 +590,27 @@ def _benchmark_summary_data(
         and executable["passed"]
     )
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "kind": "benchmark_summary",
         "passed": passed,
+        "known_limitations": [
+            (
+                "inventory_evaluation 当前只评估 M1 sink generation inventory/gap；"
+                "M2 pass/fail 以 executable_suite 为准。"
+            )
+        ],
         "inventory": {
+            "scope": "case inventory, source coverage, declared status, and stage coverage",
             "summary": inventory["summary"],
             "coverage": inventory["coverage"],
         },
-        "evaluation": {
+        "inventory_evaluation": {
+            "scope": "M1 sink generation inventory/gap evaluation",
             "summary": evaluation["summary"],
             "gaps": evaluation["gaps"],
         },
         "executable_suite": {
+            "scope": "M1/M2 staged executable case checks",
             "total": executable["total"],
             "passed": executable["passed"],
             "passed_count": executable["passed_count"],
@@ -612,7 +621,7 @@ def _benchmark_summary_data(
 
 def _benchmark_baseline_markdown(summary: dict[str, object]) -> str:
     inventory = summary["inventory"]
-    evaluation = summary["evaluation"]
+    evaluation = summary["inventory_evaluation"]
     executable = summary["executable_suite"]
     inventory_summary = inventory["summary"]
     coverage = inventory["coverage"]
@@ -638,7 +647,9 @@ def _benchmark_baseline_markdown(summary: dict[str, object]) -> str:
         "| --- | ---: |",
         *_mapping_rows(coverage["by_type"]),
         "",
-        "## Evaluation",
+        "## Inventory Evaluation",
+        "",
+        str(evaluation["scope"]),
         "",
         "| outcome | 数量 |",
         "| --- | ---: |",
@@ -655,11 +666,17 @@ def _benchmark_baseline_markdown(summary: dict[str, object]) -> str:
         "",
         "## Executable Suite",
         "",
+        str(executable["scope"]),
+        "",
         "| 指标 | 数量 |",
         "| --- | ---: |",
         f"| total | {executable['total']} |",
         f"| passed_count | {executable['passed_count']} |",
         f"| failed_count | {executable['failed_count']} |",
+        "",
+        "## Known Limitations",
+        "",
+        *_known_limitation_rows(summary["known_limitations"]),
     ]
     return "\n".join(lines)
 
@@ -679,6 +696,12 @@ def _gap_rows(gaps: list[dict[str, object]]) -> list[str]:
         f"| `{gap['case_id']}` | `{gap['code']}` | {gap['message']} |"
         for gap in gaps
     ]
+
+
+def _known_limitation_rows(limitations: list[str]) -> list[str]:
+    if not limitations:
+        return ["- 无"]
+    return [f"- {item}" for item in limitations]
 
 
 if __name__ == "__main__":

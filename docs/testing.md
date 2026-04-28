@@ -115,6 +115,8 @@ test_regression_nested_semgrep_trace_location()
 
 - 对关键字段、枚举值和三态语义做稳定性断言。
 - 对 evidence、location、unknowns、blocking factors 等证据链字段做结构断言。
+- 对语义命名做断言；例如 benchmark summary 应使用 `inventory_evaluation`，不得退回容易误读的 `evaluation`。
+- 当报告字段重命名或语义调整时，应提升 `schema_version`，并补充对应 CLI 或报告契约测试。
 - 避免对非关键排序或完整大 JSON 做脆弱断言；必要时先生成摘要再断言。
 - 如果需要 snapshot，应优先 snapshot 小型、脱敏、稳定的报告片段。
 

@@ -106,21 +106,20 @@ notes.md
 
 - `./scripts/benchmark-summary` 提供日常短摘要，避免开发者只看完整 JSON 报告。
 - `uv run semgrep-llm-vul benchmark-baseline --markdown` 可生成 baseline 计数和 gaps，减少手工更新漂移。
-- `validate-benchmarks`、`evaluate-benchmarks` 和 `evaluate-cases` 已经分层，但仍需要在文档和输出中持续强调职责边界。
+- `benchmark-summary` 输出已使用 `inventory_evaluation` 和 `executable_suite` 区分 inventory/gap evaluation 与可执行 case suite。
+- `benchmark-summary` 已带有 `scope` 和 `known_limitations`，用于解释 M2 在 inventory evaluator 中是 `unsupported_stage`、但在 executable suite 中可以通过的情况。
 
 仍需优化的点按优先级排列：
 
-1. 明确 inventory evaluator 与 executable suite 的语义边界。
-   `evaluate-benchmarks` 当前主要回答 inventory/gap 问题，`evaluate-cases` 回答 M1/M2 case 是否满足阶段期望。新增文档、CLI 输出或 baseline 时，不能把 `unsupported_stage` 误读为 executable suite 不支持 M2。
-2. 增加能力边界 case，而不是只增加 happy path。
+1. 增加能力边界 case，而不是只增加 happy path。
    优先补 wrapper、alias、indirect call、多文件路径、trace 缺失、sanitizer 充分/不充分、source/sink 名称相似但语义不同等 case。
-3. 建立 known gap 机制。
+2. 建立 known gap 机制。
    对当前明确做不到、但希望未来打穿的 case，应能记录为已知能力缺口，而不是只能在 `blocked`、`unsupported` 或失败之间选择。该机制会影响 case schema，进入实现前需要先做 Insight/ADR。
-4. 强化 fixture provenance。
+3. 强化 fixture provenance。
    外部工具 fixture 应明确标注是 `minimal`、真实输出裁剪、generated output，还是合成近似结构，并说明生成命令、来源和覆盖的失败模式。
-5. 增加 report contract 测试。
+4. 增加 report contract 测试。
    sink、taint path、reachability 和后续 PoC/exp report 是 agent 消费的接口，字段结构、三态语义和证据链位置需要稳定性测试。
-6. 在 M3/M4 前建立安全执行 harness。
+5. 在 M3/M4 前建立安全执行 harness。
    PoC/exp 进入可执行阶段前，需要隔离、timeout、资源限制、危险动作分类和默认禁止联网/敏感路径写入等边界。
 
 优化 harness 时遵循“主线支撑够用即停”：
@@ -181,6 +180,13 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root .
 ```bash
 uv run semgrep-llm-vul benchmark-baseline --artifact-base . --repo-root . --markdown
 ```
+
+`benchmark-summary` 的 JSON contract 当前使用 `schema_version=2`：
+
+- `inventory`：case 清单、来源覆盖、声明状态和阶段覆盖。
+- `inventory_evaluation`：M1 sink generation inventory/gap evaluation。这里的 M2 `unsupported_stage` 只表示 inventory evaluator 尚未扩展到 M2。
+- `executable_suite`：M1/M2 staged executable case checks。M2 pass/fail 以这一层为准。
+- `known_limitations`：解释当前 summary 输出中可能被误读的限制。
 
 第三阶段：
 

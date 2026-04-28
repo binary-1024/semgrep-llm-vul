@@ -11,6 +11,7 @@
 - `validate-benchmarks`：仓库内有哪些 case、来源是什么、处于哪个阶段、当前状态如何。
 - `evaluate-benchmarks`：M1 sink generation inventory evaluator 能通过哪些 case，哪些 case 暂时 unsupported 或 blocked。
 - `evaluate-cases`：可执行的 M1/M2 case suite 是否满足每个 case 的阶段期望。
+- `benchmark-summary`：把 inventory、inventory evaluation 和 executable suite 合并为短摘要，并通过 `scope` 和 `known_limitations` 解释职责边界。
 
 当前结果显示：
 
@@ -74,7 +75,7 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 | pypickle CVE-2025-5174 | 1 |
 | Vul4J | 1 |
 
-## Evaluation Baseline
+## Inventory Evaluation Baseline
 
 `evaluate-benchmarks` 当前结果：
 
@@ -114,6 +115,7 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 - M1 negative case 回归，包括安全 wrapper、safe API、diff 删除行和证据不足场景。
 - M2 taint path candidate、reachability `true|false|null` 和 Flask route positive 的最小 curated case 回归。
 - benchmark inventory、gap 和 executable suite 三层输出。
+- benchmark summary 使用 `inventory_evaluation` 和 `executable_suite` 区分 inventory/gap evaluation 与 M1/M2 executable suite，避免把 M2 `unsupported_stage` 误读为 M2 suite 不支持。
 
 当前未覆盖或暂不自动化：
 
