@@ -2,14 +2,14 @@
 
 围绕 Semgrep findings 和 LLM 审查工作流构建的 AI 辅助漏洞分析项目。
 
-当前仓库已经完成基础 Python/uv harness、分析任务输入模型、Semgrep finding 归一化、Semgrep taint-mode 候选路径归一化和 CI。下一步进入 M1：sink 函数生成的最小实现。
+项目采用证据优先、可反驳、可验证的漏洞分析方法论，目标是把漏洞描述、版本差异、程序分析结果和 agent 推理组织成可审查的分析链路。
 
 ## 项目状态
 
-- 阶段：M1 sink 函数生成准备完成，下一步实现最小 sink candidate pipeline
+- 阶段和下一步：见 [路线图](docs/roadmap.md)
 - 主要规范：`项目开发管理规范.md`
 - 技术栈：Python 3.10 系列，使用 `uv` 管理虚拟环境、依赖和构建
-- 当前重点：按证据优先的 sink generation pipeline 实现最小候选生成能力
+- 方法论：见 [漏洞分析方法论](docs/methodology.md)
 
 ## 仓库结构
 
