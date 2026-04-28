@@ -32,6 +32,9 @@ DANGEROUS_CALL_NAMES = (
 )
 
 CALL_RE = re.compile(r"\b([A-Za-z_][A-Za-z0-9_\.]*)\s*\(")
+DIFF_HUNK_RE = re.compile(
+    r"@@ -(?P<old_start>\d+)(?:,\d+)? \+(?P<new_start>\d+)(?:,\d+)? @@"
+)
 
 
 class SinkGenerationError(ValueError):
@@ -291,17 +294,43 @@ def _signatures_from_diff(
     artifact: AnalysisArtifact,
 ) -> list[tuple[FunctionSignature, Evidence]]:
     candidates = []
-    current_path: str | None = None
+    old_path: str | None = None
+    new_path: str | None = None
+    old_line: int | None = None
+    new_line: int | None = None
     for line in diff_text.splitlines():
+        if line.startswith("--- a/"):
+            old_path = line.removeprefix("--- a/")
+            continue
         if line.startswith("+++ b/"):
-            current_path = line.removeprefix("+++ b/")
+            new_path = line.removeprefix("+++ b/")
+            continue
+        hunk_match = DIFF_HUNK_RE.match(line)
+        if hunk_match:
+            old_line = int(hunk_match.group("old_start"))
+            new_line = int(hunk_match.group("new_start"))
             continue
         if not line.startswith(("+", "-")) or line.startswith(("+++", "---")):
+            if old_line is not None and new_line is not None and line.startswith(" "):
+                old_line += 1
+                new_line += 1
             continue
+        side = "added" if line.startswith("+") else "removed"
+        line_number = new_line if side == "added" else old_line
+        if side == "added" and new_line is not None:
+            new_line += 1
+        if side == "removed" and old_line is not None:
+            old_line += 1
         name = _first_dangerous_call(line)
         if name is None:
             continue
-        location = CodeLocation(path=current_path or artifact.path or artifact.uri or "<diff>")
+        path = (
+            (new_path if side == "added" else old_path)
+            or artifact.path
+            or artifact.uri
+            or "<diff>"
+        )
+        location = CodeLocation(path=path, start_line=line_number)
         signature = FunctionSignature(
             raw=f"{name}(...)",
             name=name.split(".")[-1],
@@ -312,7 +341,11 @@ def _signatures_from_diff(
                 kind=EvidenceKind.DIFF,
                 uri=artifact.uri,
                 location=location,
-                metadata={"artifact_path": artifact.path, "line": line[:200]},
+                metadata={
+                    "artifact_path": artifact.path,
+                    "diff_side": side,
+                    "line": line[:200],
+                },
             ),
             summary=f"diff 中出现候选危险调用：{name}",
             reasoning=(
@@ -387,4 +420,3 @@ def _dangerous_calls(text: str | None) -> tuple[str, ...]:
         if short_name in DANGEROUS_CALL_NAMES:
             calls.append(name)
     return tuple(calls)
-
