@@ -183,7 +183,7 @@ M2 当前已经具备：
 - M2 taint path candidate 已纳入 benchmark/case harness。
 - M2 reachability evidence model 已完成 Insight 和 ADR。
 - `ReachabilityAssessment`、`ReachabilityReport` 和 `confirm-reachability` 最小本地入口。
-- 最小 Flask route 入口提取已接入 source root fixture。
+- 最小 Flask route 入口提取与同文件、一层 helper call chain 已接入 source root fixture。
 
 建议下一个 M2 具体任务：
 
