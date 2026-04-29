@@ -19,6 +19,7 @@ REACHABILITY_DIR = ROOT / "fixtures" / "reachability"
 FLASK_APP_DIR = REACHABILITY_DIR / "flask-app"
 FLASK_ASYNC_APP_DIR = REACHABILITY_DIR / "flask-async-app"
 FLASK_HELPER_APP_DIR = REACHABILITY_DIR / "flask-helper-app"
+FLASK_CROSS_FILE_HELPER_APP_DIR = REACHABILITY_DIR / "flask-cross-file-helper-app"
 
 
 def _task() -> VulnerabilityInput:
@@ -52,6 +53,22 @@ def _helper_taint_report():
     sink_report = generate_sink_report(task, semgrep_findings=findings)
     semgrep_paths = tuple(
         load_semgrep_taint_paths(SEMGREP_DIR / "taint-result-with-helper-trace.json")
+    )
+    return generate_taint_path_report(
+        task,
+        sink_report=sink_report,
+        semgrep_taint_paths=semgrep_paths,
+    )
+
+
+def _cross_file_helper_taint_report():
+    task = _task()
+    findings = tuple(
+        load_semgrep_findings(SEMGREP_DIR / "taint-result-with-cross-file-helper-trace.json")
+    )
+    sink_report = generate_sink_report(task, semgrep_findings=findings)
+    semgrep_paths = tuple(
+        load_semgrep_taint_paths(SEMGREP_DIR / "taint-result-with-cross-file-helper-trace.json")
     )
     return generate_taint_path_report(
         task,
@@ -162,6 +179,34 @@ def test_discover_flask_route_evidence_supports_same_file_helper_call_chain() ->
         "redirect(next_url)",
     ]
     assert assessment.evidence[0].summary.endswith("并继续进入 issue_redirect。")
+
+
+def test_discover_flask_route_evidence_supports_cross_file_helper_call_chain() -> None:
+    task = _task()
+    taint_report = _cross_file_helper_taint_report()
+    records = discover_flask_route_evidence(
+        FLASK_CROSS_FILE_HELPER_APP_DIR,
+        taint_paths=taint_report.paths,
+    )
+
+    report = generate_reachability_report(
+        task,
+        taint_report=taint_report,
+        evidence_records=records,
+    )
+
+    assessment = report.assessments[0]
+    assert assessment.reachable is True
+    assert assessment.entrypoint is not None
+    assert assessment.entrypoint.name == "GET /login"
+    assert [step.symbol for step in assessment.call_chain] == [
+        "login",
+        "issue_redirect",
+        "redirect(next_url)",
+    ]
+    assert assessment.call_chain[1].location is not None
+    assert assessment.call_chain[1].location.path == "app/helpers.py"
+    assert "direct import" in assessment.evidence[0].reasoning
 
 
 def test_generate_reachability_report_keeps_unmatched_path_unknown() -> None:

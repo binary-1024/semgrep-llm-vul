@@ -39,12 +39,12 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 
 ## Inventory Baseline
 
-当前 `benchmarks/cases/` 共收录 18 个 case：
+当前 `benchmarks/cases/` 共收录 19 个 case：
 
 | 维度 | 数量 |
 | --- | ---: |
-| total | 18 |
-| candidate | 16 |
+| total | 19 |
+| candidate | 17 |
 | unsupported | 1 |
 | blocked | 1 |
 
@@ -53,14 +53,14 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 | 阶段 | 数量 |
 | --- | ---: |
 | M1 | 12 |
-| M2 | 5 |
+| M2 | 6 |
 | M3 | 1 |
 
 按 case 类型：
 
 | 类型 | 数量 |
 | --- | ---: |
-| curated_minimal | 13 |
+| curated_minimal | 14 |
 | real_vulnerability | 3 |
 | synthetic_benchmark | 2 |
 
@@ -68,7 +68,7 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 
 | 来源 | 数量 |
 | --- | ---: |
-| project-curated | 13 |
+| project-curated | 14 |
 | CVEfixes | 1 |
 | NIST SARD / Juliet-style CWE sample | 1 |
 | OWASP Benchmark | 1 |
@@ -82,11 +82,11 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 | outcome | 数量 |
 | --- | ---: |
 | passed | 11 |
-| unsupported | 6 |
+| unsupported | 7 |
 | blocked | 1 |
 | failed | 0 |
 | error | 0 |
-| total | 18 |
+| total | 19 |
 
 当前 gaps：
 
@@ -94,6 +94,7 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 | --- | --- | --- |
 | `curated-open-redirect-reachability` | `unsupported_stage` | inventory evaluator 当前不支持 M2。 |
 | `curated-open-redirect-reachability-blocked` | `unsupported_stage` | inventory evaluator 当前不支持 M2。 |
+| `curated-open-redirect-reachability-cross-file-helper` | `unsupported_stage` | inventory evaluator 当前不支持 M2。 |
 | `curated-open-redirect-reachability-helper` | `unsupported_stage` | inventory evaluator 当前不支持 M2。 |
 | `curated-open-redirect-reachability-unknown` | `unsupported_stage` | inventory evaluator 当前不支持 M2。 |
 | `curated-open-redirect-taint-path` | `unsupported_stage` | inventory evaluator 当前不支持 M2。 |
@@ -104,8 +105,8 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 
 | 指标 | 数量 |
 | --- | ---: |
-| total | 16 |
-| passed_count | 16 |
+| total | 17 |
+| passed_count | 17 |
 | failed_count | 0 |
 
 ## 能力边界
@@ -114,13 +115,13 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 
 - M1 known sink、Semgrep finding、diff artifact、vulnerable snippet 和 evidence insufficient 场景的 deterministic sink candidate 回归。
 - M1 negative case 回归，包括安全 wrapper、safe API、diff 删除行和证据不足场景。
-- M2 taint path candidate、reachability `true|false|null`、Flask route positive，以及同文件 helper call chain 的最小 curated case 回归。
+- M2 taint path candidate、reachability `true|false|null`、Flask route positive、同文件 helper call chain，以及跨文件 direct helper call chain 的最小 curated case 回归。
 - benchmark inventory、gap 和 executable suite 三层输出。
 - benchmark summary 使用 `inventory_evaluation` 和 `executable_suite` 区分 inventory/gap evaluation 与 M1/M2 executable suite，避免把 M2 `unsupported_stage` 误读为 M2 suite 不支持。
 
 当前未覆盖或暂不自动化：
 
-- M2 reachability `true|false|null` 已有最小本地证据模型和 curated 回归，且已能从本地 Flask fixture 源码提取入口证据与同文件 helper call chain 证据。
+- M2 reachability `true|false|null` 已有最小本地证据模型和 curated 回归，且已能从本地 Flask fixture 源码提取入口证据、同文件 helper call chain 证据，以及 direct import 的跨文件 helper call chain 证据。
 - 完整 CVEfixes ingestion 尚未实现。
 - Vul4J 等需要 checkout、构建、运行或隔离环境的 case 尚未进入自动执行。
 - 真实外部项目的大规模 benchmark 下载、缓存和采样流程尚未建立。
