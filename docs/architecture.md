@@ -108,7 +108,7 @@ ReachabilityAssessment(reachable=true|false|null)
 - CLI：`uv run semgrep-llm-vul confirm-reachability <analysis-input> --semgrep-json <semgrep.json> --reachability-json <reachability.json>`
 - 本地入口提取：`uv run semgrep-llm-vul confirm-reachability <analysis-input> --semgrep-json <semgrep.json> --source-root <source-root>`
 - JSON 序列化：`semgrep_llm_vul.reporting.reachability_report_to_dict`
-- 语义边界：只消费本地结构化证据或最小 Flask route 源码入口；当前源码入口模型支持 handler 本体内 sink、同文件 direct helper call chain、direct import 的跨文件一层 helper call chain，以及 module alias attribute call 形式的一层 helper call chain；不扫描真实 repo；不构建完整跨语言调用图；不做 PoC/exp 验证。
+- 语义边界：只消费本地结构化证据或最小 Flask route 源码入口；当前源码入口模型支持 handler 本体内 sink、同文件 direct helper call chain、direct import 的跨文件一层 helper call chain、module alias attribute call 形式的一层 helper call chain，以及 `from app import helpers` 这类 `ImportFrom` module attribute call 形式的一层 helper call chain；不扫描真实 repo；不构建完整跨语言调用图；不做 PoC/exp 验证。
 
 ## 预期方向
 

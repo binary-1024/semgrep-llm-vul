@@ -110,6 +110,9 @@ handler 直接调用同文件 helper，且 sink 位于 helper 函数体内，也
 当前还支持 module alias attribute call：如果 route handler 通过
 `import app.helpers as helpers` 之类的 alias 调用 `helpers.issue_redirect(...)`，且
 sink 位于该 helper 函数体内，也可以输出 `reachable=true`。
+当前还支持 `from app import helpers` 这类 `ImportFrom` module attribute call：如果
+route handler 通过导入的 module 名调用 `helpers.issue_redirect(...)`，且 sink 位于
+该 helper 函数体内，也可以输出 `reachable=true`。
 
 ## notes.md 内容
 
@@ -146,6 +149,7 @@ case id 使用小写 kebab-case：
 - `curated-open-redirect-reachability`：M2 reachability positive case，验证本地入口证据可以输出 `reachable=true`。
 - `curated-open-redirect-reachability-blocked`：M2 reachability blocked case，验证明确阻断因素可以输出 `reachable=false`。
 - `curated-open-redirect-reachability-cross-file-helper`：M2 reachability cross-file helper case，验证 route handler 直接调用导入的 helper 时可以输出 `reachable=true`。
+- `curated-open-redirect-reachability-from-import-helper`：M2 reachability from-import helper case，验证 route handler 通过 `from app import helpers` 的 module import 调用 helper 时可以输出 `reachable=true`。
 - `curated-open-redirect-reachability-helper`：M2 reachability helper call chain case，验证 route handler 直接调用同文件 helper 时可以输出 `reachable=true`。
 - `curated-open-redirect-reachability-import-alias-helper`：M2 reachability import alias helper case，验证 route handler 通过 module alias attribute call 调用 helper 时可以输出 `reachable=true`。
 - `curated-open-redirect-reachability-unknown`：M2 reachability unknown case，验证缺入口证据时保持 `reachable=null`。

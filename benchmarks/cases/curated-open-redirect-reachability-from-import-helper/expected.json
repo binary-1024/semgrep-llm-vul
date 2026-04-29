@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "stage": "M2",
+  "expected_status": "candidate",
+  "taint_paths": [
+    {
+      "source_name": "request.args[\"next\"]",
+      "sink_name": "redirect",
+      "reachable": null
+    }
+  ],
+  "reachability": [
+    {
+      "source_name": "request.args[\"next\"]",
+      "sink_name": "redirect",
+      "reachable": true,
+      "entrypoint_kind": "flask_route"
+    }
+  ]
+}
