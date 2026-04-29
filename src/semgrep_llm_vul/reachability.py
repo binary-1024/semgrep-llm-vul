@@ -104,11 +104,9 @@ def discover_flask_route_evidence(
         sink_location = taint_path.sink.signature.location
         if sink_location is None:
             continue
-        module = module_index.get(sink_location.path)
-        if module is None:
-            continue
         route, call_chain_functions = _route_for_sink_location(
-            module,
+            module_index,
+            sink_path=sink_location.path,
             sink_line=sink_location.start_line,
         )
         if route is None:
@@ -173,15 +171,25 @@ class _PythonCall:
 
 @dataclass(frozen=True)
 class _PythonFunction:
+    path: str
     name: str
     function: _RouteFunction
     calls: tuple[_PythonCall, ...]
 
 
 @dataclass(frozen=True)
+class _ImportedFunction:
+    local_name: str
+    target_path: str
+    target_name: str
+
+
+@dataclass(frozen=True)
 class _PythonModule:
+    path: str
     routes: tuple[_FlaskRoute, ...]
     functions: tuple[_PythonFunction, ...]
+    imported_functions: tuple[_ImportedFunction, ...]
 
 
 def _python_modules_by_path(root: Path) -> dict[str, _PythonModule]:
@@ -193,22 +201,29 @@ def _python_modules_by_path(root: Path) -> dict[str, _PythonModule]:
         except (OSError, SyntaxError):
             continue
         functions = tuple(
-            _python_function_from_ast(node)
+            _python_function_from_ast(node, relative=relative)
             for node in tree.body
             if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
         )
+        imported_functions = _imported_functions_from_ast(tree, relative=relative)
         routes: list[_FlaskRoute] = []
         for function in functions:
             route = _route_from_function(function, relative=relative, source_path=path)
             if route is None:
                 continue
             routes.append(route)
-        modules[relative] = _PythonModule(routes=tuple(routes), functions=functions)
+        modules[relative] = _PythonModule(
+            path=relative,
+            routes=tuple(routes),
+            functions=functions,
+            imported_functions=imported_functions,
+        )
     return modules
 
 
-def _python_function_from_ast(function: _RouteFunction) -> _PythonFunction:
+def _python_function_from_ast(function: _RouteFunction, *, relative: str) -> _PythonFunction:
     return _PythonFunction(
+        path=relative,
         name=function.name,
         function=function,
         calls=tuple(
@@ -216,6 +231,49 @@ def _python_function_from_ast(function: _RouteFunction) -> _PythonFunction:
             for call_name, call_lineno in _direct_name_calls(function)
         ),
     )
+
+
+def _imported_functions_from_ast(
+    tree: ast.Module,
+    *,
+    relative: str,
+) -> tuple[_ImportedFunction, ...]:
+    imports: list[_ImportedFunction] = []
+    for node in tree.body:
+        if not isinstance(node, ast.ImportFrom):
+            continue
+        target_path = _import_from_target_path(node, relative=relative)
+        if target_path is None:
+            continue
+        for alias in node.names:
+            if alias.name == "*":
+                continue
+            imports.append(
+                _ImportedFunction(
+                    local_name=alias.asname or alias.name,
+                    target_path=target_path,
+                    target_name=alias.name,
+                )
+            )
+    return tuple(imports)
+
+
+def _import_from_target_path(node: ast.ImportFrom, *, relative: str) -> str | None:
+    module_parts = [part for part in (node.module or "").split(".") if part]
+    relative_parts = relative.removesuffix(".py").split("/")
+    package_parts = relative_parts[:-1]
+
+    if node.level:
+        if node.level > len(package_parts) + 1:
+            return None
+        anchor_parts = package_parts[: len(package_parts) - (node.level - 1)]
+        resolved_parts = [*anchor_parts, *module_parts]
+    else:
+        resolved_parts = module_parts
+
+    if not resolved_parts:
+        return None
+    return "/".join(resolved_parts) + ".py"
 
 
 def _route_from_function(
@@ -240,10 +298,14 @@ def _route_from_function(
 
 
 def _route_for_sink_location(
-    module: _PythonModule,
+    module_index: dict[str, _PythonModule],
     *,
+    sink_path: str,
     sink_line: int | None,
 ) -> tuple[_FlaskRoute | None, tuple[_PythonFunction, ...]]:
+    module = module_index.get(sink_path)
+    if module is None:
+        return None, ()
     sink_function = next(
         (
             function
@@ -254,16 +316,79 @@ def _route_for_sink_location(
     )
     if sink_function is None:
         return None, ()
-    for route in module.routes:
-        if route.function.name == sink_function.name:
-            return route, (route.function,)
-        if _calls_function(route.function, sink_function.name):
-            return route, (route.function, sink_function)
+    for candidate_module in module_index.values():
+        for route in candidate_module.routes:
+            if (
+                route.function.path == sink_function.path
+                and route.function.name == sink_function.name
+            ):
+                return route, (route.function,)
+            for called_function in _direct_called_functions(
+                candidate_module,
+                route.function,
+                module_index=module_index,
+            ):
+                if (
+                    called_function.path == sink_function.path
+                    and called_function.name == sink_function.name
+                ):
+                    return route, (route.function, sink_function)
     return None, ()
 
 
-def _calls_function(function: _PythonFunction, callee_name: str) -> bool:
-    return any(call.name == callee_name for call in function.calls)
+def _direct_called_functions(
+    module: _PythonModule,
+    function: _PythonFunction,
+    *,
+    module_index: dict[str, _PythonModule],
+) -> tuple[_PythonFunction, ...]:
+    called_functions: list[_PythonFunction] = []
+    for call in function.calls:
+        resolved = _resolve_called_function(
+            module,
+            call.name,
+            module_index=module_index,
+        )
+        if resolved is None:
+            continue
+        called_functions.append(resolved)
+    return tuple(called_functions)
+
+
+def _resolve_called_function(
+    module: _PythonModule,
+    callee_name: str,
+    *,
+    module_index: dict[str, _PythonModule],
+) -> _PythonFunction | None:
+    local_function = next(
+        (function for function in module.functions if function.name == callee_name),
+        None,
+    )
+    if local_function is not None:
+        return local_function
+
+    imported_function = next(
+        (
+            candidate
+            for candidate in module.imported_functions
+            if candidate.local_name == callee_name
+        ),
+        None,
+    )
+    if imported_function is None:
+        return None
+    imported_module = module_index.get(imported_function.target_path)
+    if imported_module is None:
+        return None
+    return next(
+        (
+            function
+            for function in imported_module.functions
+            if function.name == imported_function.target_name
+        ),
+        None,
+    )
 
 
 def _direct_name_calls(function: _RouteFunction) -> tuple[tuple[str, int | None], ...]:
@@ -328,6 +453,21 @@ def _record_from_flask_route(
     method = route.methods[0] if route.methods else "GET"
     sink_symbol = _sink_step_symbol(taint_path)
     helper_names = [function.name for function in call_chain_functions[1:]]
+    helper_paths = [function.path for function in call_chain_functions[1:]]
+    helper_scope = (
+        "same_file"
+        if helper_paths and all(path == route.path for path in helper_paths)
+        else "cross_file"
+        if helper_paths
+        else "handler"
+    )
+    helper_inspect_paths = tuple(
+        dict.fromkeys(
+            str(source_root / function.path)
+            for function in call_chain_functions[1:]
+            if function.path != route.path
+        )
+    )
     source_control = SourceControlAssessment(
         controlled=_source_looks_request_controlled(taint_path),
         reason="source 来自 Flask request 对象。" if _source_looks_request_controlled(taint_path)
@@ -349,6 +489,7 @@ def _record_from_flask_route(
                     "framework": "flask",
                     "source_root": str(source_root),
                     "call_chain_functions": [function.name for function in call_chain_functions],
+                    "call_chain_paths": [function.path for function in call_chain_functions],
                 },
             ),
             summary=_flask_route_summary(
@@ -357,9 +498,12 @@ def _record_from_flask_route(
                 route_function_name=route_function_name,
                 helper_names=helper_names,
             ),
-            reasoning=_flask_route_reasoning(helper_names),
+            reasoning=_flask_route_reasoning(helper_names, helper_scope=helper_scope),
             confidence=0.7,
-            reproducible_steps=(f"inspect {route.source_path}",),
+            reproducible_steps=(
+                f"inspect {route.source_path}",
+                *tuple(f"inspect {path}" for path in helper_inspect_paths),
+            ),
         ),
     )
     return ReachabilityEvidenceRecord(
@@ -383,7 +527,7 @@ def _record_from_flask_route(
                 ReachabilityCallStep(
                     symbol=function.name,
                     location=CodeLocation(
-                        path=route.path,
+                        path=function.path,
                         start_line=function.function.lineno,
                     ),
                     evidence=evidence,
@@ -418,17 +562,21 @@ def _flask_route_summary(
     )
 
 
-def _flask_route_reasoning(helper_names: list[str]) -> str:
+def _flask_route_reasoning(helper_names: list[str], *, helper_scope: str) -> str:
     if not helper_names:
         return (
             "该入口由本地 Python AST 从 @*.route(...) 装饰器提取，"
             "sink 位于该 handler 函数体内。"
         )
     helper_path = " -> ".join(helper_names)
+    if helper_scope == "same_file":
+        helper_reason = f"route handler 在同文件内直接调用 {helper_path}，"
+    else:
+        helper_reason = f"route handler 通过 direct import 调用 {helper_path}，"
     return (
         "该入口由本地 Python AST 从 @*.route(...) 装饰器提取，"
-        f"route handler 在同文件内直接调用 {helper_path}，"
-        "且 sink 位于该直接调用到达的函数体内。"
+        + helper_reason
+        + "且 sink 位于该直接调用到达的函数体内。"
     )
 
 
