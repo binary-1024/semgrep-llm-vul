@@ -99,23 +99,28 @@ def discover_flask_route_evidence(
         raise ReachabilityEvidenceError(f"source root 必须是目录：{source_root}")
 
     records: list[ReachabilityEvidenceRecord] = []
-    route_index = _flask_routes_by_path(root)
+    module_index = _python_modules_by_path(root)
     for taint_path in taint_paths:
         sink_location = taint_path.sink.signature.location
         if sink_location is None:
             continue
-        routes = route_index.get(sink_location.path, ())
-        route = next(
-            (
-                item
-                for item in routes
-                if _line_within(sink_location.start_line, item.function)
-            ),
-            None,
+        module = module_index.get(sink_location.path)
+        if module is None:
+            continue
+        route, call_chain_functions = _route_for_sink_location(
+            module,
+            sink_line=sink_location.start_line,
         )
         if route is None:
             continue
-        records.append(_record_from_flask_route(taint_path, route, source_root=root))
+        records.append(
+            _record_from_flask_route(
+                taint_path,
+                route,
+                call_chain_functions=call_chain_functions,
+                source_root=root,
+            )
+        )
     return tuple(records)
 
 
@@ -156,35 +161,70 @@ class _FlaskRoute:
     path: str
     route: str
     methods: tuple[str, ...]
-    function: _RouteFunction
+    function: _PythonFunction
     source_path: Path
 
 
-def _flask_routes_by_path(root: Path) -> dict[str, tuple[_FlaskRoute, ...]]:
-    routes: dict[str, list[_FlaskRoute]] = {}
+@dataclass(frozen=True)
+class _PythonCall:
+    name: str
+    lineno: int | None
+
+
+@dataclass(frozen=True)
+class _PythonFunction:
+    name: str
+    function: _RouteFunction
+    calls: tuple[_PythonCall, ...]
+
+
+@dataclass(frozen=True)
+class _PythonModule:
+    routes: tuple[_FlaskRoute, ...]
+    functions: tuple[_PythonFunction, ...]
+
+
+def _python_modules_by_path(root: Path) -> dict[str, _PythonModule]:
+    modules: dict[str, _PythonModule] = {}
     for path in sorted(root.rglob("*.py")):
         relative = path.relative_to(root).as_posix()
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         except (OSError, SyntaxError):
             continue
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
-                continue
-            route = _route_from_function(node, relative=relative, source_path=path)
+        functions = tuple(
+            _python_function_from_ast(node)
+            for node in tree.body
+            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+        )
+        routes: list[_FlaskRoute] = []
+        for function in functions:
+            route = _route_from_function(function, relative=relative, source_path=path)
             if route is None:
                 continue
-            routes.setdefault(relative, []).append(route)
-    return {key: tuple(value) for key, value in routes.items()}
+            routes.append(route)
+        modules[relative] = _PythonModule(routes=tuple(routes), functions=functions)
+    return modules
+
+
+def _python_function_from_ast(function: _RouteFunction) -> _PythonFunction:
+    return _PythonFunction(
+        name=function.name,
+        function=function,
+        calls=tuple(
+            _PythonCall(name=call_name, lineno=call_lineno)
+            for call_name, call_lineno in _direct_name_calls(function)
+        ),
+    )
 
 
 def _route_from_function(
-    function: _RouteFunction,
+    function: _PythonFunction,
     *,
     relative: str,
     source_path: Path,
 ) -> _FlaskRoute | None:
-    for decorator in function.decorator_list:
+    for decorator in function.function.decorator_list:
         route = _route_from_decorator(decorator)
         if route is None:
             continue
@@ -197,6 +237,51 @@ def _route_from_function(
             source_path=source_path,
         )
     return None
+
+
+def _route_for_sink_location(
+    module: _PythonModule,
+    *,
+    sink_line: int | None,
+) -> tuple[_FlaskRoute | None, tuple[_PythonFunction, ...]]:
+    sink_function = next(
+        (
+            function
+            for function in module.functions
+            if _line_within(sink_line, function.function)
+        ),
+        None,
+    )
+    if sink_function is None:
+        return None, ()
+    for route in module.routes:
+        if route.function.name == sink_function.name:
+            return route, (route.function,)
+        if _calls_function(route.function, sink_function.name):
+            return route, (route.function, sink_function)
+    return None, ()
+
+
+def _calls_function(function: _PythonFunction, callee_name: str) -> bool:
+    return any(call.name == callee_name for call in function.calls)
+
+
+def _direct_name_calls(function: _RouteFunction) -> tuple[tuple[str, int | None], ...]:
+    calls: list[tuple[str, int | None]] = []
+    for statement in function.body:
+        calls.extend(_name_calls_in_node(statement))
+    return tuple(calls)
+
+
+def _name_calls_in_node(node: ast.AST) -> list[tuple[str, int | None]]:
+    if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef | ast.Lambda):
+        return []
+    calls: list[tuple[str, int | None]] = []
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+        calls.append((node.func.id, getattr(node, "lineno", None)))
+    for child in ast.iter_child_nodes(node):
+        calls.extend(_name_calls_in_node(child))
+    return calls
 
 
 def _route_from_decorator(decorator: ast.expr) -> tuple[str, tuple[str, ...]] | None:
@@ -233,14 +318,16 @@ def _record_from_flask_route(
     taint_path: TaintPath,
     route: _FlaskRoute,
     *,
+    call_chain_functions: tuple[_PythonFunction, ...],
     source_root: Path,
 ) -> ReachabilityEvidenceRecord:
-    decorator_line = route.function.decorator_list[0].lineno
+    decorator_line = route.function.function.decorator_list[0].lineno
     entrypoint_location = CodeLocation(path=route.path, start_line=decorator_line)
-    function_location = CodeLocation(path=route.path, start_line=route.function.lineno)
+    route_function_name = route.function.name
     sink_location = taint_path.sink.signature.location
     method = route.methods[0] if route.methods else "GET"
     sink_symbol = _sink_step_symbol(taint_path)
+    helper_names = [function.name for function in call_chain_functions[1:]]
     source_control = SourceControlAssessment(
         controlled=_source_looks_request_controlled(taint_path),
         reason="source 来自 Flask request 对象。" if _source_looks_request_controlled(taint_path)
@@ -261,13 +348,16 @@ def _record_from_flask_route(
                 metadata={
                     "framework": "flask",
                     "source_root": str(source_root),
+                    "call_chain_functions": [function.name for function in call_chain_functions],
                 },
             ),
-            summary=f"Flask route {method} {route.route} 作为入口调用 {route.function.name}。",
-            reasoning=(
-                "该入口由本地 Python AST 从 @*.route(...) 装饰器提取，"
-                "sink 位于该 handler 函数体内。"
+            summary=_flask_route_summary(
+                method=method,
+                route_path=route.route,
+                route_function_name=route_function_name,
+                helper_names=helper_names,
             ),
+            reasoning=_flask_route_reasoning(helper_names),
             confidence=0.7,
             reproducible_steps=(f"inspect {route.source_path}",),
         ),
@@ -289,10 +379,16 @@ def _record_from_flask_route(
             evidence=evidence,
         ),
         call_chain=(
-            ReachabilityCallStep(
-                symbol=route.function.name,
-                location=function_location,
-                evidence=evidence,
+            *tuple(
+                ReachabilityCallStep(
+                    symbol=function.name,
+                    location=CodeLocation(
+                        path=route.path,
+                        start_line=function.function.lineno,
+                    ),
+                    evidence=evidence,
+                )
+                for function in call_chain_functions
             ),
             ReachabilityCallStep(
                 symbol=sink_symbol,
@@ -303,6 +399,36 @@ def _record_from_flask_route(
         source_control=source_control,
         evidence=evidence,
         unknowns=("尚未运行 PoC 验证该 Flask route 的触发行为。",),
+    )
+
+
+def _flask_route_summary(
+    *,
+    method: str,
+    route_path: str,
+    route_function_name: str,
+    helper_names: list[str],
+) -> str:
+    if not helper_names:
+        return f"Flask route {method} {route_path} 作为入口调用 {route_function_name}。"
+    helper_path = " -> ".join(helper_names)
+    return (
+        f"Flask route {method} {route_path} 作为入口调用 {route_function_name}，"
+        f"并继续进入 {helper_path}。"
+    )
+
+
+def _flask_route_reasoning(helper_names: list[str]) -> str:
+    if not helper_names:
+        return (
+            "该入口由本地 Python AST 从 @*.route(...) 装饰器提取，"
+            "sink 位于该 handler 函数体内。"
+        )
+    helper_path = " -> ".join(helper_names)
+    return (
+        "该入口由本地 Python AST 从 @*.route(...) 装饰器提取，"
+        f"route handler 在同文件内直接调用 {helper_path}，"
+        "且 sink 位于该直接调用到达的函数体内。"
     )
 
 

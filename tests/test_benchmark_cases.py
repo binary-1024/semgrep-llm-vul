@@ -130,9 +130,9 @@ def test_evaluate_benchmark_cases_summarizes_curated_cases() -> None:
     result = evaluate_benchmark_cases(CASES_ROOT, repo_root=ROOT)
 
     assert result["kind"] == "benchmark_case_suite_evaluation"
-    assert result["total"] == 15
+    assert result["total"] == 16
     assert result["passed"] is True
-    assert result["passed_count"] == 15
+    assert result["passed_count"] == 16
     assert result["failed_count"] == 0
     assert {item["case_id"] for item in result["results"]} == {
         "curated-command-execution-system",
@@ -143,6 +143,7 @@ def test_evaluate_benchmark_cases_summarizes_curated_cases() -> None:
         "curated-open-redirect-safe-wrapper",
         "curated-open-redirect-reachability",
         "curated-open-redirect-reachability-blocked",
+        "curated-open-redirect-reachability-helper",
         "curated-open-redirect-reachability-unknown",
         "curated-open-redirect-taint-path",
         "curated-safe-deserialization-wrapper",
@@ -159,7 +160,7 @@ def test_summarize_benchmark_suite_omits_full_sink_reports() -> None:
     summary = summarize_benchmark_suite(result)
 
     assert summary["kind"] == "benchmark_case_suite_summary"
-    assert summary["total"] == 15
+    assert summary["total"] == 16
     assert summary["passed"] is True
     assert all("sink_report" not in item for item in summary["cases"])
     assert all(item["failed_checks"] == [] for item in summary["cases"])

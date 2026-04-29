@@ -101,7 +101,9 @@ reachability evidence fixture，并在 `expected.json` 中使用 `reachability` 
 
 也可以使用 `inputs.source_roots` 指向本地源码 fixture。当前最小实现会从 Python
 源码中提取 Flask `@*.route(...)` 入口证据，并尝试将入口所在 handler 与候选
-taint path 对齐。
+taint path 对齐。当前还支持同文件、一层 direct helper call chain：如果 route
+handler 直接调用同文件 helper，且 sink 位于 helper 函数体内，也可以输出
+`reachable=true`。
 
 ## notes.md 内容
 
@@ -137,6 +139,7 @@ case id 使用小写 kebab-case：
 - `curated-open-redirect-taint-path`：M2 taint path candidate case，验证 Semgrep trace 与 `redirect` sink candidate 对齐。
 - `curated-open-redirect-reachability`：M2 reachability positive case，验证本地入口证据可以输出 `reachable=true`。
 - `curated-open-redirect-reachability-blocked`：M2 reachability blocked case，验证明确阻断因素可以输出 `reachable=false`。
+- `curated-open-redirect-reachability-helper`：M2 reachability helper call chain case，验证 route handler 直接调用同文件 helper 时可以输出 `reachable=true`。
 - `curated-open-redirect-reachability-unknown`：M2 reachability unknown case，验证缺入口证据时保持 `reachable=null`。
 - `curated-open-redirect-safe-diff`：negative case，安全封装 diff 不应生成 direct sink candidate。
 - `curated-insufficient-evidence`：insufficient evidence case，没有代码、diff 或 Semgrep 证据时不应生成候选。
