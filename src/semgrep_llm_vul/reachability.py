@@ -24,6 +24,7 @@ from semgrep_llm_vul.models import (
 from semgrep_llm_vul.taint_path_generation import TaintPathGenerationReport
 
 _RouteFunction = ast.FunctionDef | ast.AsyncFunctionDef
+_MAX_FLASK_HELPER_HOPS = 2
 
 
 class ReachabilityEvidenceError(ValueError):
@@ -389,22 +390,55 @@ def _route_for_sink_location(
         return None, ()
     for candidate_module in module_index.values():
         for route in candidate_module.routes:
-            if (
-                route.function.path == sink_function.path
-                and route.function.name == sink_function.name
-            ):
-                return route, (route.function,)
-            for called_function in _direct_called_functions(
+            call_chain = _call_chain_to_function(
                 candidate_module,
                 route.function,
+                sink_function,
                 module_index=module_index,
-            ):
-                if (
-                    called_function.path == sink_function.path
-                    and called_function.name == sink_function.name
-                ):
-                    return route, (route.function, sink_function)
+                remaining_hops=_MAX_FLASK_HELPER_HOPS,
+            )
+            if call_chain is not None:
+                return route, call_chain
     return None, ()
+
+
+def _call_chain_to_function(
+    module: _PythonModule,
+    function: _PythonFunction,
+    target: _PythonFunction,
+    *,
+    module_index: dict[str, _PythonModule],
+    remaining_hops: int,
+    visited: frozenset[tuple[str, str]] = frozenset(),
+) -> tuple[_PythonFunction, ...] | None:
+    function_ref = (function.path, function.name)
+    if function_ref in visited:
+        return None
+    if function.path == target.path and function.name == target.name:
+        return (function,)
+    if remaining_hops <= 0:
+        return None
+
+    next_visited = visited | {function_ref}
+    for called_function in _direct_called_functions(
+        module,
+        function,
+        module_index=module_index,
+    ):
+        called_module = module_index.get(called_function.path)
+        if called_module is None:
+            continue
+        sub_chain = _call_chain_to_function(
+            called_module,
+            called_function,
+            target,
+            module_index=module_index,
+            remaining_hops=remaining_hops - 1,
+            visited=next_visited,
+        )
+        if sub_chain is not None:
+            return (function, *sub_chain)
+    return None
 
 
 def _direct_called_functions(
@@ -677,13 +711,13 @@ def _flask_route_reasoning(helper_names: list[str], *, helper_scope: str) -> str
         )
     helper_path = " -> ".join(helper_names)
     if helper_scope == "same_file":
-        helper_reason = f"route handler 在同文件内直接调用 {helper_path}，"
+        helper_reason = f"route handler 在同文件内通过局部 helper chain 调用 {helper_path}，"
     else:
-        helper_reason = f"route handler 通过 import 解析调用 {helper_path}，"
+        helper_reason = f"route handler 通过 import 解析和局部 helper chain 调用 {helper_path}，"
     return (
         "该入口由本地 Python AST 从 @*.route(...) 装饰器提取，"
         + helper_reason
-        + "且 sink 位于该直接调用到达的函数体内。"
+        + "且 sink 位于该局部调用链到达的函数体内。"
     )
 
 

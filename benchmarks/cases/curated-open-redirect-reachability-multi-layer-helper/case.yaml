@@ -1,0 +1,29 @@
+schema_version: 1
+id: curated-open-redirect-reachability-multi-layer-helper
+type: curated_minimal
+target_stage: M2
+status: candidate
+source:
+  name: project-curated
+  url: null
+  license: project
+target:
+  repo_url: https://github.com/example/flask-app
+  affected_version: v1.0.0
+  fixed_version: v1.0.1
+  language: python
+inputs:
+  description: Open redirect through user-controlled next parameter.
+  mode: unknown_sink
+  semgrep_json:
+    - fixtures/semgrep/taint-result-with-multi-layer-helper-trace.json
+  source_roots:
+    - fixtures/reachability/flask-multi-layer-helper-app
+expected:
+  taint_path:
+    source_name: request.args["next"]
+    sink_name: redirect
+safety:
+  contains_poc: false
+  contains_exp: false
+  requires_isolation: false

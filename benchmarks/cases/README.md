@@ -113,6 +113,9 @@ sink 位于该 helper 函数体内，也可以输出 `reachable=true`。
 当前还支持 `from app import helpers` 这类 `ImportFrom` module attribute call：如果
 route handler 通过导入的 module 名调用 `helpers.issue_redirect(...)`，且 sink 位于
 该 helper 函数体内，也可以输出 `reachable=true`。
+当前还支持有界多层 helper chain：如果 route handler 先调用同文件 helper，再由该
+helper 继续进入第二层 helper，且 sink 位于该第二层 helper 函数体内，也可以输出
+`reachable=true`。当前边界固定为最多两层 helper hop。
 
 ## notes.md 内容
 
@@ -152,6 +155,7 @@ case id 使用小写 kebab-case：
 - `curated-open-redirect-reachability-from-import-helper`：M2 reachability from-import helper case，验证 route handler 通过 `from app import helpers` 的 module import 调用 helper 时可以输出 `reachable=true`。
 - `curated-open-redirect-reachability-helper`：M2 reachability helper call chain case，验证 route handler 直接调用同文件 helper 时可以输出 `reachable=true`。
 - `curated-open-redirect-reachability-import-alias-helper`：M2 reachability import alias helper case，验证 route handler 通过 module alias attribute call 调用 helper 时可以输出 `reachable=true`。
+- `curated-open-redirect-reachability-multi-layer-helper`：M2 reachability multi-layer helper case，验证 route handler 通过同文件两层 helper chain 调用 sink 时可以输出 `reachable=true`。
 - `curated-open-redirect-reachability-unknown`：M2 reachability unknown case，验证缺入口证据时保持 `reachable=null`。
 - `curated-open-redirect-safe-diff`：negative case，安全封装 diff 不应生成 direct sink candidate。
 - `curated-insufficient-evidence`：insufficient evidence case，没有代码、diff 或 Semgrep 证据时不应生成候选。
