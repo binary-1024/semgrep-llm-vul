@@ -214,7 +214,7 @@ def _python_modules_by_path(root: Path) -> dict[str, _PythonModule]:
             if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
         )
         imported_functions = _imported_functions_from_ast(tree, relative=relative)
-        imported_modules = _imported_modules_from_ast(tree)
+        imported_modules = _imported_modules_from_ast(tree, relative=relative)
         routes: list[_FlaskRoute] = []
         for function in functions:
             route = _route_from_function(function, relative=relative, source_path=path)
@@ -268,22 +268,18 @@ def _imported_functions_from_ast(
     return tuple(imports)
 
 
-def _imported_modules_from_ast(tree: ast.Module) -> tuple[_ImportedModule, ...]:
+def _imported_modules_from_ast(
+    tree: ast.Module,
+    *,
+    relative: str,
+) -> tuple[_ImportedModule, ...]:
     imports: list[_ImportedModule] = []
     for node in tree.body:
-        if not isinstance(node, ast.Import):
+        if isinstance(node, ast.Import):
+            imports.extend(_imported_modules_from_import(node))
             continue
-        for alias in node.names:
-            target_path = _module_name_to_path(alias.name)
-            if target_path is None:
-                continue
-            local_name = alias.asname or alias.name.rsplit(".", 1)[-1]
-            imports.append(
-                _ImportedModule(
-                    local_name=local_name,
-                    target_path=target_path,
-                )
-            )
+        if isinstance(node, ast.ImportFrom):
+            imports.extend(_imported_modules_from_import_from(node, relative=relative))
     return tuple(imports)
 
 
@@ -292,6 +288,45 @@ def _module_name_to_path(module_name: str) -> str | None:
     if not parts:
         return None
     return "/".join(parts) + ".py"
+
+
+def _imported_modules_from_import(node: ast.Import) -> tuple[_ImportedModule, ...]:
+    imports: list[_ImportedModule] = []
+    for alias in node.names:
+        target_path = _module_name_to_path(alias.name)
+        if target_path is None:
+            continue
+        local_name = alias.asname or alias.name.rsplit(".", 1)[-1]
+        imports.append(
+            _ImportedModule(
+                local_name=local_name,
+                target_path=target_path,
+            )
+        )
+    return tuple(imports)
+
+
+def _imported_modules_from_import_from(
+    node: ast.ImportFrom,
+    *,
+    relative: str,
+) -> tuple[_ImportedModule, ...]:
+    base_path = _import_from_target_path(node, relative=relative)
+    if base_path is None:
+        return ()
+    package_path = base_path.removesuffix(".py")
+    imports: list[_ImportedModule] = []
+    for alias in node.names:
+        if alias.name == "*":
+            continue
+        local_name = alias.asname or alias.name
+        imports.append(
+            _ImportedModule(
+                local_name=local_name,
+                target_path=f"{package_path}/{alias.name}.py",
+            )
+        )
+    return tuple(imports)
 
 
 def _import_from_target_path(node: ast.ImportFrom, *, relative: str) -> str | None:
@@ -644,7 +679,7 @@ def _flask_route_reasoning(helper_names: list[str], *, helper_scope: str) -> str
     if helper_scope == "same_file":
         helper_reason = f"route handler 在同文件内直接调用 {helper_path}，"
     else:
-        helper_reason = f"route handler 通过 direct import 调用 {helper_path}，"
+        helper_reason = f"route handler 通过 import 解析调用 {helper_path}，"
     return (
         "该入口由本地 Python AST 从 @*.route(...) 装饰器提取，"
         + helper_reason
