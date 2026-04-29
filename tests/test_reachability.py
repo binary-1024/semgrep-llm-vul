@@ -22,6 +22,7 @@ FLASK_HELPER_APP_DIR = REACHABILITY_DIR / "flask-helper-app"
 FLASK_CROSS_FILE_HELPER_APP_DIR = REACHABILITY_DIR / "flask-cross-file-helper-app"
 FLASK_IMPORT_ALIAS_HELPER_APP_DIR = REACHABILITY_DIR / "flask-import-alias-helper-app"
 FLASK_FROM_IMPORT_HELPER_APP_DIR = REACHABILITY_DIR / "flask-from-import-helper-app"
+FLASK_FROM_IMPORT_ALIAS_HELPER_APP_DIR = REACHABILITY_DIR / "flask-from-import-alias-helper-app"
 FLASK_MULTI_LAYER_HELPER_APP_DIR = REACHABILITY_DIR / "flask-multi-layer-helper-app"
 
 
@@ -104,6 +105,24 @@ def _from_import_helper_taint_report():
     sink_report = generate_sink_report(task, semgrep_findings=findings)
     semgrep_paths = tuple(
         load_semgrep_taint_paths(SEMGREP_DIR / "taint-result-with-from-import-helper-trace.json")
+    )
+    return generate_taint_path_report(
+        task,
+        sink_report=sink_report,
+        semgrep_taint_paths=semgrep_paths,
+    )
+
+
+def _from_import_alias_helper_taint_report():
+    task = _task()
+    findings = tuple(
+        load_semgrep_findings(SEMGREP_DIR / "taint-result-with-from-import-alias-helper-trace.json")
+    )
+    sink_report = generate_sink_report(task, semgrep_findings=findings)
+    semgrep_paths = tuple(
+        load_semgrep_taint_paths(
+            SEMGREP_DIR / "taint-result-with-from-import-alias-helper-trace.json"
+        )
     )
     return generate_taint_path_report(
         task,
@@ -293,6 +312,34 @@ def test_discover_flask_route_evidence_supports_from_import_helper_call_chain() 
     taint_report = _from_import_helper_taint_report()
     records = discover_flask_route_evidence(
         FLASK_FROM_IMPORT_HELPER_APP_DIR,
+        taint_paths=taint_report.paths,
+    )
+
+    report = generate_reachability_report(
+        task,
+        taint_report=taint_report,
+        evidence_records=records,
+    )
+
+    assessment = report.assessments[0]
+    assert assessment.reachable is True
+    assert assessment.entrypoint is not None
+    assert assessment.entrypoint.name == "GET /login"
+    assert [step.symbol for step in assessment.call_chain] == [
+        "login",
+        "issue_redirect",
+        "redirect(next_url)",
+    ]
+    assert assessment.call_chain[1].location is not None
+    assert assessment.call_chain[1].location.path == "app/helpers.py"
+    assert "import 解析" in assessment.evidence[0].reasoning
+
+
+def test_discover_flask_route_evidence_supports_from_import_alias_helper_call_chain() -> None:
+    task = _task()
+    taint_report = _from_import_alias_helper_taint_report()
+    records = discover_flask_route_evidence(
+        FLASK_FROM_IMPORT_ALIAS_HELPER_APP_DIR,
         taint_paths=taint_report.paths,
     )
 
