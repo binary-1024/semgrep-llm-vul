@@ -1,0 +1,104 @@
+{
+  "version": "1.99.0",
+  "results": [
+    {
+      "check_id": "python.flask.open-redirect-taint",
+      "path": "app/routes.py",
+      "start": {
+        "line": 25,
+        "col": 16
+      },
+      "end": {
+        "line": 25,
+        "col": 34
+      },
+      "extra": {
+        "message": "User-controlled redirect target reaches redirect() through multiple helpers.",
+        "severity": "WARNING",
+        "lines": "return redirect(next_url)",
+        "metadata": {
+          "category": "security",
+          "cwe": [
+            "CWE-601"
+          ],
+          "languages": [
+            "python"
+          ]
+        },
+        "dataflow_trace": {
+          "taint_source": [
+            "CliLoc",
+            [
+              {
+                "location": {
+                  "path": "app/routes.py",
+                  "start": {
+                    "line": 14,
+                    "col": 16
+                  },
+                  "end": {
+                    "line": 14,
+                    "col": 36
+                  }
+                },
+                "content": "request.args[\"next\"]"
+              },
+              "request.args[\"next\"]"
+            ]
+          ],
+          "intermediate_vars": [
+            {
+              "content": "next_url",
+              "location": {
+                "path": "app/routes.py",
+                "start": {
+                  "line": 14,
+                  "col": 5
+                },
+                "end": {
+                  "line": 14,
+                  "col": 36
+                }
+              }
+            },
+            {
+              "content": "audited_next",
+              "location": {
+                "path": "app/routes.py",
+                "start": {
+                  "line": 19,
+                  "col": 5
+                },
+                "end": {
+                  "line": 19,
+                  "col": 28
+                }
+              }
+            }
+          ],
+          "taint_sink": [
+            "CliLoc",
+            [
+              {
+                "location": {
+                  "path": "app/routes.py",
+                  "start": {
+                    "line": 25,
+                    "col": 16
+                  },
+                  "end": {
+                    "line": 25,
+                    "col": 34
+                  }
+                },
+                "content": "redirect(next_url)"
+              },
+              "redirect(next_url)"
+            ]
+          ]
+        }
+      }
+    }
+  ],
+  "errors": []
+}
