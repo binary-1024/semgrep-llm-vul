@@ -166,6 +166,7 @@ class _FlaskRoute:
 @dataclass(frozen=True)
 class _PythonCall:
     name: str
+    owner: str | None
     lineno: int | None
 
 
@@ -185,11 +186,18 @@ class _ImportedFunction:
 
 
 @dataclass(frozen=True)
+class _ImportedModule:
+    local_name: str
+    target_path: str
+
+
+@dataclass(frozen=True)
 class _PythonModule:
     path: str
     routes: tuple[_FlaskRoute, ...]
     functions: tuple[_PythonFunction, ...]
     imported_functions: tuple[_ImportedFunction, ...]
+    imported_modules: tuple[_ImportedModule, ...]
 
 
 def _python_modules_by_path(root: Path) -> dict[str, _PythonModule]:
@@ -206,6 +214,7 @@ def _python_modules_by_path(root: Path) -> dict[str, _PythonModule]:
             if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
         )
         imported_functions = _imported_functions_from_ast(tree, relative=relative)
+        imported_modules = _imported_modules_from_ast(tree)
         routes: list[_FlaskRoute] = []
         for function in functions:
             route = _route_from_function(function, relative=relative, source_path=path)
@@ -217,6 +226,7 @@ def _python_modules_by_path(root: Path) -> dict[str, _PythonModule]:
             routes=tuple(routes),
             functions=functions,
             imported_functions=imported_functions,
+            imported_modules=imported_modules,
         )
     return modules
 
@@ -227,8 +237,8 @@ def _python_function_from_ast(function: _RouteFunction, *, relative: str) -> _Py
         name=function.name,
         function=function,
         calls=tuple(
-            _PythonCall(name=call_name, lineno=call_lineno)
-            for call_name, call_lineno in _direct_name_calls(function)
+            _PythonCall(name=call_name, owner=call_owner, lineno=call_lineno)
+            for call_name, call_owner, call_lineno in _direct_name_calls(function)
         ),
     )
 
@@ -256,6 +266,32 @@ def _imported_functions_from_ast(
                 )
             )
     return tuple(imports)
+
+
+def _imported_modules_from_ast(tree: ast.Module) -> tuple[_ImportedModule, ...]:
+    imports: list[_ImportedModule] = []
+    for node in tree.body:
+        if not isinstance(node, ast.Import):
+            continue
+        for alias in node.names:
+            target_path = _module_name_to_path(alias.name)
+            if target_path is None:
+                continue
+            local_name = alias.asname or alias.name.rsplit(".", 1)[-1]
+            imports.append(
+                _ImportedModule(
+                    local_name=local_name,
+                    target_path=target_path,
+                )
+            )
+    return tuple(imports)
+
+
+def _module_name_to_path(module_name: str) -> str | None:
+    parts = [part for part in module_name.split(".") if part]
+    if not parts:
+        return None
+    return "/".join(parts) + ".py"
 
 
 def _import_from_target_path(node: ast.ImportFrom, *, relative: str) -> str | None:
@@ -346,7 +382,7 @@ def _direct_called_functions(
     for call in function.calls:
         resolved = _resolve_called_function(
             module,
-            call.name,
+            call,
             module_index=module_index,
         )
         if resolved is None:
@@ -357,56 +393,92 @@ def _direct_called_functions(
 
 def _resolve_called_function(
     module: _PythonModule,
-    callee_name: str,
+    call: _PythonCall,
     *,
     module_index: dict[str, _PythonModule],
 ) -> _PythonFunction | None:
-    local_function = next(
-        (function for function in module.functions if function.name == callee_name),
-        None,
-    )
-    if local_function is not None:
-        return local_function
+    if call.owner is None:
+        local_function = next(
+            (function for function in module.functions if function.name == call.name),
+            None,
+        )
+        if local_function is not None:
+            return local_function
 
-    imported_function = next(
+        imported_function = next(
+            (
+                candidate
+                for candidate in module.imported_functions
+                if candidate.local_name == call.name
+            ),
+            None,
+        )
+        if imported_function is None:
+            return None
+        imported_module = module_index.get(imported_function.target_path)
+        if imported_module is None:
+            return None
+        return next(
+            (
+                function
+                for function in imported_module.functions
+                if function.name == imported_function.target_name
+            ),
+            None,
+        )
+
+    imported_module_ref = next(
         (
             candidate
-            for candidate in module.imported_functions
-            if candidate.local_name == callee_name
+            for candidate in module.imported_modules
+            if candidate.local_name == call.owner
         ),
         None,
     )
-    if imported_function is None:
+    if imported_module_ref is None:
         return None
-    imported_module = module_index.get(imported_function.target_path)
+    imported_module = module_index.get(imported_module_ref.target_path)
     if imported_module is None:
         return None
     return next(
         (
             function
             for function in imported_module.functions
-            if function.name == imported_function.target_name
+            if function.name == call.name
         ),
         None,
     )
 
 
-def _direct_name_calls(function: _RouteFunction) -> tuple[tuple[str, int | None], ...]:
-    calls: list[tuple[str, int | None]] = []
+def _direct_name_calls(function: _RouteFunction) -> tuple[tuple[str, str | None, int | None], ...]:
+    calls: list[tuple[str, str | None, int | None]] = []
     for statement in function.body:
         calls.extend(_name_calls_in_node(statement))
     return tuple(calls)
 
 
-def _name_calls_in_node(node: ast.AST) -> list[tuple[str, int | None]]:
+def _name_calls_in_node(node: ast.AST) -> list[tuple[str, str | None, int | None]]:
     if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef | ast.Lambda):
         return []
-    calls: list[tuple[str, int | None]] = []
-    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-        calls.append((node.func.id, getattr(node, "lineno", None)))
+    calls: list[tuple[str, str | None, int | None]] = []
+    if isinstance(node, ast.Call):
+        call = _call_target_from_ast(node)
+        if call is not None:
+            calls.append(call)
     for child in ast.iter_child_nodes(node):
         calls.extend(_name_calls_in_node(child))
     return calls
+
+
+def _call_target_from_ast(node: ast.Call) -> tuple[str, str | None, int | None] | None:
+    if isinstance(node.func, ast.Name):
+        return node.func.id, None, getattr(node, "lineno", None)
+    if (
+        isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+    ):
+        return node.func.attr, node.func.value.id, getattr(node, "lineno", None)
+    return None
 
 
 def _route_from_decorator(decorator: ast.expr) -> tuple[str, tuple[str, ...]] | None:
