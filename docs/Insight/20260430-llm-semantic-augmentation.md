@@ -1,133 +1,180 @@
-# Insight: LLM 是否应辅助判断 source/sink/sanitizer
+# Insight: 将 LLM 用作 source/sink/sanitizer 的证据约束语义增强层
 
 ## 元信息
 
 - 日期：2026-04-30
 - 状态：Accepted
-- 关联任务：LLM 语义增益边界研究
-- 关联 ADR：待定
-- 决策类型：分析策略 | 证据链 | 安全边界
+- 关联任务：方法论扩展，讨论 LLM 是否应辅助判断 unfamiliar library API 的 source/sink/sanitizer 语义
+- 关联 ADR：0012
+- 决策类型：分析策略
 
-## 研究结论
+## 背景
 
-### 主张
+传统程序分析依赖规则、知识库和人工建模来判断 source、sink、sanitizer 与 propagator。
+这条路线有很强的可重复性和可审计性，但也有稳定短板：对长尾库、项目自定义 wrapper、
+版本差异和跨生态 API 的知识覆盖并不完整。结果往往是：
 
-在 `semgrep-llm-vul` 里，**应该让 LLM（可带 Context7/文档检索）辅助判断 source/sink/sanitizer，但只能作为“语义增益层”和“待验证假设生成器”，不能替代手写规则、程序分析和本地证据链**。
+- source/sink 识别覆盖不全，recall 受限。
+- sanitizer 语义判断过于依赖名字，容易误报或漏报。
+- 规则作者必须持续补库，维护成本高且迁移慢。
 
-更具体地说：
+LLM 具备更强的语义理解和广覆盖知识，且可以结合文档检索、源码检索或 MCP 工具补足上下文。
+因此需要决定：在本项目中，LLM 是否应承担 unfamiliar API 的 source/sink/sanitizer 判断职责；
+如果承担，应放在什么层、受哪些约束、做到什么程度就停止。
 
-- `sink`：可以让 LLM 辅助补充候选类别、框架语义、排序理由和缺失证据清单。
-- `source`：可以让 LLM 辅助补充“哪些输入点通常是 user-controlled”的框架知识，但最终仍要落回代码位置、AST、调用链或 trace 证据。
-- `sanitizer`：**最保守**。LLM 可以提示“疑似 sanitizer / guard / validation pattern”，但不应直接判定“有效 sanitizer 成立”。
+## 决策问题
 
-### 适用前提
+在 `semgrep-llm-vul` 中，LLM 是否应该替代手写规则来判断 source/sink/sanitizer，还是只作为证据约束的语义增强层？
 
-- 已经有本地结构化证据作为锚点，例如：
-  - `NormalizedFinding`
-  - `TaintPath`
-  - diff/snippet
-  - 本地 AST / reachability evidence
-- LLM 输出必须绑定输入证据、文档片段或框架 API 说明，不能裸给结论。
-- LLM 输出默认是 `candidate`、`hint`、`unknowns` 或 `next checks`，不是 final verdict。
+## 第 1 轮：第一性原理拆解
 
-### 预期收益
+### 程序分析专家
 
-1. 解决的知识覆盖局限
+- 根本问题：程序分析的困难不只是“路径怎么找”，还包括“路径上的节点到底是什么语义”。source/sink/sanitizer 的知识不完备，会直接限制分析覆盖率。
+- 最小必要能力：把 unfamiliar API 从“完全未知”提升为“带证据的候选语义判断”，至少能说明它更像 source、sink、sanitizer 还是 unknown。
+- 不可牺牲约束：不能让模型的自然语言猜测污染核心数据流骨架；任何语义判断都必须可追溯、可反驳。
+- 最大风险：把 LLM 的高 recall 误当成高正确率，尤其在 sanitizer 判断上生成过强结论。
 
-- 手写规则对**长尾框架语义**覆盖差，例如某个库的 redirect helper、template render、deserializer、ORM raw query、command wrapper。
-- 规则对**跨语言/跨框架同义表达**覆盖差，例如“危险行为相同，但 API 名字完全不同”。
-- 程序分析工具通常告诉我们“这里有 path / finding”，但不擅长解释：
-  - 这个调用在框架里通常扮演什么角色
-  - 这个 patch 为什么像是在补某类 sanitizer
-  - 某个 helper 更像 source/sink/validator 还是普通业务函数
-- Context7/文档检索能补的，不是“执行真相”，而是**API 语义背景和行业常识覆盖**。
+### 工程化专家
 
-2. 对当前项目的直接价值
+- 根本问题：知识覆盖率不足本质上是“静态规则扩展速度慢”，但工程系统还要求稳定性、可重放和可回归。
+- 最小必要能力：将 LLM 判断收敛为结构化输出，而不是自由文本；输出必须能被 fixture、benchmark 和 schema 测试锁住。
+- 不可牺牲约束：最终主流程仍要可离线验证、可复现、可回退，不能把不稳定外部依赖直接嵌进主判断链。
+- 最大风险：版本漂移、检索漂移、模型漂移叠加，导致同一 API 在不同时间得到不一致结论。
 
-- M1：比纯 heuristic 更容易覆盖长尾 sink 候选，但又不需要立刻把所有框架知识写死进规则包。
-- M2：比纯字符串/局部模式更容易补 source/sanitizer 的语义解释，但仍把最终判断留给本地证据。
+### 漏洞安全专家
 
-### 失败模式
+- 根本问题：source/sink/sanitizer 误判会直接影响漏洞结论，尤其 sanitizer 误判会把本该保守的 unknown 过早升级为 safe。
+- 最小必要能力：让系统区分“支持风险成立的证据”和“支持风险被充分消除的证据”，并允许 unknown 持续存在。
+- 不可牺牲约束：sanitizer 必须与威胁模型、上下文和版本绑定，不能只凭函数名或文档宣传语判断。
+- 最大风险：模型把“看起来像校验/编码”的逻辑错误地当成有效 sanitizer，导致危险的 false negative。
 
-1. 为什么不能直接替代规则和程序分析
+## 第 2 轮：业界做法与备选方案
 
-- LLM 擅长语义归纳，不擅长保证**位置精确性、路径精确性、负结论精确性**。
-- 它无法稳定替代：
-  - AST / call chain / taint trace 的结构化定位
-  - `reachable=true|false|null` 的保守状态机
-  - benchmark / fixture / regression 的确定性回归
-- 如果直接让 LLM 判 source/sink/sanitizer，最容易出现：
-  - 结论可读，但没有代码锚点
-  - 同一输入重复运行结论飘动
-  - 把“像是”误写成“就是”
+### 程序分析专家
 
-2. sanitizer 判断为什么尤其危险
+- 业界常见做法：成熟 SAST/taint 引擎通常以规则 pack、标准库模型、框架模型和人工维护的知识库来表达 source/sink/sanitizer；LLM 更多用于 triage、解释和辅助建模，而不是直接替代数据流规则。
+- 备选方案：
+  - A. 继续纯手写规则和知识库。
+  - B. 让 LLM + 检索在运行时直接判断所有 unfamiliar API。
+  - C. 让 LLM 只输出带证据的候选语义，再由规则/harness 决定是否吸收。
+- 优点：
+  - A 稳定、可重复。
+  - B 覆盖广、对长尾库和 wrapper 适应快。
+  - C 在覆盖率和可控性之间更平衡。
+- 缺点和失败模式：
+  - A 扩展慢，对长尾库覆盖差。
+  - B 容易把 hallucination、版本误配和上下文误读直接放进主结论。
+  - C 仍然需要设计 schema、验证 harness 和知识沉淀流程。
 
-- `sanitizer` 不是“名字像 safe/validate/escape”就成立。
-- 它高度依赖：
-  - 漏洞类型
-  - 调用位置
-  - 输入输出编码域
-  - 是否覆盖所有攻击面
-  - 版本与配置
-- 同一个函数在不同上下文里，可能是：
-  - 有效 sanitizer
-  - 不充分 sanitizer
-  - 只做格式化而不做安全约束
-  - 仅对部分 sink 有效
-- 因此 LLM 在 sanitizer 上最容易犯的错是：
-  - **名称欺骗**：`safe_redirect`、`sanitize_url`、`escape` 看起来安全，但语义可能不够
-  - **过度概括**：文档说“validates input”，就被误提升为“阻断漏洞”
-  - **忽略漏洞类型差异**：HTML escape 不等于 URL redirect validation，不等于 command injection sanitization
+### 工程化专家
 
-### 最小实验
+- 业界常见做法：大多数工程系统把不稳定智能能力放在“建议层”或“编译层”，而把稳定规则放在“执行层”。
+- 备选方案：
+  - A. 在线调用 LLM，实时返回 source/sink/sanitizer 判断。
+  - B. 离线使用 LLM 生成候选知识，再人工或 harness 审核后编译进本地 pack。
+  - C. 两层并存：在线只生成 hypothesis，离线才允许升级为稳定知识。
+- 优点：
+  - A 集成快，探索效率高。
+  - B 最易审计和回归。
+  - C 兼顾探索速度与系统稳定性。
+- 缺点和失败模式：
+  - A 很难复现，供应商、模型和检索结果一变就可能漂。
+  - B 吞吐慢，人工或 harness 审核成本更高。
+  - C 设计复杂，需要更严格的 contract 和 stop rule。
 
-当前 M1/M2 最合适的落点，不是“让 LLM 直接给结论”，而是做一个**离线、可回放、只产出建议不产出 verdict** 的最小实验：
+### 漏洞安全专家
 
-1. M1 sink 实验
+- 业界常见做法：安全研究与漏洞 triage 通常接受“模型帮助发现可疑点”，但不会把“模型说这个 sanitizer 有效”直接当成最终结论。
+- 备选方案：
+  - A. 让 LLM 辅助识别 source/sink，但不参与 sanitizer 判断。
+  - B. 让 LLM 参与 sanitizer 判断，但只能输出 `unknown` 或 `candidate_sanitizer`，不能直接输出 safe。
+  - C. 让 LLM 同时判断 source/sink/sanitizer，并直接影响 reachability/PoC 结论。
+- 优点：
+  - A 风险最低。
+  - B 能覆盖更多真实项目中的 wrapper/validator 场景。
+  - C 自动化程度最高。
+- 缺点和失败模式：
+  - A 会保留 sanitizer 建模的长尾盲区。
+  - B 仍需要 threat-model-aware schema 和更强 benchmark。
+  - C 最容易产生危险的 false negative 与过度自信结论。
 
-- 输入：现有 `VulnerabilityInput` + diff/snippet + `NormalizedFinding`
-- 输出：`llm_hints`
-  - 候选 sink 类别
-  - 候选 API / helper 名称
-  - 排序理由
-  - 需要哪些本地证据才能升级
-- 要求：最终 `SinkCandidate` 仍由现有规则/证据链生成；LLM 只影响补充候选和排序解释。
+## 第 3 轮：交叉质询与收敛
 
-2. M2 source 实验
+### 程序分析专家
 
-- 输入：现有 `TaintPath` + `source.location` + 局部源码片段
-- 输出：`llm_hints`
-  - 该 source 是否“看起来像 request-controlled”
-  - 为什么
-  - 还缺哪些 AST / framework 证据
-- 要求：`source_control.controlled=true` 仍必须由本地 AST / 规则证据确认；LLM 只能把 case 从“无想法”推进到“待验证假设”。
+- 对其他方案的质询：如果把 LLM 放到主执行层，谁来保证不同模型版本、不同检索结果、不同文档版本之间的等价性？
+- 需要验证的假设：LLM 在 unfamiliar API 的 source/sink 候选召回上是否显著优于纯规则；在 sanitizer 判断上是否会系统性过度乐观。
+- 当前最小可行决策：允许 LLM 作为语义增强层输出带证据的候选分类，但不允许直接替代规则和程序分析骨架。
+- 验证 harness：
+  - unfamiliar API 的 source/sink 正例。
+  - 名字像 sanitizer、但实际不足以阻断风险的反例。
+  - 文档缺失、版本不明或实现缺失时必须输出 unknown。
 
-3. M2 sanitizer 实验
+### 工程化专家
 
-- 输入：候选 sanitizer 调用点 + 上下文片段 + 文档检索片段
-- 输出只允许：
-  - `possible_sanitizer`
-  - `possible_guard`
-  - `insufficient_to_confirm`
-- 要求：**禁止** LLM 直接输出“有效 sanitizer=true”作为结构化结论。
+- 对其他方案的质询：如果实时引入 LLM/MCP，如何把结果稳定复现到 CI、fixture 和 benchmark 中？
+- 需要验证的假设：结构化输出 schema 是否足以承载“主张 / 证据 / 适用版本 / 失败模式 / unknowns”。
+- 当前最小可行决策：先设计方法论和输出 contract，再做离线或 mock 驱动的最小 harness，不立即把在线 LLM 接进主流程。
+- 验证 harness：
+  - 固定输入下的 schema/snapshot 测试。
+  - 检索缺失、源码缺失、版本不匹配时的 degraded behavior。
+  - benchmark 中显式记录 `candidate`、`unknown` 与拒绝升级的原因。
 
-### kill criterion
+### 漏洞安全专家
 
-满足以下任一条件，就不应继续加深这条路线，至少不应在当前阶段升级为主线能力：
+- 对其他方案的质询：如果模型把某个 validator 误判为 sanitizer，系统是否还能阻止 reachability 从 unknown 被错误降成 false 或 safe？
+- 需要验证的假设：在安全相关 negative judgment 上，LLM 是否显著弱于 positive hypothesis generation。
+- 当前最小可行决策：LLM 对 sanitizer 的判断只能作为“待验证的安全假设”，默认不能单独输出最终 safe 结论。
+- 验证 harness：
+  - sanitizer false-positive 专项 case。
+  - threat-class-specific case，例如同一编码函数在不同 sink/context 下是否仍有效。
+  - 版本差异 case，验证不同版本库语义变化时模型是否会过度泛化。
 
-- LLM 输出不能稳定绑定到本地证据、文档片段或代码位置。
-- 两轮最小实验后，新增收益主要只是“解释更好听”，而不是带来新的可验证候选。
-- 它显著增加 review 成本，却不能转化为 fixture、benchmark 或 deterministic 规则。
-- sanitizer 实验中，LLM 经常把“疑似有效”说成“已阻断”，且无法用简单 guardrail 压住。
-- 主实现开始依赖 LLM 才能通过当前 M1/M2 case，这说明它已经越过“增益层”边界。
+## 最终决策
 
-## 对当前阶段的落点建议
+项目采用以下原则：
 
-- **M1**：最适合先落在 `sink hint / ranking rationale / missing-evidence hints`。
-- **M2 source**：适合落在 `source_control` 的补充解释与待验证假设生成。
-- **M2 sanitizer**：只适合做 `possible_sanitizer` 标注和“下一步该检查什么”，**不适合**直接进入 `blocking_factors` 或把 path 降成 `reachable=false`。
+1. **LLM 不替代 source/sink/sanitizer 规则层，也不替代程序分析骨架。**
+2. **LLM 可以作为证据约束的语义增强层，专门补 unfamiliar API、长尾库、wrapper 和跨生态知识覆盖。**
+3. **LLM 的输出必须是结构化、可反驳、可回放的候选语义判断，而不是自由文本结论。**
+4. **sanitizer 判断默认最保守：LLM 不能单独给出最终 safe 结论，只能输出 `candidate_sanitizer` 或 `unknown`。**
+5. **当前 M1/M2 阶段先落方法论、contract 和 benchmark，不把在线 LLM/MCP 直接接入主执行路径。**
 
-一句话收敛：
+## 为什么现在这样做
 
-> 在 `semgrep-llm-vul` 当前 M1/M2 阶段，LLM 最合适的角色是“帮助我们更快知道该查什么、补什么、怀疑什么”，而不是“替我们宣布 source/sink/sanitizer 已经成立”。
+- 它正面回应了“规则知识覆盖不全”的真实痛点。
+- 它避免把系统过早改造成“运行时依赖模型拍板”的不可控结构。
+- 它与我们现有方法论一致：候选结论可以增加，但最终结论必须受证据链和 harness 约束。
+- 它给未来的 LLM 接入留出了清晰落点：不是替代，而是增强。
+
+## 不采用的方案
+
+- 纯规则长期维持不变：不采用，因为对长尾库和自定义 wrapper 的覆盖率会持续受限。
+- 让 LLM 直接替代 source/sink/sanitizer 规则：不采用，因为不可重复、不可审计，且 sanitizer 误判风险过高。
+- 在当前阶段立即接入在线 LLM/MCP 并影响主流程：不采用，因为当前还没有对应的 schema、fixture、benchmark 和 fail-safe 约束。
+
+## 验证方式
+
+- 方法论层：在 `docs/methodology.md` 明确语义增强层的职责、边界和 sanitizer 保守原则。
+- harness 层：后续引入一组专门 benchmark/case，覆盖：
+  - unfamiliar library source/sink 正例；
+  - sanitizer false-positive 反例；
+  - 版本变化导致的语义漂移；
+  - 检索缺失或源码缺失时的 unknown；
+  - wrapper/helper 语义判断场景。
+- 工程层：如果未来实现该能力，输出必须进入结构化 report，并经过 schema、snapshot 和 benchmark 回归。
+
+## 重新评估条件
+
+- 我们决定在主流程中接入真实 LLM provider 或文档检索 MCP。
+- 需要让 LLM 直接影响 `reachable=false`、safe 或 PoC/exp 结论。
+- benchmark 显示 LLM 在 sanitizer negative judgment 上稳定失真。
+- 已经积累出足够多的稳定语义判断，适合编译回本地知识库或规则 pack。
+
+## 后续动作
+
+- [x] 是否需要同步新增或更新 `docs/decisions/`
+- [ ] 是否需要更新 `docs/architecture.md`
+- [ ] 是否需要更新 `docs/product.md`
+- [ ] 是否需要更新测试或 fixture

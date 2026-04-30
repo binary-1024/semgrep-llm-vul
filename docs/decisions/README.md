@@ -19,6 +19,7 @@
 | 0009 | [建立 benchmark 与 case harness](0009-use-benchmark-case-harness.md) | Accepted | [benchmark 与 case harness](../Insight/20260428-benchmark-case-harness.md) | 跨里程碑验证 |
 | 0010 | [使用本地可触达证据模型](0010-use-local-reachability-evidence-model.md) | Accepted | [M2 可触达确认最小模型](../Insight/20260428-m2-reachability-model.md) | M2 可触达确认 |
 | 0011 | [使用实现 agent 与研究型 agent 的双轨协作模式](0011-use-dual-track-agent-collaboration.md) | Accepted | [实现 agent 与研究型 agent 的双轨协作工作模式](../Insight/20260429-dual-agent-collaboration-workflow.md) | agent 协作与决策流程 |
+| 0012 | [使用证据约束的 LLM 语义增强层，而不是替代规则层](0012-use-llm-semantic-augmentation-layer.md) | Accepted | [将 LLM 用作 source/sink/sanitizer 的证据约束语义增强层](../Insight/20260430-llm-semantic-augmentation.md) | 方法论、source/sink/sanitizer 语义建模 |
 
 ## 使用方式
 
