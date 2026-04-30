@@ -25,6 +25,15 @@ from semgrep_llm_vul.taint_path_generation import TaintPathGenerationReport
 
 _RouteFunction = ast.FunctionDef | ast.AsyncFunctionDef
 _MAX_FLASK_HELPER_HOPS = 2
+_FLASK_REQUEST_FIELDS = {
+    "args",
+    "form",
+    "values",
+    "json",
+    "cookies",
+    "headers",
+    "view_args",
+}
 
 
 class ReachabilityEvidenceError(ValueError):
@@ -117,6 +126,7 @@ def discover_flask_route_evidence(
                 taint_path,
                 route,
                 call_chain_functions=call_chain_functions,
+                module_index=module_index,
                 source_root=root,
             )
         )
@@ -195,6 +205,8 @@ class _ImportedModule:
 @dataclass(frozen=True)
 class _PythonModule:
     path: str
+    source_path: Path
+    tree: ast.Module
     routes: tuple[_FlaskRoute, ...]
     functions: tuple[_PythonFunction, ...]
     imported_functions: tuple[_ImportedFunction, ...]
@@ -224,6 +236,8 @@ def _python_modules_by_path(root: Path) -> dict[str, _PythonModule]:
             routes.append(route)
         modules[relative] = _PythonModule(
             path=relative,
+            source_path=path,
+            tree=tree,
             routes=tuple(routes),
             functions=functions,
             imported_functions=imported_functions,
@@ -585,6 +599,7 @@ def _record_from_flask_route(
     route: _FlaskRoute,
     *,
     call_chain_functions: tuple[_PythonFunction, ...],
+    module_index: dict[str, _PythonModule],
     source_root: Path,
 ) -> ReachabilityEvidenceRecord:
     decorator_line = route.function.function.decorator_list[0].lineno
@@ -609,16 +624,10 @@ def _record_from_flask_route(
             if function.path != route.path
         )
     )
-    source_control = SourceControlAssessment(
-        controlled=_source_looks_request_controlled(taint_path),
-        reason="source 来自 Flask request 对象。" if _source_looks_request_controlled(taint_path)
-        else "未从 source 名称确认外部可控性。",
-        evidence=(
-            _source_evidence(
-                taint_path,
-                route.source_path,
-            ),
-        ),
+    source_control = _source_control_assessment(
+        taint_path,
+        source_root=source_root,
+        module_index=module_index,
     )
     evidence = (
         Evidence(
@@ -735,23 +744,223 @@ def _sink_step_symbol(taint_path: TaintPath) -> str:
     return taint_path.sink.signature.raw
 
 
-def _source_looks_request_controlled(taint_path: TaintPath) -> bool:
-    return "request." in taint_path.source.name
+def _source_control_assessment(
+    taint_path: TaintPath,
+    *,
+    source_root: Path,
+    module_index: dict[str, _PythonModule],
+) -> SourceControlAssessment:
+    if _source_name_looks_request_controlled(taint_path.source.name):
+        source_evidence = _source_name_evidence(
+            taint_path,
+            _source_path_for_evidence(taint_path, source_root),
+        )
+        return SourceControlAssessment(
+            controlled=True,
+            reason="source 名称直接指向 Flask request 对象。",
+            evidence=(source_evidence,),
+        )
+
+    source_location = taint_path.source.location
+    if source_location is not None:
+        module = module_index.get(source_location.path)
+        if module is not None:
+            ast_evidence = _source_ast_evidence(
+                taint_path,
+                module=module,
+                source_root=source_root,
+            )
+            if ast_evidence is not None:
+                return SourceControlAssessment(
+                    controlled=True,
+                    reason="source.location 对应的本地赋值语句直接读取 Flask request 对象。",
+                    evidence=(ast_evidence,),
+                )
+
+    source_evidence = _source_name_evidence(
+        taint_path,
+        _source_path_for_evidence(taint_path, source_root),
+    )
+    return SourceControlAssessment(
+        controlled=None,
+        reason="当前本地证据不足以确认 source 是否直接受 Flask request 控制。",
+        evidence=(source_evidence,),
+    )
 
 
-def _source_evidence(taint_path: TaintPath, source_path: Path) -> Evidence:
+def _source_name_looks_request_controlled(source_name: str) -> bool:
+    return "request." in source_name
+
+
+def _source_path_for_evidence(taint_path: TaintPath, source_root: Path) -> Path:
+    source_location = taint_path.source.location
+    if source_location is None:
+        return source_root
+    return source_root / source_location.path
+
+
+def _source_name_evidence(taint_path: TaintPath, source_path: Path) -> Evidence:
     return Evidence(
         source=SourceReference(
             kind=EvidenceKind.REACHABILITY_EVIDENCE,
             uri=str(source_path),
             location=taint_path.source.location,
         ),
-        summary=f"source {taint_path.source.name} 看起来来自 Flask request 对象。",
-        reasoning="第一版 Flask 入口模型只基于 source 名称做最小可控性判断。",
-        confidence=0.55,
+        summary=f"source {taint_path.source.name} 的可控性先按名称和位置做本地检查。",
+        reasoning=(
+            "当前先检查 source 名称是否直接指向 request，"
+            "再按 source.location 读取本地赋值语句。"
+        ),
+        confidence=0.45,
         reproducible_steps=(f"inspect {source_path}",),
         open_questions=("需要后续确认具体参数是否可由攻击者控制。",),
     )
+
+
+def _source_ast_evidence(
+    taint_path: TaintPath,
+    *,
+    module: _PythonModule,
+    source_root: Path,
+) -> Evidence | None:
+    source_location = taint_path.source.location
+    if source_location is None:
+        return None
+    assignment = _assignment_for_source_location(
+        module.tree,
+        source_name=taint_path.source.name,
+        line=source_location.start_line,
+    )
+    if assignment is None:
+        return None
+    value = _assignment_value(assignment)
+    if value is None or not _is_request_controlled_expr(value):
+        return None
+    return Evidence(
+        source=SourceReference(
+            kind=EvidenceKind.REACHABILITY_EVIDENCE,
+            uri=str(module.source_path),
+            location=source_location,
+            metadata={
+                "framework": "flask",
+                "source_root": str(source_root),
+                "evidence_type": "source_assignment_ast",
+            },
+        ),
+        summary=(
+            f"source {taint_path.source.name} 在 "
+            f"{source_location.path}:{source_location.start_line} "
+            "的赋值语句中直接读取 Flask request 对象。"
+        ),
+        reasoning=(
+            "当前本地 AST 证据只检查 source.location 对应赋值语句，"
+            "并确认其是否直接来自 request.args/form/values/json 等字段。"
+        ),
+        confidence=0.8,
+        reproducible_steps=(f"inspect {module.source_path}",),
+        open_questions=("尚未跨语句跟踪赋值传播或 wrapper 封装。",),
+    )
+
+
+def _assignment_for_source_location(
+    tree: ast.Module,
+    *,
+    source_name: str,
+    line: int | None,
+) -> ast.Assign | ast.AnnAssign | ast.NamedExpr | None:
+    if line is None:
+        return None
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign | ast.AnnAssign | ast.NamedExpr):
+            continue
+        if not _node_spans_line(node, line):
+            continue
+        if not _assignment_targets_name(node, source_name):
+            continue
+        return node
+    return None
+
+
+def _node_spans_line(node: ast.AST, line: int) -> bool:
+    start_line = getattr(node, "lineno", None)
+    if start_line is None:
+        return False
+    end_line = getattr(node, "end_lineno", start_line)
+    return start_line <= line <= end_line
+
+
+def _assignment_targets_name(
+    node: ast.Assign | ast.AnnAssign | ast.NamedExpr,
+    source_name: str,
+) -> bool:
+    if isinstance(node, ast.Assign):
+        return any(_target_contains_name(target, source_name) for target in node.targets)
+    if isinstance(node, ast.AnnAssign):
+        return _target_contains_name(node.target, source_name)
+    return _target_contains_name(node.target, source_name)
+
+
+def _target_contains_name(target: ast.expr, source_name: str) -> bool:
+    return isinstance(target, ast.Name) and target.id == source_name
+
+
+def _assignment_value(node: ast.Assign | ast.AnnAssign | ast.NamedExpr) -> ast.expr | None:
+    if isinstance(node, ast.Assign):
+        return node.value
+    if isinstance(node, ast.AnnAssign):
+        return node.value
+    return node.value
+
+
+def _is_request_controlled_expr(node: ast.AST) -> bool:
+    if _is_request_field(node):
+        return True
+    if isinstance(node, ast.Subscript):
+        return _is_request_field(node.value)
+    if isinstance(node, ast.Call):
+        if isinstance(node.func, ast.Attribute) and _is_request_field(node.func.value):
+            return True
+        return _is_request_controlled_expr(node.func)
+    if isinstance(node, ast.BoolOp):
+        return any(_is_request_controlled_expr(value) for value in node.values)
+    if isinstance(node, ast.IfExp):
+        return any(
+            _is_request_controlled_expr(value)
+            for value in (node.test, node.body, node.orelse)
+        )
+    if isinstance(node, ast.Compare):
+        return _is_request_controlled_expr(node.left) or any(
+            _is_request_controlled_expr(comparator) for comparator in node.comparators
+        )
+    if isinstance(node, ast.UnaryOp):
+        return _is_request_controlled_expr(node.operand)
+    if isinstance(node, ast.BinOp):
+        return _is_request_controlled_expr(node.left) or _is_request_controlled_expr(
+            node.right
+        )
+    if isinstance(node, ast.Tuple | ast.List | ast.Set):
+        return any(_is_request_controlled_expr(value) for value in node.elts)
+    if isinstance(node, ast.Dict):
+        return any(
+            _is_request_controlled_expr(value)
+            for value in (*node.keys, *node.values)
+            if value is not None
+        )
+    if isinstance(node, ast.NamedExpr):
+        return _is_request_controlled_expr(node.value)
+    if isinstance(node, ast.Attribute):
+        return _is_request_controlled_expr(node.value)
+    if isinstance(node, ast.Expr):
+        return _is_request_controlled_expr(node.value)
+    return False
+
+
+def _is_request_field(node: ast.AST) -> bool:
+    if not isinstance(node, ast.Attribute):
+        return False
+    if not isinstance(node.value, ast.Name):
+        return False
+    return node.value.id == "request" and node.attr in _FLASK_REQUEST_FIELDS
 
 
 def _record_from_dict(

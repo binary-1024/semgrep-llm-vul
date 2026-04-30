@@ -57,6 +57,18 @@ def test_generated_semgrep_fixture_normalizes_as_finding() -> None:
     assert paths == []
 
 
+def test_load_semgrep_taint_paths_from_local_var_source_trace_fixture() -> None:
+    paths = load_semgrep_taint_paths(
+        FIXTURE_DIR / "taint-result-with-source-control-local-var-trace.json"
+    )
+
+    assert len(paths) == 1
+    path = paths[0]
+    assert path.source.name == "next_url"
+    assert path.source.location.start_line == 14
+    assert path.sink.signature.raw == "redirect(next_url)"
+
+
 def test_malformed_trace_does_not_create_misleading_path() -> None:
     paths = load_semgrep_taint_paths(FIXTURE_DIR / "taint-result-malformed-trace.json")
 
