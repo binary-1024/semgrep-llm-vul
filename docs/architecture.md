@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-仓库已经完成 M0 基础 harness，并具备语言无关数据模型、分析任务输入模型、Semgrep finding 归一化、Semgrep taint-mode trace 到候选 `TaintPath` 的最小归一化能力、M1 最小 sink generation pipeline，以及 M2 最小 taint path generation 入口。
+仓库已经完成 M0 基础 harness，并具备语言无关数据模型、分析任务输入模型、Semgrep finding 归一化、Semgrep taint-mode trace 到候选 `TaintPath` 的最小归一化能力、M1 最小 sink generation pipeline、M2 最小 taint path generation 入口，以及用于未来 LLM 语义增强层的结构化 `SemanticHint` / `SemanticHintReport` contract。
 
 ## 当前数据流
 
@@ -117,6 +117,7 @@ ReachabilityAssessment(reachable=true|false|null)
 - Semgrep 扫描输入
 - 漏洞 finding 归一化
 - Semgrep taint-mode 候选路径归一化
+- 受证据约束的 LLM semantic hints
 - LLM 辅助分析工作流
 - 便于人工审查的输出
 - 用于可重复验证的测试和 fixtures

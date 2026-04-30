@@ -8,6 +8,8 @@ from semgrep_llm_vul import (
     FunctionSignature,
     InputMode,
     ReachabilityAssessment,
+    SemanticHint,
+    SemanticHintKind,
     SinkCandidate,
     SourceCandidate,
     TaintPath,
@@ -166,3 +168,14 @@ def test_reachability_false_requires_blocking_factor() -> None:
     )
 
     assert assessment.reachable is False
+
+
+def test_semantic_hint_confidence_must_be_in_range() -> None:
+    with pytest.raises(ValueError, match="confidence"):
+        SemanticHint(
+            symbol="safe_redirect",
+            kind=SemanticHintKind.CANDIDATE_SANITIZER,
+            summary="Looks like a sanitizer.",
+            reasoning="Invalid confidence should fail.",
+            confidence=1.2,
+        )

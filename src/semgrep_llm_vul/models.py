@@ -46,6 +46,15 @@ class TaintRole(str, Enum):
     SINK = "sink"
 
 
+class SemanticHintKind(str, Enum):
+    """LLM 语义提示类型。"""
+
+    SOURCE = "source"
+    SINK = "sink"
+    CANDIDATE_SANITIZER = "candidate_sanitizer"
+    CANDIDATE_GUARD = "candidate_guard"
+
+
 @dataclass(frozen=True)
 class CodeLocation:
     """代码位置，行列号使用 1-based 语义。"""
@@ -172,6 +181,37 @@ class SinkGenerationReport:
 
     candidates: tuple[SinkCandidate, ...]
     recommended: SinkCandidate | None = None
+    evidence: tuple[Evidence, ...] = ()
+    unknowns: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class SemanticHint:
+    """带证据约束的语义提示。"""
+
+    symbol: str
+    kind: SemanticHintKind
+    summary: str
+    reasoning: str
+    confidence: float
+    location: CodeLocation | None = None
+    evidence: tuple[Evidence, ...] = ()
+    applicable_versions: tuple[str, ...] = ()
+    applicable_contexts: tuple[str, ...] = ()
+    preconditions: tuple[str, ...] = ()
+    failure_modes: tuple[str, ...] = ()
+    unknowns: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not 0.0 <= self.confidence <= 1.0:
+            raise ValueError("confidence 必须位于 0.0 到 1.0 之间")
+
+
+@dataclass(frozen=True)
+class SemanticHintReport:
+    """LLM 语义提示阶段的结构化报告。"""
+
+    hints: tuple[SemanticHint, ...]
     evidence: tuple[Evidence, ...] = ()
     unknowns: tuple[str, ...] = ()
 

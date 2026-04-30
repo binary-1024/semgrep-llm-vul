@@ -174,6 +174,10 @@ M1 当前已经具备：
 
 这些能力已足够支撑 M2 的第一版输入。除非 M2 实现暴露新的 M1 blocker，否则暂停继续加深 benchmark 工具链和 sink heuristic 支线。
 
+此外，项目已经具备未来 LLM 语义增强层的最小结构化 contract：`SemanticHint` /
+`SemanticHintReport` 可用于承载 unfamiliar API 的 source/sink/candidate_sanitizer
+候选语义、适用版本、前提、失败模式和 unknowns，但当前仍未接入真实 LLM provider 或在线检索。
+
 M2 当前已经具备：
 
 - `generate_taint_path_report` 最小候选路径生成入口。
