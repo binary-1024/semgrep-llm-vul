@@ -12,6 +12,8 @@ from semgrep_llm_vul.models import (
     ReachabilityAssessment,
     ReachabilityCallStep,
     ReachabilityEntrypoint,
+    SemanticHint,
+    SemanticHintReport,
     SinkCandidate,
     SinkGenerationReport,
     SourceControlAssessment,
@@ -96,6 +98,29 @@ def reachability_report_to_dict(
     }
 
 
+def semantic_hint_report_to_dict(
+    report: SemanticHintReport,
+    *,
+    task: VulnerabilityInput,
+) -> dict[str, Any]:
+    """将 semantic hint report 转为稳定 JSON 结构。"""
+
+    return {
+        "schema_version": 1,
+        "kind": "semantic_hint_report",
+        "mode": task.mode.value,
+        "target": {
+            "repo_url": task.target.repo_url,
+            "affected_version": task.target.affected_version,
+            "fixed_version": task.target.fixed_version,
+            "language": task.target.language,
+        },
+        "hints": [_semantic_hint_to_dict(hint) for hint in report.hints],
+        "evidence": [_evidence_to_dict(evidence) for evidence in report.evidence],
+        "unknowns": list(report.unknowns),
+    }
+
+
 def _reachability_assessment_to_dict(
     assessment: ReachabilityAssessment,
 ) -> dict[str, Any]:
@@ -111,6 +136,23 @@ def _reachability_assessment_to_dict(
         ],
         "evidence": [_evidence_to_dict(evidence) for evidence in assessment.evidence],
         "unknowns": list(assessment.unknowns),
+    }
+
+
+def _semantic_hint_to_dict(hint: SemanticHint) -> dict[str, Any]:
+    return {
+        "symbol": hint.symbol,
+        "kind": hint.kind.value,
+        "summary": hint.summary,
+        "reasoning": hint.reasoning,
+        "confidence": _confidence(hint.confidence),
+        "location": _location_to_dict(hint.location),
+        "evidence": [_evidence_to_dict(evidence) for evidence in hint.evidence],
+        "applicable_versions": list(hint.applicable_versions),
+        "applicable_contexts": list(hint.applicable_contexts),
+        "preconditions": list(hint.preconditions),
+        "failure_modes": list(hint.failure_modes),
+        "unknowns": list(hint.unknowns),
     }
 
 
