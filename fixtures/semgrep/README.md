@@ -24,6 +24,7 @@
 - `taint-result-with-trace.json`：realistic，覆盖 `dataflow_trace` 中常见的 `location` 嵌套和 `CliLoc` 结构。
 - `taint-result-without-trace.json`：minimal，覆盖 taint finding 缺少 trace 的情况。
 - `taint-result-malformed-trace.json`：malformed，覆盖 trace 缺少 source 的情况。
+- `taint-result-with-source-control-local-var-trace.json`：realistic，覆盖 `source.name` 只是局部变量、但 `source.location` 对应赋值语句直接从 Flask request 读取的情况。
 - `taint-result-generated.json`：generated，由 `scripts/update-semgrep-fixtures` 基于 `examples/semgrep/` 生成。当前使用 Semgrep OSS 输出，通常不包含 `dataflow_trace`。
 
 ## 生成方式

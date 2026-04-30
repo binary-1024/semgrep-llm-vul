@@ -183,7 +183,7 @@ M2 当前已经具备：
 - M2 taint path candidate 已纳入 benchmark/case harness。
 - M2 reachability evidence model 已完成 Insight 和 ADR。
 - `ReachabilityAssessment`、`ReachabilityReport` 和 `confirm-reachability` 最小本地入口。
-- 最小 Flask route 入口提取、同文件 helper call chain、direct import 的跨文件一层 helper call chain、module alias attribute call 的一层 helper call chain、`ImportFrom` module attribute call / alias call 的一层 helper call chain，以及最多两层 helper hop 的有界局部 helper chain 已接入 source root fixture；普通 assignment alias 当前已被显式锁为 `reachable=null` 边界。
+- 最小 Flask route 入口提取、同文件 helper call chain、direct import 的跨文件一层 helper call chain、module alias attribute call 的一层 helper call chain、`ImportFrom` module attribute call / alias call 的一层 helper call chain、最多两层 helper hop 的有界局部 helper chain，以及基于 `source.location` 本地赋值语句的 source controllability AST 证据已接入 source root fixture；普通 assignment alias 当前已被显式锁为 `reachable=null` 边界。
 
 建议下一个 M2 具体任务：
 
@@ -194,7 +194,7 @@ M2 当前已经具备：
 
 ## 背景
 
-项目已经具备最小 taint path candidate generation、稳定 JSON 报告、CLI 入口、benchmark/case 回归、reachability evidence model 决策、本地 evidence JSON 驱动实现、`reachable=true|false|null` curated cases，以及 Flask route source root 入口提取、跨文件一层 helper 证据、module alias attribute call 证据、`ImportFrom` module attribute call / alias call 证据、最多两层 helper hop 的局部 helper chain 证据，以及 assignment alias 保持 `reachable=null` 的负例回归。下一步应继续扩大“够用的入口证据”，但仍保持本地、确定性和可验证。
+项目已经具备最小 taint path candidate generation、稳定 JSON 报告、CLI 入口、benchmark/case 回归、reachability evidence model 决策、本地 evidence JSON 驱动实现、`reachable=true|false|null` curated cases，以及 Flask route source root 入口提取、跨文件一层 helper 证据、module alias attribute call 证据、`ImportFrom` module attribute call / alias call 证据、最多两层 helper hop 的局部 helper chain 证据、基于 `source.location` 的最小 source controllability AST 证据，以及 assignment alias 保持 `reachable=null` 的负例回归。下一步应继续扩大“够用的入口证据”，但仍保持本地、确定性和可验证。
 
 ## 范围
 

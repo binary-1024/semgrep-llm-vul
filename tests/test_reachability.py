@@ -25,6 +25,9 @@ FLASK_FROM_IMPORT_HELPER_APP_DIR = REACHABILITY_DIR / "flask-from-import-helper-
 FLASK_FROM_IMPORT_ALIAS_HELPER_APP_DIR = REACHABILITY_DIR / "flask-from-import-alias-helper-app"
 FLASK_MULTI_LAYER_HELPER_APP_DIR = REACHABILITY_DIR / "flask-multi-layer-helper-app"
 FLASK_ALIAS_ASSIGNMENT_UNKNOWN_APP_DIR = REACHABILITY_DIR / "flask-alias-assignment-unknown-app"
+FLASK_SOURCE_CONTROL_LOCAL_VAR_APP_DIR = (
+    REACHABILITY_DIR / "flask-source-control-local-var-app"
+)
 
 
 def _task() -> VulnerabilityInput:
@@ -157,6 +160,24 @@ def _alias_assignment_unknown_taint_report():
     semgrep_paths = tuple(
         load_semgrep_taint_paths(
             SEMGREP_DIR / "taint-result-with-alias-assignment-unknown-trace.json"
+        )
+    )
+    return generate_taint_path_report(
+        task,
+        sink_report=sink_report,
+        semgrep_taint_paths=semgrep_paths,
+    )
+
+
+def _source_control_local_var_taint_report():
+    task = _task()
+    findings = tuple(
+        load_semgrep_findings(SEMGREP_DIR / "taint-result-with-source-control-local-var-trace.json")
+    )
+    sink_report = generate_sink_report(task, semgrep_findings=findings)
+    semgrep_paths = tuple(
+        load_semgrep_taint_paths(
+            SEMGREP_DIR / "taint-result-with-source-control-local-var-trace.json"
         )
     )
     return generate_taint_path_report(
@@ -431,6 +452,32 @@ def test_discover_flask_route_evidence_keeps_alias_assignment_unknown() -> None:
     assert assessment.path.reachable is None
     assert "缺少本地 reachability evidence" in report.unknowns[0]
     assert "未找到匹配" in assessment.unknowns[0]
+
+
+def test_discover_flask_route_evidence_confirms_source_control_from_local_ast() -> None:
+    task = _task()
+    taint_report = _source_control_local_var_taint_report()
+    records = discover_flask_route_evidence(
+        FLASK_SOURCE_CONTROL_LOCAL_VAR_APP_DIR,
+        taint_paths=taint_report.paths,
+    )
+
+    report = generate_reachability_report(
+        task,
+        taint_report=taint_report,
+        evidence_records=records,
+    )
+
+    assessment = report.assessments[0]
+    assert assessment.reachable is True
+    assert assessment.source_control is not None
+    assert assessment.source_control.controlled is True
+    assert "source.location" in assessment.source_control.reason
+    source_evidence = assessment.source_control.evidence[0]
+    assert source_evidence.source.location is not None
+    assert source_evidence.source.location.path == "app/routes.py"
+    assert source_evidence.source.location.start_line == 14
+    assert source_evidence.source.metadata["evidence_type"] == "source_assignment_ast"
 
 
 def test_generate_reachability_report_keeps_unmatched_path_unknown() -> None:

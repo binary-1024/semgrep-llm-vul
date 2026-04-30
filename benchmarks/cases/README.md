@@ -122,6 +122,9 @@ sink 位于该 helper 函数体内，也可以输出 `reachable=true`。
 当前还支持有界多层 helper chain：如果 route handler 先调用同文件 helper，再由该
 helper 继续进入第二层 helper，且 sink 位于该第二层 helper 函数体内，也可以输出
 `reachable=true`。当前边界固定为最多两层 helper hop。
+当前还支持最小 source controllability 本地 AST 证据：如果 `source.name` 只是局部变量，
+但 `source.location` 对应的赋值语句直接从 `request.args/form/values/json` 等 Flask
+request 字段读取数据，也可以确认 source 受外部输入控制。
 
 ## notes.md 内容
 
@@ -164,6 +167,7 @@ case id 使用小写 kebab-case：
 - `curated-open-redirect-reachability-helper`：M2 reachability helper call chain case，验证 route handler 直接调用同文件 helper 时可以输出 `reachable=true`。
 - `curated-open-redirect-reachability-import-alias-helper`：M2 reachability import alias helper case，验证 route handler 通过 module alias attribute call 调用 helper 时可以输出 `reachable=true`。
 - `curated-open-redirect-reachability-multi-layer-helper`：M2 reachability multi-layer helper case，验证 route handler 通过同文件两层 helper chain 调用 sink 时可以输出 `reachable=true`。
+- `curated-open-redirect-reachability-source-control-local-var`：M2 reachability source-control AST case，验证当 `source.name` 只是局部变量时，仍可通过 `source.location` 对应赋值语句确认它直接来自 Flask request。
 - `curated-open-redirect-reachability-unknown`：M2 reachability unknown case，验证缺入口证据时保持 `reachable=null`。
 - `curated-open-redirect-safe-diff`：negative case，安全封装 diff 不应生成 direct sink candidate。
 - `curated-insufficient-evidence`：insufficient evidence case，没有代码、diff 或 Semgrep 证据时不应生成候选。
