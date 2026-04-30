@@ -195,6 +195,22 @@ def test_evaluate_benchmark_case_passes_curated_m2_reachability_multi_layer_help
     ]
 
 
+def test_evaluate_benchmark_case_passes_curated_m2_reachability_alias_assignment_unknown_case(
+) -> None:
+    result = evaluate_benchmark_case(
+        CASES_ROOT / "curated-open-redirect-reachability-alias-assignment-unknown",
+        repo_root=ROOT,
+    )
+
+    assert result["kind"] == "benchmark_case_evaluation"
+    assert result["case_id"] == "curated-open-redirect-reachability-alias-assignment-unknown"
+    assert result["stage"] == "M2"
+    assert result["passed"] is True
+    assessment = result["reachability_report"]["assessments"][0]
+    assert assessment["reachable"] is None
+    assert assessment["path"]["reachable"] is None
+
+
 def test_evaluate_benchmark_case_passes_curated_m2_reachability_unknown_case() -> None:
     result = evaluate_benchmark_case(
         CASES_ROOT / "curated-open-redirect-reachability-unknown",
@@ -216,14 +232,15 @@ def test_evaluate_benchmark_cases_summarizes_curated_cases() -> None:
     result = evaluate_benchmark_cases(CASES_ROOT, repo_root=ROOT)
 
     assert result["kind"] == "benchmark_case_suite_evaluation"
-    assert result["total"] == 21
+    assert result["total"] == 22
     assert result["passed"] is True
-    assert result["passed_count"] == 21
+    assert result["passed_count"] == 22
     assert result["failed_count"] == 0
     assert {item["case_id"] for item in result["results"]} == {
         "curated-command-execution-system",
         "curated-deserialization-deserialize",
         "curated-insufficient-evidence",
+        "curated-open-redirect-reachability-alias-assignment-unknown",
         "curated-open-redirect-safe-diff",
         "curated-open-redirect-safe-negative",
         "curated-open-redirect-safe-wrapper",
@@ -251,7 +268,7 @@ def test_summarize_benchmark_suite_omits_full_sink_reports() -> None:
     summary = summarize_benchmark_suite(result)
 
     assert summary["kind"] == "benchmark_case_suite_summary"
-    assert summary["total"] == 21
+    assert summary["total"] == 22
     assert summary["passed"] is True
     assert all("sink_report" not in item for item in summary["cases"])
     assert all(item["failed_checks"] == [] for item in summary["cases"])

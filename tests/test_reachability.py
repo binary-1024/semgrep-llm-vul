@@ -24,6 +24,7 @@ FLASK_IMPORT_ALIAS_HELPER_APP_DIR = REACHABILITY_DIR / "flask-import-alias-helpe
 FLASK_FROM_IMPORT_HELPER_APP_DIR = REACHABILITY_DIR / "flask-from-import-helper-app"
 FLASK_FROM_IMPORT_ALIAS_HELPER_APP_DIR = REACHABILITY_DIR / "flask-from-import-alias-helper-app"
 FLASK_MULTI_LAYER_HELPER_APP_DIR = REACHABILITY_DIR / "flask-multi-layer-helper-app"
+FLASK_ALIAS_ASSIGNMENT_UNKNOWN_APP_DIR = REACHABILITY_DIR / "flask-alias-assignment-unknown-app"
 
 
 def _task() -> VulnerabilityInput:
@@ -139,6 +140,24 @@ def _multi_layer_helper_taint_report():
     sink_report = generate_sink_report(task, semgrep_findings=findings)
     semgrep_paths = tuple(
         load_semgrep_taint_paths(SEMGREP_DIR / "taint-result-with-multi-layer-helper-trace.json")
+    )
+    return generate_taint_path_report(
+        task,
+        sink_report=sink_report,
+        semgrep_taint_paths=semgrep_paths,
+    )
+
+
+def _alias_assignment_unknown_taint_report():
+    task = _task()
+    findings = tuple(
+        load_semgrep_findings(SEMGREP_DIR / "taint-result-with-alias-assignment-unknown-trace.json")
+    )
+    sink_report = generate_sink_report(task, semgrep_findings=findings)
+    semgrep_paths = tuple(
+        load_semgrep_taint_paths(
+            SEMGREP_DIR / "taint-result-with-alias-assignment-unknown-trace.json"
+        )
     )
     return generate_taint_path_report(
         task,
@@ -389,6 +408,29 @@ def test_discover_flask_route_evidence_supports_multi_layer_helper_call_chain() 
     ]
     assert "prepare_redirect -> issue_redirect" in assessment.evidence[0].summary
     assert "局部 helper chain" in assessment.evidence[0].reasoning
+
+
+def test_discover_flask_route_evidence_keeps_alias_assignment_unknown() -> None:
+    task = _task()
+    taint_report = _alias_assignment_unknown_taint_report()
+    records = discover_flask_route_evidence(
+        FLASK_ALIAS_ASSIGNMENT_UNKNOWN_APP_DIR,
+        taint_paths=taint_report.paths,
+    )
+
+    assert records == ()
+
+    report = generate_reachability_report(
+        task,
+        taint_report=taint_report,
+        evidence_records=records,
+    )
+
+    assessment = report.assessments[0]
+    assert assessment.reachable is None
+    assert assessment.path.reachable is None
+    assert "缺少本地 reachability evidence" in report.unknowns[0]
+    assert "未找到匹配" in assessment.unknowns[0]
 
 
 def test_generate_reachability_report_keeps_unmatched_path_unknown() -> None:
