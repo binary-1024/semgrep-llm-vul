@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 
 from semgrep_llm_vul.cli import main
+from tests.helpers import run_open_redirect_server, unused_loopback_base_url
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -202,6 +203,99 @@ def test_generate_poc_cli_keeps_blocked_path_out_of_planning(capsys) -> None:
     assert report["kind"] == "poc_generation_report"
     assert report["plans"] == []
     assert "reachable=false 的路径保留为阻断证据" in report["unknowns"][0]
+
+
+def test_verify_exp_cli_outputs_structured_verification(capsys) -> None:
+    exit_code = main(
+        [
+            "verify-exp",
+            str(ROOT / "examples" / "analysis" / "unknown-sink.yaml"),
+            "--semgrep-json",
+            str(
+                ROOT
+                / "fixtures"
+                / "semgrep"
+                / "taint-result-with-source-control-local-var-trace.json"
+            ),
+            "--source-root",
+            str(ROOT / "fixtures" / "reachability" / "flask-source-control-local-var-app"),
+            "--execution-json",
+            str(ROOT / "fixtures" / "execution" / "open-redirect-verified.json"),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    report = json.loads(captured.out)
+    assert report["kind"] == "exp_verification_report"
+    assert report["verifications"][0]["verdict"] == "verified"
+    assert report["verifications"][0]["exp_request"]["runner"] == "http_request_replay"
+    assert report["verifications"][0]["affected"]["effect_state"] == "effect_observed"
+    assert report["verifications"][0]["fixed"]["effect_state"] == "effect_not_observed"
+
+
+def test_verify_exp_cli_can_use_loopback_live_runner(capsys) -> None:
+    with (
+        run_open_redirect_server("affected") as affected_base_url,
+        run_open_redirect_server("fixed") as fixed_base_url,
+    ):
+        exit_code = main(
+            [
+                "verify-exp",
+                str(ROOT / "examples" / "analysis" / "unknown-sink.yaml"),
+                "--semgrep-json",
+                str(
+                    ROOT
+                    / "fixtures"
+                    / "semgrep"
+                    / "taint-result-with-source-control-local-var-trace.json"
+                ),
+                "--source-root",
+                str(ROOT / "fixtures" / "reachability" / "flask-source-control-local-var-app"),
+                "--affected-base-url",
+                affected_base_url,
+                "--fixed-base-url",
+                fixed_base_url,
+            ]
+        )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    report = json.loads(captured.out)
+    assert report["verifications"][0]["verdict"] == "verified"
+    assert report["verifications"][0]["affected"]["execution_state"] == "completed"
+    assert report["verifications"][0]["fixed"]["effect_state"] == "effect_not_observed"
+
+
+def test_verify_exp_cli_reports_missing_loopback_target_as_inconclusive(capsys) -> None:
+    with run_open_redirect_server("affected") as affected_base_url:
+        exit_code = main(
+            [
+                "verify-exp",
+                str(ROOT / "examples" / "analysis" / "unknown-sink.yaml"),
+                "--semgrep-json",
+                str(
+                    ROOT
+                    / "fixtures"
+                    / "semgrep"
+                    / "taint-result-with-source-control-local-var-trace.json"
+                ),
+                "--source-root",
+                str(ROOT / "fixtures" / "reachability" / "flask-source-control-local-var-app"),
+                "--affected-base-url",
+                affected_base_url,
+                "--fixed-base-url",
+                unused_loopback_base_url(),
+            ]
+        )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    report = json.loads(captured.out)
+    assert report["verifications"][0]["verdict"] == "inconclusive"
+    assert (
+        report["verifications"][0]["fixed"]["execution_state"] == "environment_missing"
+    )
 
 
 def test_confirm_reachability_cli_can_extract_app_get_source_root(capsys) -> None:
@@ -550,7 +644,7 @@ def test_evaluate_cases_cli_outputs_json_report(capsys) -> None:
     assert exit_code == 0
     report = json.loads(captured.out)
     assert report["kind"] == "benchmark_case_suite_evaluation"
-    assert report["total"] == 31
+    assert report["total"] == 34
     assert report["passed"] is True
 
 
@@ -569,7 +663,7 @@ def test_evaluate_cases_cli_outputs_summary_report(capsys) -> None:
     assert exit_code == 0
     report = json.loads(captured.out)
     assert report["kind"] == "benchmark_case_suite_summary"
-    assert report["total"] == 31
+    assert report["total"] == 34
     assert report["passed"] is True
     assert all("sink_report" not in item for item in report["cases"])
 
@@ -586,8 +680,8 @@ def test_validate_benchmarks_cli_outputs_inventory(capsys) -> None:
     assert exit_code == 0
     inventory = json.loads(captured.out)
     assert inventory["kind"] == "benchmark_case_inventory"
-    assert inventory["summary"]["total"] == 33
-    assert inventory["summary"]["candidate"] == 31
+    assert inventory["summary"]["total"] == 36
+    assert inventory["summary"]["candidate"] == 34
 
 
 def test_benchmark_summary_cli_outputs_short_json(capsys) -> None:
@@ -610,16 +704,16 @@ def test_benchmark_summary_cli_outputs_short_json(capsys) -> None:
     assert summary["passed"] is True
     assert "evaluation" not in summary
     assert "inventory_evaluation" in summary
-    assert summary["inventory"]["summary"]["total"] == 33
+    assert summary["inventory"]["summary"]["total"] == 36
     assert summary["inventory"]["scope"].startswith("case inventory")
-    assert summary["inventory_evaluation"]["summary"]["unsupported"] == 21
+    assert summary["inventory_evaluation"]["summary"]["unsupported"] == 24
     assert summary["inventory_evaluation"]["scope"].startswith("M1 sink generation")
-    assert summary["executable_suite"]["total"] == 31
-    assert summary["executable_suite"]["scope"].startswith("M1/M2/M3")
+    assert summary["executable_suite"]["total"] == 34
+    assert summary["executable_suite"]["scope"].startswith("M1/M2/M3/M4")
     assert summary["known_limitations"] == [
         (
             "inventory_evaluation 当前只评估 M1 sink generation inventory/gap；"
-            "M2/M3 pass/fail 以 executable_suite 为准。"
+            "M2/M3/M4 pass/fail 以 executable_suite 为准。"
         )
     ]
     assert "cases" not in summary
@@ -643,9 +737,9 @@ def test_benchmark_baseline_cli_outputs_markdown(capsys) -> None:
     assert "# Benchmark Baseline" in captured.out
     assert "## Inventory Evaluation" in captured.out
     assert "M1 sink generation inventory/gap evaluation" in captured.out
-    assert "M1/M2/M3 staged executable case checks" in captured.out
+    assert "M1/M2/M3/M4 staged executable case checks" in captured.out
     assert "## Known Limitations" in captured.out
-    assert "| total | 33 |" in captured.out
+    assert "| total | 36 |" in captured.out
     assert "`curated-open-redirect-reachability`" in captured.out
 
 

@@ -27,6 +27,13 @@ from semgrep_llm_vul.benchmark_cases import (
     evaluate_benchmark_cases,
     summarize_benchmark_suite,
 )
+from semgrep_llm_vul.exp_verification import (
+    ExecutionEvidenceError,
+    LocalExecutionError,
+    collect_local_execution_records,
+    generate_exp_verification_report,
+    load_execution_evidence,
+)
 from semgrep_llm_vul.poc_generation import generate_poc_report
 from semgrep_llm_vul.reachability import (
     ReachabilityEvidenceError,
@@ -35,6 +42,7 @@ from semgrep_llm_vul.reachability import (
     load_reachability_evidence,
 )
 from semgrep_llm_vul.reporting import (
+    exp_verification_report_to_dict,
     poc_generation_report_to_dict,
     reachability_report_to_dict,
     sink_generation_report_to_dict,
@@ -83,6 +91,18 @@ def main(argv: Sequence[str] | None = None) -> int:
             semgrep_json=args.semgrep_json,
             reachability_json=args.reachability_json,
             source_root=args.source_root,
+            artifact_base=args.artifact_base,
+        )
+    if args.command == "verify-exp":
+        return _verify_exp(
+            args.path,
+            semgrep_json=args.semgrep_json,
+            reachability_json=args.reachability_json,
+            source_root=args.source_root,
+            execution_json=args.execution_json,
+            affected_base_url=args.affected_base_url,
+            fixed_base_url=args.fixed_base_url,
+            timeout_seconds=args.timeout_seconds,
             artifact_base=args.artifact_base,
         )
     if args.command == "evaluate-case":
@@ -217,6 +237,57 @@ def _build_parser() -> argparse.ArgumentParser:
         help="用于提取最小入口证据的本地源码根目录，可重复传入",
     )
     generate_poc.add_argument(
+        "--artifact-base",
+        default=None,
+        help="解析本地 artifact 相对路径时使用的基准目录",
+    )
+
+    verify_exp = subparsers.add_parser(
+        "verify-exp",
+        help="基于结构化 PoC plan 和本地执行观察生成最小 exp verification JSON 报告",
+    )
+    verify_exp.add_argument("path", help="分析任务输入文件路径")
+    verify_exp.add_argument(
+        "--semgrep-json",
+        action="append",
+        default=[],
+        help="Semgrep JSON 结果路径，可重复传入",
+    )
+    verify_exp.add_argument(
+        "--reachability-json",
+        action="append",
+        default=[],
+        help="本地 reachability evidence JSON 路径，可重复传入",
+    )
+    verify_exp.add_argument(
+        "--source-root",
+        action="append",
+        default=[],
+        help="用于提取最小入口证据的本地源码根目录，可重复传入",
+    )
+    verify_exp.add_argument(
+        "--execution-json",
+        action="append",
+        default=[],
+        help="本地 execution evidence JSON 路径，可重复传入",
+    )
+    verify_exp.add_argument(
+        "--affected-base-url",
+        default=None,
+        help="受影响版本的 loopback base URL，例如 http://127.0.0.1:5001",
+    )
+    verify_exp.add_argument(
+        "--fixed-base-url",
+        default=None,
+        help="修复版本的 loopback base URL，例如 http://127.0.0.1:5002",
+    )
+    verify_exp.add_argument(
+        "--timeout-seconds",
+        type=float,
+        default=5.0,
+        help="本地 live HTTP replay 的超时时间（秒），默认 5.0",
+    )
+    verify_exp.add_argument(
         "--artifact-base",
         default=None,
         help="解析本地 artifact 相对路径时使用的基准目录",
@@ -616,6 +687,104 @@ def _generate_poc(
     return 0
 
 
+def _verify_exp(
+    path: str,
+    *,
+    semgrep_json: Sequence[str],
+    reachability_json: Sequence[str],
+    source_root: Sequence[str],
+    execution_json: Sequence[str],
+    affected_base_url: str | None,
+    fixed_base_url: str | None,
+    timeout_seconds: float,
+    artifact_base: str | None,
+) -> int:
+    try:
+        if execution_json and (affected_base_url or fixed_base_url):
+            raise LocalExecutionError(
+                "--execution-json 与 --affected-base-url/--fixed-base-url 不能同时使用"
+            )
+        task = load_analysis_input(path)
+        findings = tuple(
+            finding
+            for result_path in semgrep_json
+            for finding in load_semgrep_findings(Path(result_path))
+        )
+        taint_paths = tuple(
+            taint_path
+            for result_path in semgrep_json
+            for taint_path in load_semgrep_taint_paths(Path(result_path))
+        )
+        evidence_records = tuple(
+            record
+            for evidence_path in reachability_json
+            for record in load_reachability_evidence(Path(evidence_path))
+        ) + tuple(
+            record
+            for root in source_root
+            for record in discover_flask_route_evidence(
+                Path(root),
+                taint_paths=taint_paths,
+            )
+        )
+        execution_records = tuple(
+            record
+            for evidence_path in execution_json
+            for record in load_execution_evidence(Path(evidence_path))
+        )
+        sink_report = generate_sink_report(
+            task,
+            semgrep_findings=findings,
+            artifact_base=artifact_base,
+        )
+        taint_report = generate_taint_path_report(
+            task,
+            sink_report=sink_report,
+            semgrep_taint_paths=taint_paths,
+        )
+        reachability_report = generate_reachability_report(
+            task,
+            taint_report=taint_report,
+            evidence_records=evidence_records,
+        )
+        poc_report = generate_poc_report(
+            task,
+            reachability_report=reachability_report,
+        )
+        if affected_base_url or fixed_base_url:
+            execution_records = execution_records + collect_local_execution_records(
+                poc_report,
+                affected_base_url=affected_base_url,
+                fixed_base_url=fixed_base_url,
+                timeout_seconds=timeout_seconds,
+            )
+        report = generate_exp_verification_report(
+            task,
+            poc_report=poc_report,
+            execution_records=execution_records,
+        )
+    except (
+        AnalysisInputError,
+        ExecutionEvidenceError,
+        LocalExecutionError,
+        ReachabilityEvidenceError,
+        SemgrepParseError,
+        SinkGenerationError,
+    ) as exc:
+        print(f"verify exp failed: {exc}", file=sys.stderr)
+        return 1
+
+    print(
+        json.dumps(
+            exp_verification_report_to_dict(report, task=task),
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
 def _validate_benchmarks(path: str) -> int:
     try:
         cases = discover_benchmark_cases(path)
@@ -706,7 +875,7 @@ def _benchmark_summary_data(
         "known_limitations": [
             (
                 "inventory_evaluation 当前只评估 M1 sink generation inventory/gap；"
-                "M2/M3 pass/fail 以 executable_suite 为准。"
+                "M2/M3/M4 pass/fail 以 executable_suite 为准。"
             )
         ],
         "inventory": {
@@ -720,7 +889,7 @@ def _benchmark_summary_data(
             "gaps": evaluation["gaps"],
         },
         "executable_suite": {
-            "scope": "M1/M2/M3 staged executable case checks",
+            "scope": "M1/M2/M3/M4 staged executable case checks",
             "total": executable["total"],
             "passed": executable["passed"],
             "passed_count": executable["passed_count"],

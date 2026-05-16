@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "observations": [
+    {
+      "plan_match": {
+        "vulnerability_type": "open_redirect",
+        "sink_name": "redirect",
+        "entrypoint_name": "GET /login",
+        "parameter_name": "next"
+      },
+      "version_role": "affected",
+      "version": "v1.0.0",
+      "execution_state": "completed",
+      "request": {
+        "method": "GET",
+        "path": "/login",
+        "parameter_location": "query",
+        "parameters": [
+          {
+            "name": "next",
+            "value": "https://attacker.example/poc"
+          }
+        ]
+      },
+      "exit_code": 0,
+      "response": {
+        "status_code": 302,
+        "headers": {
+          "Location": "/"
+        }
+      },
+      "notes": [
+        "受影响版本未观察到外跳行为。"
+      ]
+    },
+    {
+      "plan_match": {
+        "vulnerability_type": "open_redirect",
+        "sink_name": "redirect",
+        "entrypoint_name": "GET /login",
+        "parameter_name": "next"
+      },
+      "version_role": "fixed",
+      "version": "v1.0.1",
+      "execution_state": "completed",
+      "request": {
+        "method": "GET",
+        "path": "/login",
+        "parameter_location": "query",
+        "parameters": [
+          {
+            "name": "next",
+            "value": "https://attacker.example/poc"
+          }
+        ]
+      },
+      "exit_code": 0,
+      "response": {
+        "status_code": 302,
+        "headers": {
+          "Location": "/"
+        }
+      }
+    }
+  ]
+}

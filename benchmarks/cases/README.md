@@ -136,6 +136,12 @@ M3 PoC planning case 当前使用：
 - `poc_plans`：期望出现的 plan 片段，例如 `execution_state`、`parameter_name`、`request_method`、`request_path`。
 - `unknowns_include`：报告或 plan 内应包含的 unknowns 片段。
 
+M4 exp verification case 当前使用：
+
+- `verification_count`：期望生成的结构化 exp verification 数量。
+- `exp_verifications`：期望出现的 verification 片段，例如 `verdict`、`runner`、`affected_execution_state`、`affected_effect_state`、`fixed_execution_state`、`fixed_effect_state`。
+- `unknowns_include`：报告或 verification 内应包含的 unknowns 片段。
+
 ## notes.md 内容
 
 `notes.md` 至少记录：
@@ -187,6 +193,9 @@ case id 使用小写 kebab-case：
 - `curated-open-redirect-poc-plan-source-control-local-var`：M3 positive case，验证可从 `reachable=true` 的 local-var source 恢复结构化 PoC plan。
 - `curated-open-redirect-poc-plan-blocked`：M3 blocked negative case，验证 `reachable=false` 不进入 PoC planning。
 - `curated-open-redirect-poc-plan-unknown`：M3 unknown negative case，验证 `reachable=null` 不进入 PoC planning。
+- `curated-open-redirect-exp-verified`：M4 positive case，验证 affected 观察到外跳且 fixed 未观察到外跳时输出 `verified`。
+- `curated-open-redirect-exp-not-verified`：M4 negative case，验证 affected 未观察到外跳时输出 `not_verified`。
+- `curated-open-redirect-exp-inconclusive`：M4 inconclusive case，验证 fixed 环境缺失时不提前输出 `verified`。
 - `curated-open-redirect-safe-diff`：negative case，安全封装 diff 不应生成 direct sink candidate。
 - `curated-insufficient-evidence`：insufficient evidence case，没有代码、diff 或 Semgrep 证据时不应生成候选。
 - `curated-safe-deserialization-wrapper`：negative case，`safe_loads` 不应误判为 `loads`。

@@ -138,14 +138,14 @@ final vulnerability judgment
 - taint path generation：输出候选路径，不声明入口可触达。
 - reachability confirmation：声明路径可触达、不可达或 unknown。
 - PoC generation：说明触发方式、前置条件和预期效果；当前第一版优先输出结构化 planning report。
-- exp verification：通过执行日志、退出码、请求响应或行为差异给出最终判断。
+- exp verification：通过执行日志、退出码、请求响应或行为差异给出最终判断；当前第一版优先输出结构化 differential verification report。
 
 阶段结论必须允许降级：
 
 - `recommended` 可以降级为 `candidate`。
 - `reachable` 可以降级为 `unknown` 或 `not_reachable`。
 - PoC 可以标记为 `not_run`、`failed_to_trigger` 或 `environment_missing`；第一版默认从 `not_run` 起步，不能冒充 `verified`。
-- exp 可以标记为 `verified`、`not_verified`、`inconclusive`。
+- exp 可以标记为 `verified`、`not_verified`、`inconclusive`；同时应显式保留 `execution_state` 与 `effect_state`，避免把“执行没完成”和“没有观察到漏洞效果”混为一谈。
 
 ## 证据链原则
 
@@ -309,6 +309,17 @@ Semgrep 是跨语言分析入口之一，不是唯一事实来源。
 - 输入：PoC、受影响版本、修复版本、运行环境。
 - 输出：自动化验证脚本、日志、退出码、响应差异、最终判断。
 - 验证：受影响版本触发，修复版本不触发；无法验证时输出 inconclusive。
+
+当前第一版的推荐形态是 report-first：
+
+- 只消费 `PocPlan(execution_state=not_run)`；
+- 显式区分 `execution_state`、`effect_state` 和最终 `verification_verdict`；
+- 当前 runner 保持窄类型，只支持 `http_request_replay`；
+- 当前 effect observation 保持窄场景，只覆盖 Flask open redirect；
+- 当前 observation 来源允许两条受控路径：静态 execution evidence JSON，或 loopback live HTTP replay；
+- live runner 只允许 `localhost` / `127.0.0.1` / `::1`，且只抓首跳响应；
+- `verified` 必须要求 affected 观察到效果且 fixed 未观察到效果；
+- 缺少对照、环境缺失、效果模糊或两边都触发时，优先降级为 `inconclusive`。
 
 ## 安全边界
 

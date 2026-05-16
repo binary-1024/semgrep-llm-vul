@@ -69,6 +69,38 @@ class PocExecutionState(str, Enum):
     ENVIRONMENT_MISSING = "environment_missing"
 
 
+class ExpVersionRole(str, Enum):
+    """M4 对照中的版本角色。"""
+
+    AFFECTED = "affected"
+    FIXED = "fixed"
+
+
+class ExpExecutionState(str, Enum):
+    """M4 执行观察状态。"""
+
+    COMPLETED = "completed"
+    ENVIRONMENT_MISSING = "environment_missing"
+    SETUP_FAILED = "setup_failed"
+    RUN_FAILED = "run_failed"
+
+
+class ExpEffectState(str, Enum):
+    """M4 预期效果观察状态。"""
+
+    EFFECT_OBSERVED = "effect_observed"
+    EFFECT_NOT_OBSERVED = "effect_not_observed"
+    EFFECT_UNKNOWN = "effect_unknown"
+
+
+class ExpVerificationVerdict(str, Enum):
+    """M4 最终验证结论。"""
+
+    VERIFIED = "verified"
+    NOT_VERIFIED = "not_verified"
+    INCONCLUSIVE = "inconclusive"
+
+
 class PocParameterLocation(str, Enum):
     """PoC 参数位置。"""
 
@@ -378,6 +410,48 @@ class PocPlan:
     expected_effect: str
     call_chain: tuple[ReachabilityCallStep, ...] = ()
     preconditions: tuple[str, ...] = ()
+    evidence: tuple[Evidence, ...] = ()
+    unknowns: tuple[str, ...] = ()
+    limitations: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class ExpRequestArtifact:
+    """M4 生成的最小可重放 exp 请求工件。"""
+
+    runner: str
+    command: str
+    reasoning: str
+
+
+@dataclass(frozen=True)
+class ExpObservation:
+    """单个版本上的执行观察结果。"""
+
+    version_role: ExpVersionRole
+    version: str | None
+    execution_state: ExpExecutionState
+    effect_state: ExpEffectState
+    request: PocRequestShape
+    exit_code: int | None = None
+    status_code: int | None = None
+    response_headers: tuple[tuple[str, str], ...] = ()
+    observed_effect: str | None = None
+    evidence: tuple[Evidence, ...] = ()
+    unknowns: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class ExpVerification:
+    """结构化 exp verification 结果。"""
+
+    verdict: ExpVerificationVerdict
+    vulnerability_type: str
+    poc_plan: PocPlan
+    exp_request: ExpRequestArtifact
+    affected: ExpObservation | None = None
+    fixed: ExpObservation | None = None
+    comparison_summary: str = ""
     evidence: tuple[Evidence, ...] = ()
     unknowns: tuple[str, ...] = ()
     limitations: tuple[str, ...] = ()

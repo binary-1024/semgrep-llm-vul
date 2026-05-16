@@ -4,6 +4,13 @@ from semgrep_llm_vul import (
     AnalysisTarget,
     CodeLocation,
     Evidence,
+    ExpEffectState,
+    ExpExecutionState,
+    ExpObservation,
+    ExpRequestArtifact,
+    ExpVerification,
+    ExpVerificationVerdict,
+    ExpVersionRole,
     FunctionSignature,
     InputMode,
     PocExecutionState,
@@ -23,9 +30,11 @@ from semgrep_llm_vul import (
     TaintStep,
     VulnerabilityInput,
 )
+from semgrep_llm_vul.exp_verification import ExpVerificationReport
 from semgrep_llm_vul.models import EvidenceKind, SourceReference
 from semgrep_llm_vul.poc_generation import PocGenerationReport
 from semgrep_llm_vul.reporting import (
+    exp_verification_report_to_dict,
     poc_generation_report_to_dict,
     semantic_hint_report_to_dict,
     sink_generation_report_to_dict,
@@ -237,3 +246,122 @@ def test_poc_generation_report_to_dict_has_stable_shape() -> None:
     assert report["plans"][0]["request"]["method"] == "GET"
     assert report["plans"][0]["request"]["parameters"][0]["name"] == "next"
     assert report["unknowns"] == ["M3 当前默认不执行请求。"]
+
+
+def test_exp_verification_report_to_dict_has_stable_shape() -> None:
+    task = VulnerabilityInput(
+        target=AnalysisTarget(
+            repo_url="https://github.com/example/flask-app",
+            affected_version="v1.0.0",
+            fixed_version="v1.0.1",
+            language="python",
+        ),
+        description="Open redirect through next parameter.",
+        mode=InputMode.UNKNOWN_SINK,
+    )
+    location = CodeLocation(path="app/routes.py", start_line=12)
+    evidence = Evidence(
+        source=SourceReference(kind=EvidenceKind.CODE_LOCATION, location=location),
+        summary="request.args reaches redirect.",
+        reasoning="The same route reads next and returns redirect(next_url).",
+        confidence=0.8,
+    )
+    plan = PocPlan(
+        verdict=PocVerdict.PLANNED,
+        execution_state=PocExecutionState.NOT_RUN,
+        vulnerability_type="open_redirect",
+        path=TaintPath(
+            source=SourceCandidate(
+                name='request.args["next"]',
+                location=location,
+                reason="User-controlled query parameter.",
+                confidence=0.8,
+                evidence=(evidence,),
+            ),
+            sink=SinkCandidate(
+                signature=FunctionSignature(raw="redirect(location)", name="redirect"),
+                reason="redirect can send users to attacker-controlled locations.",
+                confidence=0.8,
+                evidence=(evidence,),
+            ),
+            steps=(TaintStep(location=location, symbol="redirect", evidence=(evidence,)),),
+            reachable=True,
+            evidence=(evidence,),
+        ),
+        entrypoint=ReachabilityEntrypoint(
+            kind="flask_route",
+            name="GET /login",
+            location=location,
+            evidence=(evidence,),
+        ),
+        trigger_input=PocTriggerInput(
+            location=PocParameterLocation.QUERY,
+            name="next",
+            value="https://attacker.example/poc",
+            reasoning="source 直接来自 request.args。",
+        ),
+        request=PocRequestShape(
+            method="GET",
+            path="/login",
+            parameter_location=PocParameterLocation.QUERY,
+            parameters=(PocRequestParameter(name="next", value="https://attacker.example/poc"),),
+        ),
+        expected_effect="响应返回 30x，并把 Location 指向攻击者控制 URL。",
+        evidence=(evidence,),
+    )
+
+    report = exp_verification_report_to_dict(
+        ExpVerificationReport(
+            verifications=(
+                ExpVerification(
+                    verdict=ExpVerificationVerdict.VERIFIED,
+                    vulnerability_type="open_redirect",
+                    poc_plan=plan,
+                    exp_request=ExpRequestArtifact(
+                        runner="http_request_replay",
+                        command="curl -i -G --data-urlencode 'next=https://attacker.example/poc' 'http://TARGET_HOST/login'",
+                        reasoning="使用 query replay。",
+                    ),
+                    affected=ExpObservation(
+                        version_role=ExpVersionRole.AFFECTED,
+                        version="v1.0.0",
+                        execution_state=ExpExecutionState.COMPLETED,
+                        effect_state=ExpEffectState.EFFECT_OBSERVED,
+                        request=plan.request,
+                        exit_code=0,
+                        status_code=302,
+                        response_headers=(("Location", "https://attacker.example/poc"),),
+                        observed_effect="观察到外跳。",
+                        evidence=(evidence,),
+                    ),
+                    fixed=ExpObservation(
+                        version_role=ExpVersionRole.FIXED,
+                        version="v1.0.1",
+                        execution_state=ExpExecutionState.COMPLETED,
+                        effect_state=ExpEffectState.EFFECT_NOT_OBSERVED,
+                        request=plan.request,
+                        exit_code=0,
+                        status_code=302,
+                        response_headers=(("Location", "/"),),
+                        observed_effect="未观察到外跳。",
+                        evidence=(evidence,),
+                    ),
+                    comparison_summary="affected 观察到外跳，fixed 未观察到外跳。",
+                    evidence=(evidence,),
+                    unknowns=("当前仍未自动启动真实服务。",),
+                ),
+            ),
+            evidence=(evidence,),
+            unknowns=("M4 当前只支持本地 execution evidence。",),
+        ),
+        task=task,
+    )
+
+    assert report["schema_version"] == 1
+    assert report["kind"] == "exp_verification_report"
+    assert report["verifications"][0]["verdict"] == "verified"
+    assert report["verifications"][0]["exp_request"]["runner"] == "http_request_replay"
+    assert report["verifications"][0]["affected"]["execution_state"] == "completed"
+    assert report["verifications"][0]["affected"]["effect_state"] == "effect_observed"
+    assert report["verifications"][0]["fixed"]["response_headers"]["Location"] == "/"
+    assert report["unknowns"] == ["M4 当前只支持本地 execution evidence。"]

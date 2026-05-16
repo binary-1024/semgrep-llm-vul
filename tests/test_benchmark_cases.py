@@ -329,6 +329,53 @@ def test_evaluate_benchmark_case_passes_curated_m3_blocked_case() -> None:
     assert "reachable=false 的路径保留为阻断证据" in result["poc_report"]["unknowns"][0]
 
 
+def test_evaluate_benchmark_case_passes_curated_m4_verified_case() -> None:
+    result = evaluate_benchmark_case(
+        CASES_ROOT / "curated-open-redirect-exp-verified",
+        repo_root=ROOT,
+    )
+
+    assert result["kind"] == "benchmark_case_evaluation"
+    assert result["case_id"] == "curated-open-redirect-exp-verified"
+    assert result["stage"] == "M4"
+    assert result["passed"] is True
+    verification = result["exp_report"]["verifications"][0]
+    assert verification["verdict"] == "verified"
+    assert verification["exp_request"]["runner"] == "http_request_replay"
+    assert verification["affected"]["effect_state"] == "effect_observed"
+    assert verification["fixed"]["effect_state"] == "effect_not_observed"
+
+
+def test_evaluate_benchmark_case_passes_curated_m4_not_verified_case() -> None:
+    result = evaluate_benchmark_case(
+        CASES_ROOT / "curated-open-redirect-exp-not-verified",
+        repo_root=ROOT,
+    )
+
+    assert result["kind"] == "benchmark_case_evaluation"
+    assert result["case_id"] == "curated-open-redirect-exp-not-verified"
+    assert result["stage"] == "M4"
+    assert result["passed"] is True
+    verification = result["exp_report"]["verifications"][0]
+    assert verification["verdict"] == "not_verified"
+    assert verification["affected"]["effect_state"] == "effect_not_observed"
+
+
+def test_evaluate_benchmark_case_passes_curated_m4_inconclusive_case() -> None:
+    result = evaluate_benchmark_case(
+        CASES_ROOT / "curated-open-redirect-exp-inconclusive",
+        repo_root=ROOT,
+    )
+
+    assert result["kind"] == "benchmark_case_evaluation"
+    assert result["case_id"] == "curated-open-redirect-exp-inconclusive"
+    assert result["stage"] == "M4"
+    assert result["passed"] is True
+    verification = result["exp_report"]["verifications"][0]
+    assert verification["verdict"] == "inconclusive"
+    assert verification["fixed"]["execution_state"] == "environment_missing"
+
+
 def test_evaluate_benchmark_case_passes_curated_m2_reachability_alias_assignment_unknown_case(
 ) -> None:
     result = evaluate_benchmark_case(
@@ -366,13 +413,16 @@ def test_evaluate_benchmark_cases_summarizes_curated_cases() -> None:
     result = evaluate_benchmark_cases(CASES_ROOT, repo_root=ROOT)
 
     assert result["kind"] == "benchmark_case_suite_evaluation"
-    assert result["total"] == 31
+    assert result["total"] == 34
     assert result["passed"] is True
-    assert result["passed_count"] == 31
+    assert result["passed_count"] == 34
     assert result["failed_count"] == 0
     assert {item["case_id"] for item in result["results"]} == {
         "curated-command-execution-system",
         "curated-deserialization-deserialize",
+        "curated-open-redirect-exp-inconclusive",
+        "curated-open-redirect-exp-not-verified",
+        "curated-open-redirect-exp-verified",
         "curated-insufficient-evidence",
         "curated-open-redirect-poc-plan-blocked",
         "curated-open-redirect-poc-plan-source-control-local-var",
@@ -411,7 +461,7 @@ def test_summarize_benchmark_suite_omits_full_sink_reports() -> None:
     summary = summarize_benchmark_suite(result)
 
     assert summary["kind"] == "benchmark_case_suite_summary"
-    assert summary["total"] == 31
+    assert summary["total"] == 34
     assert summary["passed"] is True
     assert all("sink_report" not in item for item in summary["cases"])
     assert all(item["failed_checks"] == [] for item in summary["cases"])

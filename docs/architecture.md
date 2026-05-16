@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-仓库已经完成 M0 基础 harness，并具备语言无关数据模型、分析任务输入模型、Semgrep finding 归一化、Semgrep taint-mode trace 到候选 `TaintPath` 的最小归一化能力、M1 最小 sink generation pipeline、M2 最小 taint path generation 与 reachability 入口、M3 最小结构化 PoC planning 入口，以及用于未来 LLM 语义增强层的结构化 `SemanticHint` / `SemanticHintReport` contract。
+仓库已经完成 M0 基础 harness，并具备语言无关数据模型、分析任务输入模型、Semgrep finding 归一化、Semgrep taint-mode trace 到候选 `TaintPath` 的最小归一化能力、M1 最小 sink generation pipeline、M2 最小 taint path generation 与 reachability 入口、M3 最小结构化 PoC planning 入口、M4 最小结构化 exp verification 入口，以及用于未来 LLM 语义增强层的结构化 `SemanticHint` / `SemanticHintReport` contract。
 
 ## 当前数据流
 
@@ -128,6 +128,28 @@ PocPlan(execution_state=not_run)
 - CLI：`uv run semgrep-llm-vul generate-poc <analysis-input> --semgrep-json <semgrep.json> --source-root <source-root>`
 - JSON 序列化：`semgrep_llm_vul.reporting.poc_generation_report_to_dict`
 - 语义边界：第一版只消费 `reachable=true` 的路径，只支持安全验证型、默认 `execution_state=not_run` 的结构化 planning；当前优先覆盖 Flask open redirect 场景，可恢复入口 method/path、参数位置、参数键名、最小样例值、预期效果、前提条件、unknowns 和 limitations；`reachable=false` 与 `reachable=null` 只保留为证据，不进入 PoC 执行语义；不直接生成破坏性 payload，不声明 `verified`。
+
+M4 第一版采用结构化 exp verification/report：
+
+```text
+PocPlan(execution_state=not_run)
+  + exp request artifact
+  + affected execution evidence
+  + fixed execution evidence
+  ↓
+ExpVerificationReport(verdict=verified|not_verified|inconclusive)
+```
+
+当前实现入口：
+
+- `semgrep_llm_vul.exp_verification.generate_exp_verification_report`
+- `semgrep_llm_vul.exp_verification.collect_local_execution_records`
+- `semgrep_llm_vul.exp_verification.load_execution_evidence`
+- 输出模型：`ExpVerificationReport`
+- 输入证据：`VulnerabilityInput`、`PocGenerationReport`、本地 execution evidence JSON 或 loopback live HTTP 观察
+- CLI：`uv run semgrep-llm-vul verify-exp <analysis-input> --semgrep-json <semgrep.json> --source-root <source-root> [--execution-json <execution.json> | --affected-base-url <base-url> --fixed-base-url <base-url>]`
+- JSON 序列化：`semgrep_llm_vul.reporting.exp_verification_report_to_dict`
+- 语义边界：第一版只消费 `PocPlan(execution_state=not_run)`；只支持 `http_request_replay` 这一类窄 runner；当前 effect observation 只覆盖 Flask open redirect，可根据 status code 与 `Location` header 给出 `effect_observed`、`effect_not_observed` 或 `effect_unknown`；最终 verdict 只允许 `verified`、`not_verified`、`inconclusive`，并且 `verified` 必须要求 affected 观察到效果且 fixed 未观察到效果；当前支持两类 observation 来源：本地 execution evidence JSON 与 loopback live HTTP replay；live runner 只允许 `localhost` / `127.0.0.1` / `::1`，不自动启动真实服务，不跟随 redirect，不连接真实公网目标，不处理 secrets，不执行破坏性 payload。
 
 ## 预期方向
 
