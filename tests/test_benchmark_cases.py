@@ -142,6 +142,21 @@ def test_evaluate_benchmark_case_passes_blueprint_unregistered_case() -> None:
     assert assessment["reachable"] is None
 
 
+def test_evaluate_benchmark_case_passes_relative_path_guard_case() -> None:
+    result = evaluate_benchmark_case(
+        CASES_ROOT / "curated-open-redirect-reachability-relative-path-guard",
+        repo_root=ROOT,
+    )
+
+    assert result["kind"] == "benchmark_case_evaluation"
+    assert result["case_id"] == "curated-open-redirect-reachability-relative-path-guard"
+    assert result["stage"] == "M2"
+    assert result["passed"] is True
+    assessment = result["reachability_report"]["assessments"][0]
+    assert assessment["reachable"] is False
+    assert assessment["blocking_factors"][0]["kind"] == "relative_path_guard"
+
+
 def test_evaluate_benchmark_case_passes_curated_m2_reachability_add_url_rule_case() -> None:
     result = evaluate_benchmark_case(
         CASES_ROOT / "curated-open-redirect-reachability-add-url-rule",
@@ -319,9 +334,9 @@ def test_evaluate_benchmark_cases_summarizes_curated_cases() -> None:
     result = evaluate_benchmark_cases(CASES_ROOT, repo_root=ROOT)
 
     assert result["kind"] == "benchmark_case_suite_evaluation"
-    assert result["total"] == 27
+    assert result["total"] == 28
     assert result["passed"] is True
-    assert result["passed_count"] == 27
+    assert result["passed_count"] == 28
     assert result["failed_count"] == 0
     assert {item["case_id"] for item in result["results"]} == {
         "curated-command-execution-system",
@@ -343,6 +358,7 @@ def test_evaluate_benchmark_cases_summarizes_curated_cases() -> None:
         "curated-open-redirect-reachability-helper",
         "curated-open-redirect-reachability-import-alias-helper",
         "curated-open-redirect-reachability-multi-layer-helper",
+        "curated-open-redirect-reachability-relative-path-guard",
         "curated-open-redirect-reachability-source-control-local-var",
         "curated-open-redirect-reachability-unknown",
         "curated-open-redirect-taint-path",
@@ -360,7 +376,7 @@ def test_summarize_benchmark_suite_omits_full_sink_reports() -> None:
     summary = summarize_benchmark_suite(result)
 
     assert summary["kind"] == "benchmark_case_suite_summary"
-    assert summary["total"] == 27
+    assert summary["total"] == 28
     assert summary["passed"] is True
     assert all("sink_report" not in item for item in summary["cases"])
     assert all(item["failed_checks"] == [] for item in summary["cases"])

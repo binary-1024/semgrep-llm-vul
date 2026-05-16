@@ -121,8 +121,17 @@ def discover_flask_route_evidence(
         )
         if route is None:
             continue
+        blocking_record = _record_from_local_guard(
+            taint_path,
+            route,
+            call_chain_functions=call_chain_functions,
+            module_index=module_index,
+            source_root=root,
+        )
         records.append(
-            _record_from_flask_route(
+            blocking_record
+            if blocking_record is not None
+            else _record_from_flask_route(
                 taint_path,
                 route,
                 call_chain_functions=call_chain_functions,
@@ -1041,6 +1050,185 @@ def _record_from_flask_route(
         evidence=evidence,
         unknowns=("尚未运行 PoC 验证该 Flask route 的触发行为。",),
     )
+
+
+def _record_from_local_guard(
+    taint_path: TaintPath,
+    route: _FlaskRoute,
+    *,
+    call_chain_functions: tuple[_PythonFunction, ...],
+    module_index: dict[str, _PythonModule],
+    source_root: Path,
+) -> ReachabilityEvidenceRecord | None:
+    sink_location = taint_path.sink.signature.location
+    if sink_location is None:
+        return None
+    if sink_location.path != route.path:
+        return None
+    if len(call_chain_functions) != 1:
+        return None
+
+    guarded_name = _sink_argument_name(
+        route.function.function,
+        sink_line=sink_location.start_line,
+        sink_name=_normalize_call_name(taint_path.sink.signature.name),
+    )
+    if guarded_name is None:
+        return None
+
+    guard_line = _relative_path_guard_line(
+        route.function.function,
+        guarded_name=guarded_name,
+        sink_line=sink_location.start_line,
+    )
+    if guard_line is None:
+        return None
+
+    source_control = _source_control_assessment(
+        taint_path,
+        source_root=source_root,
+        module_index=module_index,
+    )
+    evidence = (
+        Evidence(
+            source=SourceReference(
+                kind=EvidenceKind.REACHABILITY_EVIDENCE,
+                uri=str(route.source_path),
+                location=CodeLocation(
+                    path=route.path,
+                    start_line=guard_line,
+                ),
+                metadata={
+                    "framework": "flask",
+                    "source_root": str(source_root),
+                    "entrypoint_model": route.entrypoint_model,
+                    "guard_type": "relative_path_guard",
+                    "guarded_name": guarded_name,
+                },
+            ),
+            summary=f"本地 AST 发现 {guarded_name} 在到达 sink 前被限制为相对路径。",
+            reasoning=(
+                "该阻断证据来自 handler-local AST：在调用 sink 前，"
+                f"`{guarded_name}` 必须满足 `startswith(\"/\")` 约束；"
+                "不满足时会提前返回常量 redirect。"
+            ),
+            confidence=0.72,
+            reproducible_steps=(f"inspect {route.source_path}",),
+        ),
+    )
+    return ReachabilityEvidenceRecord(
+        path_match={
+            "source_name": taint_path.source.name,
+            "sink_name": _normalize_call_name(taint_path.sink.signature.name),
+            "sink": {
+                "path": sink_location.path,
+                "start_line": sink_location.start_line,
+            },
+        },
+        reachable=False,
+        source_control=source_control,
+        blocking_factors=(
+            BlockingFactor(
+                kind="relative_path_guard",
+                summary="本地 guard 将可达 sink 的输入限制为相对路径。",
+                location=CodeLocation(
+                    path=route.path,
+                    start_line=guard_line,
+                ),
+                evidence=evidence,
+            ),
+        ),
+        evidence=evidence,
+        unknowns=("当前 guard heuristic 只覆盖 handler-local 的相对路径约束模式。",),
+    )
+
+
+def _sink_argument_name(
+    function: _RouteFunction,
+    *,
+    sink_line: int | None,
+    sink_name: str,
+) -> str | None:
+    if sink_line is None:
+        return None
+    for node in ast.walk(function):
+        if not isinstance(node, ast.Call):
+            continue
+        if getattr(node, "lineno", None) != sink_line:
+            continue
+        call_target = _call_target_from_ast(node)
+        if call_target is None:
+            continue
+        call_name, _, _ = call_target
+        if _normalize_call_name(call_name) != sink_name:
+            continue
+        if not node.args:
+            return None
+        first_arg = node.args[0]
+        if isinstance(first_arg, ast.Name):
+            return first_arg.id
+        return None
+    return None
+
+
+def _relative_path_guard_line(
+    function: _RouteFunction,
+    *,
+    guarded_name: str,
+    sink_line: int | None,
+) -> int | None:
+    if sink_line is None:
+        return None
+    for node in ast.walk(function):
+        if not isinstance(node, ast.If):
+            continue
+        if node.lineno >= sink_line:
+            continue
+        if not _is_not_startswith_slash(node.test, guarded_name):
+            continue
+        if _contains_constant_redirect_return(node.body):
+            return node.lineno
+    return None
+
+
+def _is_not_startswith_slash(node: ast.AST, guarded_name: str) -> bool:
+    if not isinstance(node, ast.UnaryOp) or not isinstance(node.op, ast.Not):
+        return False
+    operand = node.operand
+    if not isinstance(operand, ast.Call):
+        return False
+    if not (
+        isinstance(operand.func, ast.Attribute)
+        and operand.func.attr == "startswith"
+        and isinstance(operand.func.value, ast.Name)
+        and operand.func.value.id == guarded_name
+    ):
+        return False
+    if not operand.args:
+        return False
+    first_arg = operand.args[0]
+    return isinstance(first_arg, ast.Constant) and first_arg.value == "/"
+
+
+def _contains_constant_redirect_return(statements: list[ast.stmt]) -> bool:
+    for statement in statements:
+        for node in ast.walk(statement):
+            if not isinstance(node, ast.Return) or node.value is None:
+                continue
+            if not isinstance(node.value, ast.Call):
+                continue
+            call_target = _call_target_from_ast(node.value)
+            if call_target is None:
+                continue
+            call_name, _, _ = call_target
+            if _normalize_call_name(call_name) != "redirect":
+                continue
+            if not node.value.args:
+                continue
+            first_arg = node.value.args[0]
+            if isinstance(first_arg, ast.Constant) and isinstance(first_arg.value, str):
+                return True
+    return False
 
 
 def _flask_route_summary(
