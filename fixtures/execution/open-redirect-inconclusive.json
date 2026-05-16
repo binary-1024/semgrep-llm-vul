@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "observations": [
+    {
+      "plan_match": {
+        "vulnerability_type": "open_redirect",
+        "sink_name": "redirect",
+        "entrypoint_name": "GET /login",
+        "parameter_name": "next"
+      },
+      "version_role": "affected",
+      "version": "v1.0.0",
+      "execution_state": "completed",
+      "request": {
+        "method": "GET",
+        "path": "/login",
+        "parameter_location": "query",
+        "parameters": [
+          {
+            "name": "next",
+            "value": "https://attacker.example/poc"
+          }
+        ]
+      },
+      "exit_code": 0,
+      "response": {
+        "status_code": 302,
+        "headers": {
+          "Location": "https://attacker.example/poc"
+        }
+      }
+    },
+    {
+      "plan_match": {
+        "vulnerability_type": "open_redirect",
+        "sink_name": "redirect",
+        "entrypoint_name": "GET /login",
+        "parameter_name": "next"
+      },
+      "version_role": "fixed",
+      "version": "v1.0.1",
+      "execution_state": "environment_missing",
+      "request": {
+        "method": "GET",
+        "path": "/login",
+        "parameter_location": "query",
+        "parameters": [
+          {
+            "name": "next",
+            "value": "https://attacker.example/poc"
+          }
+        ]
+      },
+      "notes": [
+        "修复版本对应的本地服务没有启动。"
+      ]
+    }
+  ]
+}

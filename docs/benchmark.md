@@ -107,7 +107,7 @@ notes.md
 - `./scripts/benchmark-summary` 提供日常短摘要，避免开发者只看完整 JSON 报告。
 - `uv run semgrep-llm-vul benchmark-baseline --markdown` 可生成 baseline 计数和 gaps，减少手工更新漂移。
 - `benchmark-summary` 输出已使用 `inventory_evaluation` 和 `executable_suite` 区分 inventory/gap evaluation 与可执行 case suite。
-- `benchmark-summary` 已带有 `scope` 和 `known_limitations`，用于解释 M2 在 inventory evaluator 中是 `unsupported_stage`、但在 executable suite 中可以通过的情况。
+- `benchmark-summary` 已带有 `scope` 和 `known_limitations`，用于解释 M2/M3/M4 在 inventory evaluator 中是 `unsupported_stage`、但在 executable suite 中可以通过的情况。
 
 仍需优化的点按优先级排列：
 
@@ -155,7 +155,7 @@ uv run semgrep-llm-vul benchmark-summary --artifact-base . --repo-root .
 和 `expected.json`，调用本地 deterministic sink pipeline，并比较 `sink_candidates`
 与 `must_not_include`。
 
-当前最小 evaluator 已支持评估单个 M1/M2 case：
+当前最小 evaluator 已支持评估单个 M1/M2/M3/M4 case：
 
 ```bash
 uv run semgrep-llm-vul evaluate-case \
@@ -163,7 +163,7 @@ uv run semgrep-llm-vul evaluate-case \
   --repo-root .
 ```
 
-也可以批量评估当前 `benchmarks/cases/` 下的 M1/M2 cases：
+也可以批量评估当前 `benchmarks/cases/` 下的 M1/M2/M3/M4 cases：
 
 ```bash
 uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root .
@@ -184,12 +184,11 @@ uv run semgrep-llm-vul benchmark-baseline --artifact-base . --repo-root . --mark
 `benchmark-summary` 的 JSON contract 当前使用 `schema_version=2`：
 
 - `inventory`：case 清单、来源覆盖、声明状态和阶段覆盖。
-- `inventory_evaluation`：M1 sink generation inventory/gap evaluation。这里的 M2 `unsupported_stage` 只表示 inventory evaluator 尚未扩展到 M2。
-- `executable_suite`：M1/M2/M3 staged executable case checks。M2/M3 pass/fail 以这一层为准。
-- `known_limitations`：解释当前 summary 输出中可能被误读的限制，例如 M2/M3 在 inventory evaluator 中仍会显示为 `unsupported_stage`，但 executable suite 已可执行。
+- `inventory_evaluation`：M1 sink generation inventory/gap evaluation。这里的 M2/M3/M4 `unsupported_stage` 只表示 inventory evaluator 尚未扩展到这些阶段。
+- `executable_suite`：M1/M2/M3/M4 staged executable case checks。M2/M3/M4 pass/fail 以这一层为准。
+- `known_limitations`：解释当前 summary 输出中可能被误读的限制，例如 M2/M3/M4 在 inventory evaluator 中仍会显示为 `unsupported_stage`，但 executable suite 已可执行。
 
 第三阶段：
 
-- 已扩展到 M2 reachability 与 M3 结构化 PoC planning。
-- 后续继续扩展到 M4 exp。
+- 已扩展到 M2 reachability、M3 结构化 PoC planning 与 M4 结构化 exp verification。
 - 支持外部 benchmark 下载缓存，但不提交原始大数据。

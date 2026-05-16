@@ -22,6 +22,8 @@
 | 0012 | [使用证据约束的 LLM 语义增强层，而不是替代规则层](0012-use-llm-semantic-augmentation-layer.md) | Accepted | [将 LLM 用作 source/sink/sanitizer 的证据约束语义增强层](../Insight/20260430-llm-semantic-augmentation.md) | 方法论、source/sink/sanitizer 语义建模 |
 | 0013 | [使用最小本地 guard/blocking evidence 支撑 M2 的 `reachable=false`](0013-use-local-guard-blocking-evidence.md) | Accepted | [为 M2 引入最小本地 guard/blocking evidence](../Insight/20260516-m2-local-guard-blocking-evidence.md) | M2 blocked 语义、本地 AST 证据 |
 | 0014 | [M3 第一版先使用结构化 PoC planning/report](0014-use-structured-poc-planning-first.md) | Accepted | [为 M3 引入最小结构化 PoC planning 闭环](../Insight/20260516-m3-minimal-poc-planning.md) | M3 PoC planning、阶段边界 |
+| 0015 | [M4 第一版先使用结构化 exp verification/report](0015-use-structured-exp-verification-first.md) | Accepted | [为 M4 引入最小结构化 exp verification 闭环](../Insight/20260516-m4-structured-exp-verification.md) | M4 exp verification、执行边界、对照语义 |
+| 0016 | [M4.1 使用 loopback live HTTP replay runner](0016-use-loopback-live-http-replay-runner.md) | Accepted | [为 M4.1 引入 loopback live HTTP replay runner](../Insight/20260516-m4-local-http-replay-runner.md) | M4 live runner、安全边界、真实本地执行 |
 
 ## 使用方式
 

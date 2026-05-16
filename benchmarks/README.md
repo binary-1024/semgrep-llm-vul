@@ -92,7 +92,7 @@ uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .
 
 ## 运行单个阶段 case
 
-当前 evaluator 支持 M1 sink candidate case 和 M2 taint path candidate case：
+当前 executable suite 已支持 M1/M2/M3/M4 case：
 
 ```bash
 uv run semgrep-llm-vul evaluate-case \
@@ -100,7 +100,7 @@ uv run semgrep-llm-vul evaluate-case \
   --repo-root .
 ```
 
-批量评估当前目录下的 M1/M2 cases：
+批量评估当前目录下的 M1/M2/M3/M4 cases：
 
 ```bash
 uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root .

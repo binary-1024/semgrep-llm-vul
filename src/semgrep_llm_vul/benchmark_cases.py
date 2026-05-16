@@ -1,4 +1,4 @@
-"""benchmark/case harness 的最小 M1/M2/M3 evaluator。"""
+"""benchmark/case harness 的最小 M1/M2/M3/M4 evaluator。"""
 
 from __future__ import annotations
 
@@ -10,6 +10,11 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from semgrep_llm_vul.analysis_input import AnalysisInputError, parse_analysis_input
+from semgrep_llm_vul.exp_verification import (
+    ExecutionEvidenceError,
+    generate_exp_verification_report,
+    load_execution_evidence,
+)
 from semgrep_llm_vul.poc_generation import generate_poc_report
 from semgrep_llm_vul.reachability import (
     ReachabilityEvidenceError,
@@ -18,6 +23,7 @@ from semgrep_llm_vul.reachability import (
     load_reachability_evidence,
 )
 from semgrep_llm_vul.reporting import (
+    exp_verification_report_to_dict,
     poc_generation_report_to_dict,
     reachability_report_to_dict,
     sink_generation_report_to_dict,
@@ -57,7 +63,9 @@ def evaluate_benchmark_case(
         return _evaluate_m2_case(case_data, expected, repo_root=repo_root)
     if stage == "M3":
         return _evaluate_m3_case(case_data, expected, repo_root=repo_root)
-    raise BenchmarkCaseError("第一版 evaluator 仅支持 target_stage=M1、M2 或 M3")
+    if stage == "M4":
+        return _evaluate_m4_case(case_data, expected, repo_root=repo_root)
+    raise BenchmarkCaseError("第一版 evaluator 仅支持 target_stage=M1、M2、M3 或 M4")
 
 
 def _evaluate_m1_case(
@@ -229,6 +237,92 @@ def _evaluate_m3_case(
     }
 
 
+def _evaluate_m4_case(
+    case_data: dict[str, Any],
+    expected: dict[str, Any],
+    *,
+    repo_root: str | Path | None,
+) -> dict[str, Any]:
+    task = _case_to_task(case_data)
+    root = _repo_root(repo_root)
+    semgrep_json = _semgrep_json_paths(case_data, repo_root=root)
+    reachability_json = _reachability_json_paths(case_data, repo_root=root)
+    source_roots = _source_root_paths(case_data, repo_root=root)
+    execution_json = _execution_json_paths(case_data, repo_root=root)
+    try:
+        findings = tuple(
+            finding
+            for result_path in semgrep_json
+            for finding in load_semgrep_findings(result_path)
+        )
+        taint_paths = tuple(
+            taint_path
+            for result_path in semgrep_json
+            for taint_path in load_semgrep_taint_paths(result_path)
+        )
+        reachability_records = tuple(
+            record
+            for evidence_path in reachability_json
+            for record in load_reachability_evidence(evidence_path)
+        )
+        execution_records = tuple(
+            record
+            for evidence_path in execution_json
+            for record in load_execution_evidence(evidence_path)
+        )
+    except (
+        ExecutionEvidenceError,
+        ReachabilityEvidenceError,
+        SemgrepParseError,
+    ) as exc:
+        raise BenchmarkCaseError(f"case evidence 无法解析：{exc}") from exc
+
+    sink_report = generate_sink_report(task, semgrep_findings=findings, artifact_base=root)
+    taint_report = generate_taint_path_report(
+        task,
+        sink_report=sink_report,
+        semgrep_taint_paths=taint_paths,
+    )
+    try:
+        source_root_records = tuple(
+            record
+            for source_root in source_roots
+            for record in discover_flask_route_evidence(
+                source_root,
+                taint_paths=taint_report.paths,
+            )
+        )
+    except ReachabilityEvidenceError as exc:
+        raise BenchmarkCaseError(f"case source root 无法解析：{exc}") from exc
+
+    reachability_report = generate_reachability_report(
+        task,
+        taint_report=taint_report,
+        evidence_records=(*reachability_records, *source_root_records),
+    )
+    poc_report = generate_poc_report(
+        task,
+        reachability_report=reachability_report,
+    )
+    exp_report = generate_exp_verification_report(
+        task,
+        poc_report=poc_report,
+        execution_records=execution_records,
+    )
+    exp_dict = exp_verification_report_to_dict(exp_report, task=task)
+    checks = _m4_checks(exp_dict, expected)
+
+    return {
+        "schema_version": 1,
+        "kind": "benchmark_case_evaluation",
+        "case_id": _required_str(case_data, "id"),
+        "stage": _required_str(case_data, "target_stage"),
+        "passed": all(check["passed"] for check in checks),
+        "checks": checks,
+        "exp_report": exp_dict,
+    }
+
+
 def evaluate_benchmark_cases(
     cases_root: str | Path,
     *,
@@ -311,6 +405,14 @@ def _source_root_paths(
     return _input_paths(case_data, field="source_roots", repo_root=repo_root)
 
 
+def _execution_json_paths(
+    case_data: dict[str, Any],
+    *,
+    repo_root: Path,
+) -> tuple[Path, ...]:
+    return _input_paths(case_data, field="execution_json", repo_root=repo_root)
+
+
 def _input_paths(
     case_data: dict[str, Any],
     *,
@@ -357,7 +459,7 @@ def _discover_case_dirs(cases_root: Path) -> list[Path]:
         case_data = _load_case_yaml(path / "case.yaml")
         if case_data.get("status") != "candidate":
             continue
-        if case_data.get("target_stage") not in {"M1", "M2", "M3"}:
+        if case_data.get("target_stage") not in {"M1", "M2", "M3", "M4"}:
             continue
         case_dirs.append(path)
     if not case_dirs:
@@ -472,6 +574,71 @@ def _m3_checks(report: dict[str, Any], expected: dict[str, Any]) -> list[dict[st
             }
         )
 
+    return checks
+
+
+def _m4_checks(report: dict[str, Any], expected: dict[str, Any]) -> list[dict[str, Any]]:
+    checks = []
+    expected_count = expected.get("verification_count")
+    if expected_count is not None:
+        if not isinstance(expected_count, int) or expected_count < 0:
+            raise BenchmarkCaseError("expected.verification_count 必须是非负整数")
+        actual_count = len(report["verifications"])
+        checks.append(
+            {
+                "name": "expected_verification_count",
+                "passed": actual_count == expected_count,
+                "expected": expected_count,
+                "message": (
+                    "exp verification 数量符合预期"
+                    if actual_count == expected_count
+                    else f"exp verification 数量不符：actual={actual_count}"
+                ),
+            }
+        )
+
+    for index, expected_verification in enumerate(expected.get("exp_verifications", [])):
+        if not isinstance(expected_verification, dict):
+            raise BenchmarkCaseError(
+                f"expected.exp_verifications[{index}] 必须是 object"
+            )
+        matched = any(
+            _exp_verification_matches(candidate, expected_verification)
+            for candidate in report["verifications"]
+        )
+        checks.append(
+            {
+                "name": f"expected_exp_verification[{index}]",
+                "passed": matched,
+                "expected": expected_verification,
+                "message": (
+                    "期望 exp verification 已出现"
+                    if matched
+                    else "期望 exp verification 未出现"
+                ),
+            }
+        )
+
+    for index, fragment in enumerate(expected.get("unknowns_include", [])):
+        if not isinstance(fragment, str) or not fragment:
+            raise BenchmarkCaseError(f"expected.unknowns_include[{index}] 必须是非空字符串")
+        matched = any(fragment in item for item in report.get("unknowns", [])) or any(
+            fragment in item
+            for verification in report.get("verifications", [])
+            for item in verification.get("unknowns", [])
+        )
+        checks.append(
+            {
+                "name": f"unknowns_include[{index}]",
+                "passed": matched,
+                "expected": fragment,
+                "message": (
+                    "报告 unknowns 包含预期片段"
+                    if matched
+                    else "报告 unknowns 缺少预期片段"
+                ),
+            }
+        )
     return checks
 
 
@@ -654,6 +821,58 @@ def _poc_plan_matches(
     ):
         return False
     if "request_path" in expected_plan and request.get("path") != expected_plan["request_path"]:
+        return False
+    return True
+
+
+def _exp_verification_matches(
+    candidate: dict[str, Any],
+    expected_verification: dict[str, Any],
+) -> bool:
+    if (
+        "verdict" in expected_verification
+        and candidate.get("verdict") != expected_verification["verdict"]
+    ):
+        return False
+    if (
+        "vulnerability_type" in expected_verification
+        and candidate.get("vulnerability_type") != expected_verification["vulnerability_type"]
+    ):
+        return False
+    poc_plan = candidate.get("poc_plan") or {}
+    if "entrypoint_name" in expected_verification:
+        entrypoint = poc_plan.get("entrypoint") or {}
+        if entrypoint.get("name") != expected_verification["entrypoint_name"]:
+            return False
+    if "parameter_name" in expected_verification:
+        trigger_input = poc_plan.get("trigger_input") or {}
+        if trigger_input.get("name") != expected_verification["parameter_name"]:
+            return False
+    if "runner" in expected_verification:
+        exp_request = candidate.get("exp_request") or {}
+        if exp_request.get("runner") != expected_verification["runner"]:
+            return False
+    affected = candidate.get("affected") or {}
+    if (
+        "affected_execution_state" in expected_verification
+        and affected.get("execution_state") != expected_verification["affected_execution_state"]
+    ):
+        return False
+    if (
+        "affected_effect_state" in expected_verification
+        and affected.get("effect_state") != expected_verification["affected_effect_state"]
+    ):
+        return False
+    fixed = candidate.get("fixed") or {}
+    if (
+        "fixed_execution_state" in expected_verification
+        and fixed.get("execution_state") != expected_verification["fixed_execution_state"]
+    ):
+        return False
+    if (
+        "fixed_effect_state" in expected_verification
+        and fixed.get("effect_state") != expected_verification["fixed_effect_state"]
+    ):
         return False
     return True
 

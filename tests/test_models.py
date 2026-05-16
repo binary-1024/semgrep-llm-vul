@@ -5,6 +5,13 @@ from semgrep_llm_vul import (
     BlockingFactor,
     CodeLocation,
     Evidence,
+    ExpEffectState,
+    ExpExecutionState,
+    ExpObservation,
+    ExpRequestArtifact,
+    ExpVerification,
+    ExpVerificationVerdict,
+    ExpVersionRole,
     FunctionSignature,
     InputMode,
     PocExecutionState,
@@ -233,3 +240,81 @@ def test_poc_plan_keeps_structured_request_shape() -> None:
     assert plan.execution_state is PocExecutionState.NOT_RUN
     assert plan.request.parameter_location is PocParameterLocation.QUERY
     assert plan.request.parameters[0].name == "next"
+
+
+def test_exp_verification_keeps_execution_and_effect_states_separate() -> None:
+    location = CodeLocation(path="app/routes.py", start_line=12)
+    source = SourceCandidate(
+        name='request.args["next"]',
+        location=location,
+        reason="User-controlled query parameter.",
+        confidence=0.8,
+    )
+    sink = SinkCandidate(
+        signature=FunctionSignature(raw="redirect(location)", name="redirect"),
+        reason="redirect can send users to attacker-controlled locations.",
+        confidence=0.8,
+    )
+    path = TaintPath(
+        source=source,
+        sink=sink,
+        steps=(TaintStep(location=location, symbol="redirect"),),
+        reachable=True,
+    )
+    plan = PocPlan(
+        verdict=PocVerdict.PLANNED,
+        execution_state=PocExecutionState.NOT_RUN,
+        vulnerability_type="open_redirect",
+        path=path,
+        entrypoint=ReachabilityEntrypoint(kind="flask_route", name="GET /login"),
+        trigger_input=PocTriggerInput(
+            location=PocParameterLocation.QUERY,
+            name="next",
+            value="https://attacker.example/poc",
+            reasoning="source 直接来自 request.args。",
+        ),
+        request=PocRequestShape(
+            method="GET",
+            path="/login",
+            parameter_location=PocParameterLocation.QUERY,
+            parameters=(PocRequestParameter(name="next", value="https://attacker.example/poc"),),
+        ),
+        expected_effect="响应返回 30x 并外跳。",
+    )
+
+    verification = ExpVerification(
+        verdict=ExpVerificationVerdict.VERIFIED,
+        vulnerability_type="open_redirect",
+        poc_plan=plan,
+        exp_request=ExpRequestArtifact(
+            runner="http_request_replay",
+            command="curl -i -G --data-urlencode 'next=https://attacker.example/poc' 'http://TARGET_HOST/login'",
+            reasoning="使用最小 query replay。",
+        ),
+        affected=ExpObservation(
+            version_role=ExpVersionRole.AFFECTED,
+            version="v1.0.0",
+            execution_state=ExpExecutionState.COMPLETED,
+            effect_state=ExpEffectState.EFFECT_OBSERVED,
+            request=plan.request,
+            status_code=302,
+            response_headers=(("Location", "https://attacker.example/poc"),),
+            observed_effect="观察到外跳。",
+        ),
+        fixed=ExpObservation(
+            version_role=ExpVersionRole.FIXED,
+            version="v1.0.1",
+            execution_state=ExpExecutionState.COMPLETED,
+            effect_state=ExpEffectState.EFFECT_NOT_OBSERVED,
+            request=plan.request,
+            status_code=302,
+            response_headers=(("Location", "/"),),
+            observed_effect="未观察到外跳。",
+        ),
+        comparison_summary="affected 观察到外跳，fixed 未观察到外跳。",
+    )
+
+    assert verification.verdict is ExpVerificationVerdict.VERIFIED
+    assert verification.affected.execution_state is ExpExecutionState.COMPLETED
+    assert verification.affected.effect_state is ExpEffectState.EFFECT_OBSERVED
+    assert verification.fixed.effect_state is ExpEffectState.EFFECT_NOT_OBSERVED

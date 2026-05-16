@@ -10,14 +10,16 @@
 
 - `validate-benchmarks`：仓库内有哪些 case、来源是什么、处于哪个阶段、当前状态如何。
 - `evaluate-benchmarks`：M1 sink generation inventory evaluator 能通过哪些 case，哪些 case 暂时 unsupported 或 blocked。
-- `evaluate-cases`：可执行的 M1/M2 case suite 是否满足每个 case 的阶段期望。
+- `evaluate-cases`：可执行的 M1/M2/M3/M4 case suite 是否满足每个 case 的阶段期望。
 - `benchmark-summary`：把 inventory、inventory evaluation 和 executable suite 合并为短摘要，并通过 `scope` 和 `known_limitations` 解释职责边界。
 
 当前结果显示：
 
 - M1 sink candidate pipeline 在现有 candidate M1 cases 上稳定通过。
 - M2 taint path candidate 与 reachability `true|false|null` cases 已进入 executable suite，并能通过当前 curated M2 cases。
-- inventory evaluator 仍只支持 M1 sink generation，所以会把 M2 cases 作为 `unsupported_stage` gap 记录。
+- M4 differential exp verification cases 已进入 executable suite，并能通过当前 curated M4 cases。
+- M4.1 loopback live runner 已进入 pytest 集成回归，但当前不纳入 benchmark executable suite。
+- inventory evaluator 仍只支持 M1 sink generation，所以会把 M2/M3/M4 cases 作为 `unsupported_stage` gap 记录。
 - 完整外部数据集 ingestion 和需要隔离运行环境的真实漏洞 case 仍处于边界记录阶段，不作为当前自动回归失败。
 
 ## 命令
@@ -39,12 +41,12 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 
 ## Inventory Baseline
 
-当前 `benchmarks/cases/` 共收录 33 个 case：
+当前 `benchmarks/cases/` 共收录 36 个 case：
 
 | 维度 | 数量 |
 | --- | ---: |
-| total | 33 |
-| candidate | 31 |
+| total | 36 |
+| candidate | 34 |
 | unsupported | 1 |
 | blocked | 1 |
 
@@ -55,6 +57,7 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 | M1 | 12 |
 | M2 | 17 |
 | M3 | 4 |
+| M4 | 3 |
 
 按 case 类型：
 
@@ -68,7 +71,7 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 
 | 来源 | 数量 |
 | --- | ---: |
-| project-curated | 28 |
+| project-curated | 31 |
 | CVEfixes | 1 |
 | NIST SARD / Juliet-style CWE sample | 1 |
 | OWASP Benchmark | 1 |
@@ -82,11 +85,11 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 | outcome | 数量 |
 | --- | ---: |
 | passed | 11 |
-| unsupported | 21 |
+| unsupported | 24 |
 | blocked | 1 |
 | failed | 0 |
 | error | 0 |
-| total | 33 |
+| total | 36 |
 
 当前 gaps：
 
@@ -95,6 +98,9 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 | `curated-open-redirect-poc-plan-blocked` | `unsupported_stage` | inventory evaluator 当前不支持 M3。 |
 | `curated-open-redirect-poc-plan-source-control-local-var` | `unsupported_stage` | inventory evaluator 当前不支持 M3。 |
 | `curated-open-redirect-poc-plan-unknown` | `unsupported_stage` | inventory evaluator 当前不支持 M3。 |
+| `curated-open-redirect-exp-inconclusive` | `unsupported_stage` | inventory evaluator 当前不支持 M4。 |
+| `curated-open-redirect-exp-not-verified` | `unsupported_stage` | inventory evaluator 当前不支持 M4。 |
+| `curated-open-redirect-exp-verified` | `unsupported_stage` | inventory evaluator 当前不支持 M4。 |
 | `curated-open-redirect-reachability` | `unsupported_stage` | inventory evaluator 当前不支持 M2。 |
 | `curated-open-redirect-reachability-add-url-rule` | `unsupported_stage` | inventory evaluator 当前不支持 M2。 |
 | `curated-open-redirect-reachability-alias-assignment-unknown` | `unsupported_stage` | inventory evaluator 当前不支持 M2。 |
@@ -119,8 +125,8 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 
 | 指标 | 数量 |
 | --- | ---: |
-| total | 31 |
-| passed_count | 31 |
+| total | 34 |
+| passed_count | 34 |
 | failed_count | 0 |
 
 ## 能力边界
@@ -130,13 +136,15 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 - M1 known sink、Semgrep finding、diff artifact、vulnerable snippet 和 evidence insufficient 场景的 deterministic sink candidate 回归。
 - M1 negative case 回归，包括安全 wrapper、safe API、diff 删除行和证据不足场景。
 - M2 taint path candidate、reachability `true|false|null`、Flask decorator route positive、Flask `@*.get(...)` method-specific decorator positive、Blueprint + `register_blueprint(..., url_prefix=...)` positive、未注册 Blueprint 保持 `reachable=null`、模块级 `app.add_url_rule(...)` route positive、同文件 helper call chain、跨文件 direct helper call chain、module alias attribute call helper call chain、`ImportFrom` module attribute call / alias call helper call chain、有界 multi-layer helper call chain、handler-local 相对路径 guard 的 `reachable=false`、基于 `source.location` 的 source controllability 本地 AST 证据，以及 assignment alias 保持 `reachable=null` 的最小 curated case 回归。
+- M4 differential verification 已支持 `verified`、`not_verified`、`inconclusive` 三类 curated case，且当前会显式区分 `execution_state`、`effect_state` 与最终 verdict。
+- M4.1 已支持 loopback live HTTP replay：对已运行在 `localhost` / `127.0.0.1` / `::1` 上的本地目标发起真实首跳请求，并继续复用现有 observation / verdict contract。
 - benchmark inventory、gap 和 executable suite 三层输出。
-- benchmark summary 使用 `inventory_evaluation` 和 `executable_suite` 区分 inventory/gap evaluation 与 M1/M2/M3 executable suite，避免把 M2/M3 `unsupported_stage` 误读为 suite 不支持。
+- benchmark summary 使用 `inventory_evaluation` 和 `executable_suite` 区分 inventory/gap evaluation 与 M1/M2/M3/M4 executable suite，避免把 M2/M3/M4 `unsupported_stage` 误读为 suite 不支持。
 
 当前未覆盖或暂不自动化：
 
 - M2 reachability `true|false|null` 已有最小本地证据模型和 curated 回归，且已能从本地 Flask fixture 源码提取 decorator route 证据、`@*.get(...)` 这类 method-specific decorator 证据、Blueprint + `register_blueprint(..., url_prefix=...)` 组合证据、模块级 `app.add_url_rule(...)` registration 证据、同文件 helper call chain 证据、direct import 的跨文件 helper call chain 证据、module alias attribute call 证据、`ImportFrom` module attribute call / alias call 证据、最多两层 helper hop 的局部 helper chain 证据、handler-local 相对路径 guard 的 blocking evidence，以及 `source.location` 对应赋值语句的 source controllability AST 证据；普通 assignment alias、未注册 Blueprint 和更一般的 guard/sanitizer 当前继续保持 `reachable=null`。
-- M3 当前仍是 planning-first；尚未进入真实执行、隔离环境和受影响版本/修复版本对照。
+- M4 当前虽然已具备 loopback live runner，但仍未进入真实服务自动启动、容器隔离、会话/鉴权或更广的 runner/effect 类型。
 - 完整 CVEfixes ingestion 尚未实现。
 - Vul4J 等需要 checkout、构建、运行或隔离环境的 case 尚未进入自动执行。
 - 真实外部项目的大规模 benchmark 下载、缓存和采样流程尚未建立。
@@ -144,11 +152,11 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 
 ## 下一步
 
-当前 M3 第一版已闭环。下一步优先服务 M4，而不是继续无止境扩 M2/M3 语法角落；只有当 M4 暴露新的 blocker 时，再补能揭示缺陷的 case：
+当前 M4 已经完成 report-first 闭环，并补上了 loopback live runner。下一步优先考虑：
 
-- 最小 execution state 与日志 contract。
-- 受影响版本 / 修复版本对照验证的结构化输出。
-- 隔离运行边界、timeout、危险动作分类。
+- 受控的 fixture app 自动启动 / 清理；
+- 更强的 observation contract，例如 body diff、error signature 或 stdout/stderr；
+- 更广的 M4 场景族，而不只是 Flask open redirect；
 - 真实漏洞裁剪 case 的来源、许可证和安全边界记录。
 
 当这些 case 暴露稳定失败模式时，应把失败模式转化为单元测试、fixture 或新的 Insight/ADR。

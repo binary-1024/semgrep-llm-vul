@@ -133,6 +133,8 @@
 
 目标：生成并执行 exp 脚本，用于验证漏洞判断是否正确。
 
+当前状态：M4 第一版最小闭环已完成，并已推进到 M4.1。当前已经可以把 `PocPlan(execution_state=not_run)` 转换成结构化 exp verification report，并结合本地 execution evidence 或 loopback live HTTP replay 对 affected / fixed 版本做最小差分验证；当前 verdict 支持 `verified`、`not_verified`、`inconclusive`，runner 仍保持窄类型 `http_request_replay`，effect observation 当前仅覆盖 Flask open redirect。
+
 输入：
 
 - PoC。
@@ -162,7 +164,7 @@
 
 ## 当前下一步
 
-下一步进入里程碑 4 规划：exp 验证与生成。
+当前主线已经完成 M4 第一版最小闭环，并补上了 M4.1 的 loopback live runner。下一步优先扩 M4 的受控运行边界和 effect coverage，而不是重新回到 M2/M3 语法角落。
 
 M1 当前已经具备：
 
@@ -178,7 +180,7 @@ M1 当前已经具备：
 `SemanticHintReport` 可用于承载 unfamiliar API 的 source/sink/candidate_sanitizer
 候选语义、适用版本、前提、失败模式和 unknowns，但当前仍未接入真实 LLM provider 或在线检索。
 
-M2/M3 当前闭环能力：
+M2/M3/M4 当前闭环能力：
 
 - `generate_taint_path_report` 最小候选路径生成入口。
 - `generate-taint-paths` JSON 报告入口。
@@ -193,38 +195,37 @@ M2/M3 当前闭环能力：
 - `generate-poc` 已接入最小结构化 PoC planning report，可从 `reachable=true` 的 Flask open redirect 路径恢复 method/path、参数位置、参数键名、最小样例值、预期效果和前提条件。
 - `reachable=false` 与 `reachable=null` 已分别具备 M3 负边界回归，确保阻断证据和证据不足不会被误升级为可执行 PoC。
 - M3 executable suite 已覆盖 `reachable=true`、`reachable=false` 与 `reachable=null` 三类 planning 结果。
+- `verify-exp` 已接入最小结构化 exp verification report，可从 M3 plan 派生出 `http_request_replay` request artifact，并结合本地 execution evidence 或 loopback live HTTP replay 输出 `execution_state`、`effect_state` 和最终 `verdict`。
+- M4 executable suite 已覆盖 `verified`、`not_verified` 与 `inconclusive` 三类差分验证结果。
+- M4.1 已有 loopback live runner 的单元测试与 CLI 回归；当前只允许 `localhost` / `127.0.0.1` / `::1`，不自动启动服务，不跟随 redirect。
 
-建议下一个 M4 具体任务：
+建议下一个 M4 扩展任务：
 
 ```md
 ## 任务
 
-围绕结构化 PoC planning report 建立最小 execution / verification contract。
+在保持当前差分 verification contract 稳定的前提下，把 loopback live runner 推进到受控 fixture app 启停与更广 observation。
 
 ## 背景
 
-项目已经具备 M3 第一版所需的最小 planning 闭环：candidate taint path、`reachable=true|false|null` 三态、入口证据、局部调用链、source controllability、局部 blocking factor，以及结构化 `PoCPlan` / `PocGenerationReport`。下一步应把这些 M3 输出变成 M4 可以消费的 execution / verification 输入。
+当前 M4 已经具备 report-first 差分验证闭环，并已能连接已运行的 loopback 本地服务；但仍未自动启动隔离服务或容器环境。
 
 ## 范围
 
-- 只消费已有 `PoCPlan(execution_state=not_run)` 进入 M4。
-- 为 execution state、日志、退出码或响应差异补最小结构化输出和 fixture。
-- 保持当前 `reachable=true|false|null` 与 `not_run` 语义不回退。
-- 明确 `not_run` 不等于 `verified`。
+- 保持 `verified`、`not_verified`、`inconclusive` 三态 verdict 语义不回退。
+- 保持 `execution_state`、`effect_state` 与最终 verdict 三层分离。
+- 只为窄场景引入真实本地 runner，不进入通用 exploit 执行器。
 
 ## 非目标
 
-- 不调用真实 LLM provider。
-- 不联网拉取真实 GitHub repo。
-- 不实现完整跨语言调用图。
-- 不直接执行破坏性 payload。
-- 不把未运行 PoC 或单版本行为误标为 verified。
+- 不连接真实公网目标。
+- 不处理 secrets 或登录态自动获取。
+- 不直接放开任意 shell/code 执行。
+- 不把 runner 扩成通用攻击平台。
 
 ## 验收标准
 
-- 新增最小 execution / verification contract 及其单元测试或 benchmark/case 回归。
-- 只有 `not_run` 的结构化 PoC plan 会进入 M4。
-- 受影响版本 / 修复版本对照语义保持明确，不提前宣称 verified。
+- 新增受控服务启停或更强 observation 对应的 fixture、case 或隔离测试。
 - `./scripts/benchmark` 继续通过。
 - `./scripts/check` 通过。
 ```

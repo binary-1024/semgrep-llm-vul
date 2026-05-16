@@ -4,10 +4,14 @@ from __future__ import annotations
 
 from typing import Any
 
+from semgrep_llm_vul.exp_verification import ExpVerificationReport
 from semgrep_llm_vul.models import (
     BlockingFactor,
     CodeLocation,
     Evidence,
+    ExpObservation,
+    ExpRequestArtifact,
+    ExpVerification,
     FunctionSignature,
     PocPlan,
     PocRequestShape,
@@ -148,6 +152,32 @@ def poc_generation_report_to_dict(
     }
 
 
+def exp_verification_report_to_dict(
+    report: ExpVerificationReport,
+    *,
+    task: VulnerabilityInput,
+) -> dict[str, Any]:
+    """将 exp verification report 转为稳定 JSON 结构。"""
+
+    return {
+        "schema_version": 1,
+        "kind": "exp_verification_report",
+        "mode": task.mode.value,
+        "target": {
+            "repo_url": task.target.repo_url,
+            "affected_version": task.target.affected_version,
+            "fixed_version": task.target.fixed_version,
+            "language": task.target.language,
+        },
+        "verifications": [
+            _exp_verification_to_dict(verification)
+            for verification in report.verifications
+        ],
+        "evidence": [_evidence_to_dict(evidence) for evidence in report.evidence],
+        "unknowns": list(report.unknowns),
+    }
+
+
 def _reachability_assessment_to_dict(
     assessment: ReachabilityAssessment,
 ) -> dict[str, Any]:
@@ -201,6 +231,21 @@ def _poc_plan_to_dict(plan: PocPlan) -> dict[str, Any]:
     }
 
 
+def _exp_verification_to_dict(verification: ExpVerification) -> dict[str, Any]:
+    return {
+        "verdict": verification.verdict.value,
+        "vulnerability_type": verification.vulnerability_type,
+        "poc_plan": _poc_plan_to_dict(verification.poc_plan),
+        "exp_request": _exp_request_to_dict(verification.exp_request),
+        "affected": _exp_observation_to_dict(verification.affected),
+        "fixed": _exp_observation_to_dict(verification.fixed),
+        "comparison_summary": verification.comparison_summary,
+        "limitations": list(verification.limitations),
+        "evidence": [_evidence_to_dict(evidence) for evidence in verification.evidence],
+        "unknowns": list(verification.unknowns),
+    }
+
+
 def _trigger_input_to_dict(trigger_input: PocTriggerInput) -> dict[str, Any]:
     return {
         "location": trigger_input.location.value,
@@ -219,6 +264,36 @@ def _request_shape_to_dict(request: PocRequestShape) -> dict[str, Any]:
             {"name": parameter.name, "value": parameter.value}
             for parameter in request.parameters
         ],
+    }
+
+
+def _exp_request_to_dict(request: ExpRequestArtifact) -> dict[str, Any]:
+    return {
+        "runner": request.runner,
+        "command": request.command,
+        "reasoning": request.reasoning,
+    }
+
+
+def _exp_observation_to_dict(
+    observation: ExpObservation | None,
+) -> dict[str, Any] | None:
+    if observation is None:
+        return None
+    return {
+        "version_role": observation.version_role.value,
+        "version": observation.version,
+        "execution_state": observation.execution_state.value,
+        "effect_state": observation.effect_state.value,
+        "request": _request_shape_to_dict(observation.request),
+        "exit_code": observation.exit_code,
+        "status_code": observation.status_code,
+        "response_headers": {
+            name: value for name, value in observation.response_headers
+        },
+        "observed_effect": observation.observed_effect,
+        "evidence": [_evidence_to_dict(evidence) for evidence in observation.evidence],
+        "unknowns": list(observation.unknowns),
     }
 
 
