@@ -382,7 +382,7 @@ def _route_from_function(
         route = _route_from_decorator(decorator)
         if route is None:
             continue
-        route_path, methods = route
+        route_path, methods, entrypoint_model = route
         return _FlaskRoute(
             path=relative,
             route=route_path,
@@ -393,7 +393,7 @@ def _route_from_function(
                 path=relative,
                 start_line=decorator.lineno,
             ),
-            entrypoint_model="route_decorator",
+            entrypoint_model=entrypoint_model,
         )
     return None
 
@@ -622,20 +622,31 @@ def _is_attribute_call(node: ast.Call, attribute_name: str) -> bool:
     return isinstance(node.func, ast.Attribute) and node.func.attr == attribute_name
 
 
-def _route_from_decorator(decorator: ast.expr) -> tuple[str, tuple[str, ...]] | None:
+def _route_from_decorator(
+    decorator: ast.expr,
+) -> tuple[str, tuple[str, ...], str] | None:
     if not isinstance(decorator, ast.Call):
         return None
-    if not _is_attribute_call(decorator, "route"):
+    attr_name = _attribute_name_from_call(decorator)
+    if attr_name not in {"route", "get", "post", "put", "delete", "patch"}:
         return None
     route_path = _string_argument_from_call(decorator, positional_index=0, keyword_name=None)
     if route_path is None:
         return None
-    methods = _methods_from_call(decorator)
-    return route_path, methods
+    if attr_name == "route":
+        methods = _methods_from_call(decorator)
+        return route_path, methods, "route_decorator"
+    return route_path, (attr_name.upper(),), f"method_decorator_{attr_name}"
 
 
 def _route_path_from_add_url_rule(call: ast.Call) -> str | None:
     return _string_argument_from_call(call, positional_index=0, keyword_name="rule")
+
+
+def _attribute_name_from_call(call: ast.Call) -> str | None:
+    if not isinstance(call.func, ast.Attribute):
+        return None
+    return call.func.attr
 
 
 def _view_func_name_from_add_url_rule(call: ast.Call) -> str | None:
@@ -838,6 +849,9 @@ def _flask_route_reasoning(
 def _flask_entrypoint_origin(entrypoint_model: str) -> str:
     if entrypoint_model == "add_url_rule":
         return "app.add_url_rule(...) 注册"
+    if entrypoint_model.startswith("method_decorator_"):
+        method = entrypoint_model.removeprefix("method_decorator_")
+        return f"@*.{method}(...) 装饰器"
     return "@*.route(...) 装饰器"
 
 

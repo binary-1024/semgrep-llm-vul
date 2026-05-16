@@ -100,7 +100,7 @@ reachability evidence fixture，并在 `expected.json` 中使用 `reachability` 
 `reachable=true|false|null`、入口类型或阻断因素。
 
 也可以使用 `inputs.source_roots` 指向本地源码 fixture。当前最小实现会从 Python
-源码中提取 Flask `@*.route(...)` 或模块级 `app.add_url_rule(...)` 入口证据，并尝试将入口所在 handler 与候选 taint path 对齐。当前还支持同文件、一层 direct helper call chain：如果 route
+源码中提取 Flask `@*.route(...)`、method-specific decorator（当前已回归 `@*.get(...)`）或模块级 `app.add_url_rule(...)` 入口证据，并尝试将入口所在 handler 与候选 taint path 对齐。当前还支持同文件、一层 direct helper call chain：如果 route
 handler 直接调用同文件 helper，且 sink 位于 helper 函数体内，也可以输出
 `reachable=true`。
 当前还支持 direct import 的跨文件 helper call chain：如果 route handler 直接调用
@@ -158,6 +158,7 @@ case id 使用小写 kebab-case：
 - `curated-open-redirect-safe-wrapper`：positive case，期望从 diff 中生成 `redirect` candidate，同时不包含安全封装名。
 - `curated-open-redirect-taint-path`：M2 taint path candidate case，验证 Semgrep trace 与 `redirect` sink candidate 对齐。
 - `curated-open-redirect-reachability`：M2 reachability positive case，验证本地入口证据可以输出 `reachable=true`。
+- `curated-open-redirect-reachability-app-get`：M2 reachability app-get case，验证 `@app.get(...)` 这类 method-specific decorator 入口也可以输出 `reachable=true`。
 - `curated-open-redirect-reachability-add-url-rule`：M2 reachability add-url-rule case，验证模块级 `app.add_url_rule(...)` 入口注册也可以输出 `reachable=true`。
 - `curated-open-redirect-reachability-blocked`：M2 reachability blocked case，验证明确阻断因素可以输出 `reachable=false`。
 - `curated-open-redirect-reachability-cross-file-helper`：M2 reachability cross-file helper case，验证 route handler 直接调用导入的 helper 时可以输出 `reachable=true`。

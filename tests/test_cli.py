@@ -152,6 +152,32 @@ def test_confirm_reachability_cli_can_extract_flask_source_root(capsys) -> None:
     assert report["assessments"][0]["entrypoint"]["name"] == "GET /login"
 
 
+def test_confirm_reachability_cli_can_extract_app_get_source_root(capsys) -> None:
+    exit_code = main(
+        [
+            "confirm-reachability",
+            str(ROOT / "examples" / "analysis" / "unknown-sink.yaml"),
+            "--semgrep-json",
+            str(ROOT / "fixtures" / "semgrep" / "taint-result-with-app-get-trace.json"),
+            "--source-root",
+            str(ROOT / "fixtures" / "reachability" / "flask-get-app"),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    report = json.loads(captured.out)
+    assert report["kind"] == "reachability_report"
+    assert report["assessments"][0]["reachable"] is True
+    assert report["assessments"][0]["entrypoint"]["name"] == "GET /login"
+    assert (
+        report["assessments"][0]["entrypoint"]["evidence"][0]["source"]["metadata"][
+            "entrypoint_model"
+        ]
+        == "method_decorator_get"
+    )
+
+
 def test_confirm_reachability_cli_can_extract_add_url_rule_source_root(capsys) -> None:
     exit_code = main(
         [
@@ -421,7 +447,7 @@ def test_evaluate_cases_cli_outputs_json_report(capsys) -> None:
     assert exit_code == 0
     report = json.loads(captured.out)
     assert report["kind"] == "benchmark_case_suite_evaluation"
-    assert report["total"] == 24
+    assert report["total"] == 25
     assert report["passed"] is True
 
 
@@ -440,7 +466,7 @@ def test_evaluate_cases_cli_outputs_summary_report(capsys) -> None:
     assert exit_code == 0
     report = json.loads(captured.out)
     assert report["kind"] == "benchmark_case_suite_summary"
-    assert report["total"] == 24
+    assert report["total"] == 25
     assert report["passed"] is True
     assert all("sink_report" not in item for item in report["cases"])
 
@@ -457,8 +483,8 @@ def test_validate_benchmarks_cli_outputs_inventory(capsys) -> None:
     assert exit_code == 0
     inventory = json.loads(captured.out)
     assert inventory["kind"] == "benchmark_case_inventory"
-    assert inventory["summary"]["total"] == 26
-    assert inventory["summary"]["candidate"] == 24
+    assert inventory["summary"]["total"] == 27
+    assert inventory["summary"]["candidate"] == 25
 
 
 def test_benchmark_summary_cli_outputs_short_json(capsys) -> None:
@@ -481,11 +507,11 @@ def test_benchmark_summary_cli_outputs_short_json(capsys) -> None:
     assert summary["passed"] is True
     assert "evaluation" not in summary
     assert "inventory_evaluation" in summary
-    assert summary["inventory"]["summary"]["total"] == 26
+    assert summary["inventory"]["summary"]["total"] == 27
     assert summary["inventory"]["scope"].startswith("case inventory")
-    assert summary["inventory_evaluation"]["summary"]["unsupported"] == 14
+    assert summary["inventory_evaluation"]["summary"]["unsupported"] == 15
     assert summary["inventory_evaluation"]["scope"].startswith("M1 sink generation")
-    assert summary["executable_suite"]["total"] == 24
+    assert summary["executable_suite"]["total"] == 25
     assert summary["executable_suite"]["scope"].startswith("M1/M2")
     assert summary["known_limitations"] == [
         (
@@ -516,7 +542,7 @@ def test_benchmark_baseline_cli_outputs_markdown(capsys) -> None:
     assert "M1 sink generation inventory/gap evaluation" in captured.out
     assert "M1/M2 staged executable case checks" in captured.out
     assert "## Known Limitations" in captured.out
-    assert "| total | 26 |" in captured.out
+    assert "| total | 27 |" in captured.out
     assert "`curated-open-redirect-reachability`" in captured.out
 
 

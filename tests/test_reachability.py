@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SEMGREP_DIR = ROOT / "fixtures" / "semgrep"
 REACHABILITY_DIR = ROOT / "fixtures" / "reachability"
 FLASK_APP_DIR = REACHABILITY_DIR / "flask-app"
+FLASK_GET_APP_DIR = REACHABILITY_DIR / "flask-get-app"
 FLASK_ADD_URL_RULE_APP_DIR = REACHABILITY_DIR / "flask-add-url-rule-app"
 FLASK_ASYNC_APP_DIR = REACHABILITY_DIR / "flask-async-app"
 FLASK_HELPER_APP_DIR = REACHABILITY_DIR / "flask-helper-app"
@@ -62,6 +63,20 @@ def _helper_taint_report():
     sink_report = generate_sink_report(task, semgrep_findings=findings)
     semgrep_paths = tuple(
         load_semgrep_taint_paths(SEMGREP_DIR / "taint-result-with-helper-trace.json")
+    )
+    return generate_taint_path_report(
+        task,
+        sink_report=sink_report,
+        semgrep_taint_paths=semgrep_paths,
+    )
+
+
+def _app_get_taint_report():
+    task = _task()
+    findings = tuple(load_semgrep_findings(SEMGREP_DIR / "taint-result-with-app-get-trace.json"))
+    sink_report = generate_sink_report(task, semgrep_findings=findings)
+    semgrep_paths = tuple(
+        load_semgrep_taint_paths(SEMGREP_DIR / "taint-result-with-app-get-trace.json")
     )
     return generate_taint_path_report(
         task,
@@ -254,6 +269,38 @@ def test_discover_flask_route_evidence_marks_same_handler_path_reachable() -> No
         "login",
         "redirect(next_url)",
     ]
+    assert assessment.source_control is not None
+    assert assessment.source_control.controlled is True
+
+
+def test_discover_flask_route_evidence_supports_app_get_entrypoint() -> None:
+    task = _task()
+    taint_report = _app_get_taint_report()
+    records = discover_flask_route_evidence(
+        FLASK_GET_APP_DIR,
+        taint_paths=taint_report.paths,
+    )
+
+    report = generate_reachability_report(
+        task,
+        taint_report=taint_report,
+        evidence_records=records,
+    )
+
+    assessment = report.assessments[0]
+    assert assessment.reachable is True
+    assert assessment.entrypoint is not None
+    assert assessment.entrypoint.name == "GET /login"
+    assert assessment.entrypoint.location is not None
+    assert assessment.entrypoint.location.start_line == 11
+    assert [step.symbol for step in assessment.call_chain] == [
+        "login",
+        "redirect(next_url)",
+    ]
+    assert assessment.entrypoint.evidence[0].source.metadata["entrypoint_model"] == (
+        "method_decorator_get"
+    )
+    assert "@*.get(...)" in assessment.entrypoint.evidence[0].reasoning
     assert assessment.source_control is not None
     assert assessment.source_control.controlled is True
 
