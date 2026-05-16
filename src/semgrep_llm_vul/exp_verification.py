@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode, urlsplit
 
+from semgrep_llm_vul.managed_fixtures import managed_fixture_targets
 from semgrep_llm_vul.models import (
     Evidence,
     EvidenceKind,
@@ -111,6 +112,26 @@ def collect_local_execution_records(
                 )
             )
     return tuple(records)
+
+
+def collect_managed_fixture_execution_records(
+    poc_report: PocGenerationReport,
+    *,
+    fixture_name: str,
+    timeout_seconds: float = 5.0,
+) -> tuple[ExecutionEvidenceRecord, ...]:
+    """通过仓库内置 managed fixture 获取最小 live execution records。"""
+
+    with managed_fixture_targets(
+        fixture_name,
+        timeout_seconds=timeout_seconds,
+    ) as targets:
+        return collect_local_execution_records(
+            poc_report,
+            affected_base_url=targets.affected_base_url,
+            fixed_base_url=targets.fixed_base_url,
+            timeout_seconds=timeout_seconds,
+        )
 
 
 def load_execution_evidence(path: str | Path) -> tuple[ExecutionEvidenceRecord, ...]:

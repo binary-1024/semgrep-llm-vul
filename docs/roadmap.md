@@ -133,7 +133,7 @@
 
 目标：生成并执行 exp 脚本，用于验证漏洞判断是否正确。
 
-当前状态：M4 第一版最小闭环已完成，并已推进到 M4.1。当前已经可以把 `PocPlan(execution_state=not_run)` 转换成结构化 exp verification report，并结合本地 execution evidence 或 loopback live HTTP replay 对 affected / fixed 版本做最小差分验证；当前 verdict 支持 `verified`、`not_verified`、`inconclusive`，runner 仍保持窄类型 `http_request_replay`，effect observation 当前仅覆盖 Flask open redirect。
+当前状态：M4 第一版最小闭环已完成，并已推进到 M4.2。当前已经可以把 `PocPlan(execution_state=not_run)` 转换成结构化 exp verification report，并结合本地 execution evidence、loopback live HTTP replay 或仓库内置 managed fixture runtime 对 affected / fixed 版本做最小差分验证；当前 verdict 支持 `verified`、`not_verified`、`inconclusive`，runner 仍保持窄类型 `http_request_replay`，effect observation 当前仅覆盖 Flask open redirect。
 
 输入：
 
@@ -164,7 +164,7 @@
 
 ## 当前下一步
 
-当前主线已经完成 M4 第一版最小闭环，并补上了 M4.1 的 loopback live runner。下一步优先扩 M4 的受控运行边界和 effect coverage，而不是重新回到 M2/M3 语法角落。
+当前主线已经完成 M4 第一版最小闭环，并补上了 M4.1 的 loopback live runner 和 M4.2 的 managed fixture runtime。下一步优先扩 M4 的 effect coverage 与少量 opt-in live case，而不是重新回到 M2/M3 语法角落。
 
 M1 当前已经具备：
 
@@ -198,17 +198,18 @@ M2/M3/M4 当前闭环能力：
 - `verify-exp` 已接入最小结构化 exp verification report，可从 M3 plan 派生出 `http_request_replay` request artifact，并结合本地 execution evidence 或 loopback live HTTP replay 输出 `execution_state`、`effect_state` 和最终 `verdict`。
 - M4 executable suite 已覆盖 `verified`、`not_verified` 与 `inconclusive` 三类差分验证结果。
 - M4.1 已有 loopback live runner 的单元测试与 CLI 回归；当前只允许 `localhost` / `127.0.0.1` / `::1`，不自动启动服务，不跟随 redirect。
+- M4.2 已有仓库内置 managed fixture runtime，可由内部 helper 受控地启动 `open_redirect_pair` 并复用现有 live runner；当前不暴露为公开 startup CLI。
 
 建议下一个 M4 扩展任务：
 
 ```md
 ## 任务
 
-在保持当前差分 verification contract 稳定的前提下，把 loopback live runner 推进到受控 fixture app 启停与更广 observation。
+在保持当前差分 verification contract 稳定的前提下，把 managed fixture runtime 推进到少量 opt-in live case 与更广 observation。
 
 ## 背景
 
-当前 M4 已经具备 report-first 差分验证闭环，并已能连接已运行的 loopback 本地服务；但仍未自动启动隔离服务或容器环境。
+当前 M4 已经具备 report-first 差分验证闭环，并已能通过内部 managed fixture runtime 启动最小 loopback 服务；但仍未进入真实项目服务自动启动或容器环境。
 
 ## 范围
 
@@ -225,7 +226,7 @@ M2/M3/M4 当前闭环能力：
 
 ## 验收标准
 
-- 新增受控服务启停或更强 observation 对应的 fixture、case 或隔离测试。
+- 新增 opt-in live case 或更强 observation 对应的 fixture、case 或隔离测试。
 - `./scripts/benchmark` 继续通过。
 - `./scripts/check` 通过。
 ```

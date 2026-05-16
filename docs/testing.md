@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-仓库已经接入 Python/uv 测试 harness。当前测试覆盖包导入、核心数据模型、分析任务 YAML/JSON 输入解析、CLI 行为、Semgrep finding 归一化、Semgrep taint trace 归一化、最小 sink generation pipeline、M2 reachability、M3 结构化 PoC planning、M4 结构化 exp verification，以及 loopback live runner 的本地 HTTP 集成回归。
+仓库已经接入 Python/uv 测试 harness。当前测试覆盖包导入、核心数据模型、分析任务 YAML/JSON 输入解析、CLI 行为、Semgrep finding 归一化、Semgrep taint trace 归一化、最小 sink generation pipeline、M2 reachability、M3 结构化 PoC planning、M4 结构化 exp verification，以及 loopback live runner / managed fixture runtime 的本地 HTTP 集成回归。
 
 ## 测试策略
 
@@ -98,6 +98,8 @@ test_regression_nested_semgrep_trace_location()
 - 不要求数据库、登录态或 secrets
 - 不跟随 redirect
 - 用真实首跳响应来验证 `execution_state`、`effect_state` 和最终 verdict
+
+如果需要自动起本地目标，优先使用仓库内置 managed fixture runtime，而不是任意脚本或 shell 命令。
 
 未来如果出现耗时测试，可增加 marker：
 
