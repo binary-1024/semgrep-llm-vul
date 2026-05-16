@@ -1,0 +1,25 @@
+schema_version: 1
+id: curated-open-redirect-poc-plan-unknown
+type: curated_minimal
+target_stage: M3
+status: candidate
+source:
+  name: project-curated
+  url: null
+  license: project
+target:
+  repo_url: https://github.com/example/flask-app
+  affected_version: v1.0.0
+  fixed_version: v1.0.1
+  language: python
+inputs:
+  description: Open redirect through user-controlled next parameter.
+  mode: unknown_sink
+  semgrep_json:
+    - fixtures/semgrep/taint-result-with-alias-assignment-unknown-trace.json
+  source_roots:
+    - fixtures/reachability/flask-alias-assignment-unknown-app
+safety:
+  contains_poc: false
+  contains_exp: false
+  requires_isolation: false

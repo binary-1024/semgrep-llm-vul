@@ -27,6 +27,7 @@ from semgrep_llm_vul.benchmark_cases import (
     evaluate_benchmark_cases,
     summarize_benchmark_suite,
 )
+from semgrep_llm_vul.poc_generation import generate_poc_report
 from semgrep_llm_vul.reachability import (
     ReachabilityEvidenceError,
     discover_flask_route_evidence,
@@ -34,6 +35,7 @@ from semgrep_llm_vul.reachability import (
     load_reachability_evidence,
 )
 from semgrep_llm_vul.reporting import (
+    poc_generation_report_to_dict,
     reachability_report_to_dict,
     sink_generation_report_to_dict,
     taint_path_generation_report_to_dict,
@@ -69,6 +71,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     if args.command == "confirm-reachability":
         return _confirm_reachability(
+            args.path,
+            semgrep_json=args.semgrep_json,
+            reachability_json=args.reachability_json,
+            source_root=args.source_root,
+            artifact_base=args.artifact_base,
+        )
+    if args.command == "generate-poc":
+        return _generate_poc(
             args.path,
             semgrep_json=args.semgrep_json,
             reachability_json=args.reachability_json,
@@ -178,6 +188,35 @@ def _build_parser() -> argparse.ArgumentParser:
         help="用于提取最小入口证据的本地源码根目录，可重复传入",
     )
     confirm_reachability.add_argument(
+        "--artifact-base",
+        default=None,
+        help="解析本地 artifact 相对路径时使用的基准目录",
+    )
+
+    generate_poc = subparsers.add_parser(
+        "generate-poc",
+        help="基于 reachable=true 路径生成最小结构化 PoC planning JSON 报告",
+    )
+    generate_poc.add_argument("path", help="分析任务输入文件路径")
+    generate_poc.add_argument(
+        "--semgrep-json",
+        action="append",
+        default=[],
+        help="Semgrep JSON 结果路径，可重复传入",
+    )
+    generate_poc.add_argument(
+        "--reachability-json",
+        action="append",
+        default=[],
+        help="本地 reachability evidence JSON 路径，可重复传入",
+    )
+    generate_poc.add_argument(
+        "--source-root",
+        action="append",
+        default=[],
+        help="用于提取最小入口证据的本地源码根目录，可重复传入",
+    )
+    generate_poc.add_argument(
         "--artifact-base",
         default=None,
         help="解析本地 artifact 相对路径时使用的基准目录",
@@ -506,6 +545,77 @@ def _evaluate_benchmarks(
     return 1 if any(item.outcome in {"failed", "error"} for item in evaluations) else 0
 
 
+def _generate_poc(
+    path: str,
+    *,
+    semgrep_json: Sequence[str],
+    reachability_json: Sequence[str],
+    source_root: Sequence[str],
+    artifact_base: str | None,
+) -> int:
+    try:
+        task = load_analysis_input(path)
+        findings = tuple(
+            finding
+            for result_path in semgrep_json
+            for finding in load_semgrep_findings(Path(result_path))
+        )
+        taint_paths = tuple(
+            taint_path
+            for result_path in semgrep_json
+            for taint_path in load_semgrep_taint_paths(Path(result_path))
+        )
+        evidence_records = tuple(
+            record
+            for evidence_path in reachability_json
+            for record in load_reachability_evidence(Path(evidence_path))
+        ) + tuple(
+            record
+            for root in source_root
+            for record in discover_flask_route_evidence(
+                Path(root),
+                taint_paths=taint_paths,
+            )
+        )
+        sink_report = generate_sink_report(
+            task,
+            semgrep_findings=findings,
+            artifact_base=artifact_base,
+        )
+        taint_report = generate_taint_path_report(
+            task,
+            sink_report=sink_report,
+            semgrep_taint_paths=taint_paths,
+        )
+        reachability_report = generate_reachability_report(
+            task,
+            taint_report=taint_report,
+            evidence_records=evidence_records,
+        )
+        report = generate_poc_report(
+            task,
+            reachability_report=reachability_report,
+        )
+    except (
+        AnalysisInputError,
+        ReachabilityEvidenceError,
+        SemgrepParseError,
+        SinkGenerationError,
+    ) as exc:
+        print(f"generate poc failed: {exc}", file=sys.stderr)
+        return 1
+
+    print(
+        json.dumps(
+            poc_generation_report_to_dict(report, task=task),
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
 def _validate_benchmarks(path: str) -> int:
     try:
         cases = discover_benchmark_cases(path)
@@ -596,7 +706,7 @@ def _benchmark_summary_data(
         "known_limitations": [
             (
                 "inventory_evaluation 当前只评估 M1 sink generation inventory/gap；"
-                "M2 pass/fail 以 executable_suite 为准。"
+                "M2/M3 pass/fail 以 executable_suite 为准。"
             )
         ],
         "inventory": {
@@ -610,7 +720,7 @@ def _benchmark_summary_data(
             "gaps": evaluation["gaps"],
         },
         "executable_suite": {
-            "scope": "M1/M2 staged executable case checks",
+            "scope": "M1/M2/M3 staged executable case checks",
             "total": executable["total"],
             "passed": executable["passed"],
             "passed_count": executable["passed_count"],

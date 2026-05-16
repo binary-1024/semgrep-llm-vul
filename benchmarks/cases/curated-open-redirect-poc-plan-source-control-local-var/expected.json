@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "stage": "M3",
+  "expected_status": "candidate",
+  "plan_count": 1,
+  "poc_plans": [
+    {
+      "verdict": "planned",
+      "execution_state": "not_run",
+      "vulnerability_type": "open_redirect",
+      "sink_name": "redirect",
+      "source_name": "next_url",
+      "entrypoint_name": "GET /login",
+      "parameter_location": "query_or_form",
+      "parameter_name": "next",
+      "request_method": "GET",
+      "request_path": "/login"
+    }
+  ],
+  "unknowns_include": [
+    "request.values"
+  ]
+}

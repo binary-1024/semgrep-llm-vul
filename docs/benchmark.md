@@ -185,10 +185,11 @@ uv run semgrep-llm-vul benchmark-baseline --artifact-base . --repo-root . --mark
 
 - `inventory`：case 清单、来源覆盖、声明状态和阶段覆盖。
 - `inventory_evaluation`：M1 sink generation inventory/gap evaluation。这里的 M2 `unsupported_stage` 只表示 inventory evaluator 尚未扩展到 M2。
-- `executable_suite`：M1/M2 staged executable case checks。M2 pass/fail 以这一层为准。
-- `known_limitations`：解释当前 summary 输出中可能被误读的限制。
+- `executable_suite`：M1/M2/M3 staged executable case checks。M2/M3 pass/fail 以这一层为准。
+- `known_limitations`：解释当前 summary 输出中可能被误读的限制，例如 M2/M3 在 inventory evaluator 中仍会显示为 `unsupported_stage`，但 executable suite 已可执行。
 
 第三阶段：
 
-- 扩展到 M2 reachability、M3 PoC、M4 exp。
+- 已扩展到 M2 reachability 与 M3 结构化 PoC planning。
+- 后续继续扩展到 M4 exp。
 - 支持外部 benchmark 下载缓存，但不提交原始大数据。

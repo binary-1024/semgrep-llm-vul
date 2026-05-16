@@ -1,4 +1,4 @@
-"""benchmark/case harness 的最小 M1/M2 evaluator。"""
+"""benchmark/case harness 的最小 M1/M2/M3 evaluator。"""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from semgrep_llm_vul.analysis_input import AnalysisInputError, parse_analysis_input
+from semgrep_llm_vul.poc_generation import generate_poc_report
 from semgrep_llm_vul.reachability import (
     ReachabilityEvidenceError,
     discover_flask_route_evidence,
@@ -17,6 +18,7 @@ from semgrep_llm_vul.reachability import (
     load_reachability_evidence,
 )
 from semgrep_llm_vul.reporting import (
+    poc_generation_report_to_dict,
     reachability_report_to_dict,
     sink_generation_report_to_dict,
     taint_path_generation_report_to_dict,
@@ -53,7 +55,9 @@ def evaluate_benchmark_case(
         return _evaluate_m1_case(case_data, expected, repo_root=repo_root)
     if stage == "M2":
         return _evaluate_m2_case(case_data, expected, repo_root=repo_root)
-    raise BenchmarkCaseError("第一版 evaluator 仅支持 target_stage=M1 或 M2")
+    if stage == "M3":
+        return _evaluate_m3_case(case_data, expected, repo_root=repo_root)
+    raise BenchmarkCaseError("第一版 evaluator 仅支持 target_stage=M1、M2 或 M3")
 
 
 def _evaluate_m1_case(
@@ -150,6 +154,79 @@ def _evaluate_m2_case(
     if reachability_json or source_roots or expected.get("reachability"):
         result["reachability_report"] = reachability_dict
     return result
+
+
+def _evaluate_m3_case(
+    case_data: dict[str, Any],
+    expected: dict[str, Any],
+    *,
+    repo_root: str | Path | None,
+) -> dict[str, Any]:
+    task = _case_to_task(case_data)
+    root = _repo_root(repo_root)
+    semgrep_json = _semgrep_json_paths(case_data, repo_root=root)
+    reachability_json = _reachability_json_paths(case_data, repo_root=root)
+    source_roots = _source_root_paths(case_data, repo_root=root)
+    try:
+        findings = tuple(
+            finding
+            for result_path in semgrep_json
+            for finding in load_semgrep_findings(result_path)
+        )
+        taint_paths = tuple(
+            taint_path
+            for result_path in semgrep_json
+            for taint_path in load_semgrep_taint_paths(result_path)
+        )
+        reachability_records = tuple(
+            record
+            for evidence_path in reachability_json
+            for record in load_reachability_evidence(evidence_path)
+        )
+    except (ReachabilityEvidenceError, SemgrepParseError) as exc:
+        raise BenchmarkCaseError(f"case evidence 无法解析：{exc}") from exc
+
+    sink_report = generate_sink_report(task, semgrep_findings=findings, artifact_base=root)
+    taint_report = generate_taint_path_report(
+        task,
+        sink_report=sink_report,
+        semgrep_taint_paths=taint_paths,
+    )
+    try:
+        source_root_records = tuple(
+            record
+            for source_root in source_roots
+            for record in discover_flask_route_evidence(
+                source_root,
+                taint_paths=taint_report.paths,
+            )
+        )
+    except ReachabilityEvidenceError as exc:
+        raise BenchmarkCaseError(f"case source root 无法解析：{exc}") from exc
+
+    reachability_report = generate_reachability_report(
+        task,
+        taint_report=taint_report,
+        evidence_records=(*reachability_records, *source_root_records),
+    )
+    poc_report = generate_poc_report(
+        task,
+        reachability_report=reachability_report,
+    )
+    reachability_dict = reachability_report_to_dict(reachability_report, task=task)
+    poc_dict = poc_generation_report_to_dict(poc_report, task=task)
+    checks = _m3_checks(poc_dict, expected)
+
+    return {
+        "schema_version": 1,
+        "kind": "benchmark_case_evaluation",
+        "case_id": _required_str(case_data, "id"),
+        "stage": _required_str(case_data, "target_stage"),
+        "passed": all(check["passed"] for check in checks),
+        "checks": checks,
+        "reachability_report": reachability_dict,
+        "poc_report": poc_dict,
+    }
 
 
 def evaluate_benchmark_cases(
@@ -280,7 +357,7 @@ def _discover_case_dirs(cases_root: Path) -> list[Path]:
         case_data = _load_case_yaml(path / "case.yaml")
         if case_data.get("status") != "candidate":
             continue
-        if case_data.get("target_stage") not in {"M1", "M2"}:
+        if case_data.get("target_stage") not in {"M1", "M2", "M3"}:
             continue
         case_dirs.append(path)
     if not case_dirs:
@@ -338,6 +415,63 @@ def _reachability_checks(
                 ),
             }
         )
+    return checks
+
+
+def _m3_checks(report: dict[str, Any], expected: dict[str, Any]) -> list[dict[str, Any]]:
+    checks = []
+    expected_plan_count = expected.get("plan_count")
+    if expected_plan_count is not None:
+        if not isinstance(expected_plan_count, int) or expected_plan_count < 0:
+            raise BenchmarkCaseError("expected.plan_count 必须是非负整数")
+        actual_count = len(report["plans"])
+        checks.append(
+            {
+                "name": "expected_plan_count",
+                "passed": actual_count == expected_plan_count,
+                "expected": expected_plan_count,
+                "message": (
+                    "PoC plan 数量符合预期"
+                    if actual_count == expected_plan_count
+                    else f"PoC plan 数量不符：actual={actual_count}"
+                ),
+            }
+        )
+
+    for index, expected_plan in enumerate(expected.get("poc_plans", [])):
+        if not isinstance(expected_plan, dict):
+            raise BenchmarkCaseError(f"expected.poc_plans[{index}] 必须是 object")
+        matched = any(_poc_plan_matches(candidate, expected_plan) for candidate in report["plans"])
+        checks.append(
+            {
+                "name": f"expected_poc_plan[{index}]",
+                "passed": matched,
+                "expected": expected_plan,
+                "message": "期望 PoC plan 已出现" if matched else "期望 PoC plan 未出现",
+            }
+        )
+
+    for index, fragment in enumerate(expected.get("unknowns_include", [])):
+        if not isinstance(fragment, str) or not fragment:
+            raise BenchmarkCaseError(f"expected.unknowns_include[{index}] 必须是非空字符串")
+        matched = any(fragment in item for item in report.get("unknowns", [])) or any(
+            fragment in item
+            for plan in report.get("plans", [])
+            for item in plan.get("unknowns", [])
+        )
+        checks.append(
+            {
+                "name": f"unknowns_include[{index}]",
+                "passed": matched,
+                "expected": fragment,
+                "message": (
+                    "报告 unknowns 包含预期片段"
+                    if matched
+                    else "报告 unknowns 缺少预期片段"
+                ),
+            }
+        )
+
     return checks
 
 
@@ -469,6 +603,58 @@ def _reachability_matches(
         kinds = {factor["kind"] for factor in candidate.get("blocking_factors", [])}
         if expected_assessment["blocking_factor_kind"] not in kinds:
             return False
+    return True
+
+
+def _poc_plan_matches(
+    candidate: dict[str, Any],
+    expected_plan: dict[str, Any],
+) -> bool:
+    if "verdict" in expected_plan and candidate.get("verdict") != expected_plan["verdict"]:
+        return False
+    if (
+        "execution_state" in expected_plan
+        and candidate.get("execution_state") != expected_plan["execution_state"]
+    ):
+        return False
+    if (
+        "vulnerability_type" in expected_plan
+        and candidate.get("vulnerability_type") != expected_plan["vulnerability_type"]
+    ):
+        return False
+    if "sink_name" in expected_plan:
+        sink_name = candidate["path"]["sink"]["signature"]["name"]
+        if sink_name != expected_plan["sink_name"]:
+            return False
+    if "source_name" in expected_plan:
+        source_name = candidate["path"]["source"]["name"]
+        if source_name != expected_plan["source_name"]:
+            return False
+    entrypoint = candidate.get("entrypoint") or {}
+    if (
+        "entrypoint_name" in expected_plan
+        and entrypoint.get("name") != expected_plan["entrypoint_name"]
+    ):
+        return False
+    trigger_input = candidate.get("trigger_input") or {}
+    if (
+        "parameter_location" in expected_plan
+        and trigger_input.get("location") != expected_plan["parameter_location"]
+    ):
+        return False
+    if (
+        "parameter_name" in expected_plan
+        and trigger_input.get("name") != expected_plan["parameter_name"]
+    ):
+        return False
+    request = candidate.get("request") or {}
+    if (
+        "request_method" in expected_plan
+        and request.get("method") != expected_plan["request_method"]
+    ):
+        return False
+    if "request_path" in expected_plan and request.get("path") != expected_plan["request_path"]:
+        return False
     return True
 
 

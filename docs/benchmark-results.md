@@ -39,12 +39,12 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 
 ## Inventory Baseline
 
-当前 `benchmarks/cases/` 共收录 30 个 case：
+当前 `benchmarks/cases/` 共收录 33 个 case：
 
 | 维度 | 数量 |
 | --- | ---: |
-| total | 30 |
-| candidate | 28 |
+| total | 33 |
+| candidate | 31 |
 | unsupported | 1 |
 | blocked | 1 |
 
@@ -54,13 +54,13 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 | --- | ---: |
 | M1 | 12 |
 | M2 | 17 |
-| M3 | 1 |
+| M3 | 4 |
 
 按 case 类型：
 
 | 类型 | 数量 |
 | --- | ---: |
-| curated_minimal | 25 |
+| curated_minimal | 28 |
 | real_vulnerability | 3 |
 | synthetic_benchmark | 2 |
 
@@ -68,7 +68,7 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 
 | 来源 | 数量 |
 | --- | ---: |
-| project-curated | 25 |
+| project-curated | 28 |
 | CVEfixes | 1 |
 | NIST SARD / Juliet-style CWE sample | 1 |
 | OWASP Benchmark | 1 |
@@ -82,16 +82,19 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 | outcome | 数量 |
 | --- | ---: |
 | passed | 11 |
-| unsupported | 18 |
+| unsupported | 21 |
 | blocked | 1 |
 | failed | 0 |
 | error | 0 |
-| total | 30 |
+| total | 33 |
 
 当前 gaps：
 
 | case | code | 说明 |
 | --- | --- | --- |
+| `curated-open-redirect-poc-plan-blocked` | `unsupported_stage` | inventory evaluator 当前不支持 M3。 |
+| `curated-open-redirect-poc-plan-source-control-local-var` | `unsupported_stage` | inventory evaluator 当前不支持 M3。 |
+| `curated-open-redirect-poc-plan-unknown` | `unsupported_stage` | inventory evaluator 当前不支持 M3。 |
 | `curated-open-redirect-reachability` | `unsupported_stage` | inventory evaluator 当前不支持 M2。 |
 | `curated-open-redirect-reachability-add-url-rule` | `unsupported_stage` | inventory evaluator 当前不支持 M2。 |
 | `curated-open-redirect-reachability-alias-assignment-unknown` | `unsupported_stage` | inventory evaluator 当前不支持 M2。 |
@@ -116,8 +119,8 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 
 | 指标 | 数量 |
 | --- | ---: |
-| total | 28 |
-| passed_count | 28 |
+| total | 31 |
+| passed_count | 31 |
 | failed_count | 0 |
 
 ## 能力边界
@@ -128,11 +131,12 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 - M1 negative case 回归，包括安全 wrapper、safe API、diff 删除行和证据不足场景。
 - M2 taint path candidate、reachability `true|false|null`、Flask decorator route positive、Flask `@*.get(...)` method-specific decorator positive、Blueprint + `register_blueprint(..., url_prefix=...)` positive、未注册 Blueprint 保持 `reachable=null`、模块级 `app.add_url_rule(...)` route positive、同文件 helper call chain、跨文件 direct helper call chain、module alias attribute call helper call chain、`ImportFrom` module attribute call / alias call helper call chain、有界 multi-layer helper call chain、handler-local 相对路径 guard 的 `reachable=false`、基于 `source.location` 的 source controllability 本地 AST 证据，以及 assignment alias 保持 `reachable=null` 的最小 curated case 回归。
 - benchmark inventory、gap 和 executable suite 三层输出。
-- benchmark summary 使用 `inventory_evaluation` 和 `executable_suite` 区分 inventory/gap evaluation 与 M1/M2 executable suite，避免把 M2 `unsupported_stage` 误读为 M2 suite 不支持。
+- benchmark summary 使用 `inventory_evaluation` 和 `executable_suite` 区分 inventory/gap evaluation 与 M1/M2/M3 executable suite，避免把 M2/M3 `unsupported_stage` 误读为 suite 不支持。
 
 当前未覆盖或暂不自动化：
 
 - M2 reachability `true|false|null` 已有最小本地证据模型和 curated 回归，且已能从本地 Flask fixture 源码提取 decorator route 证据、`@*.get(...)` 这类 method-specific decorator 证据、Blueprint + `register_blueprint(..., url_prefix=...)` 组合证据、模块级 `app.add_url_rule(...)` registration 证据、同文件 helper call chain 证据、direct import 的跨文件 helper call chain 证据、module alias attribute call 证据、`ImportFrom` module attribute call / alias call 证据、最多两层 helper hop 的局部 helper chain 证据、handler-local 相对路径 guard 的 blocking evidence，以及 `source.location` 对应赋值语句的 source controllability AST 证据；普通 assignment alias、未注册 Blueprint 和更一般的 guard/sanitizer 当前继续保持 `reachable=null`。
+- M3 当前仍是 planning-first；尚未进入真实执行、隔离环境和受影响版本/修复版本对照。
 - 完整 CVEfixes ingestion 尚未实现。
 - Vul4J 等需要 checkout、构建、运行或隔离环境的 case 尚未进入自动执行。
 - 真实外部项目的大规模 benchmark 下载、缓存和采样流程尚未建立。
@@ -140,12 +144,11 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 
 ## 下一步
 
-当前 M2 第一版已闭环。下一步优先服务 M3，而不是继续无止境扩 M2 语法角落；只有当 M3 暴露新的 blocker 时，再补能揭示缺陷的 case：
+当前 M3 第一版已闭环。下一步优先服务 M4，而不是继续无止境扩 M2/M3 语法角落；只有当 M4 暴露新的 blocker 时，再补能揭示缺陷的 case：
 
-- 扩展更多框架入口模型或更真实的调用链证据。
-- Semgrep 有候选路径但入口证据不足的 case。
-- wrapper、更一般的 alias/assignment、indirect call 造成的误报或漏报边界。
-- 名称相似但语义不同的 sink negative case。
+- 最小 execution state 与日志 contract。
+- 受影响版本 / 修复版本对照验证的结构化输出。
+- 隔离运行边界、timeout、危险动作分类。
 - 真实漏洞裁剪 case 的来源、许可证和安全边界记录。
 
 当这些 case 暴露稳定失败模式时，应把失败模式转化为单元测试、fixture 或新的 Insight/ADR。

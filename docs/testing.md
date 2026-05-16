@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-仓库已经接入 Python/uv 测试 harness。当前测试覆盖包导入、核心数据模型、分析任务 YAML/JSON 输入解析、CLI 行为、Semgrep finding 归一化、Semgrep taint trace 归一化和最小 sink generation pipeline。
+仓库已经接入 Python/uv 测试 harness。当前测试覆盖包导入、核心数据模型、分析任务 YAML/JSON 输入解析、CLI 行为、Semgrep finding 归一化、Semgrep taint trace 归一化、最小 sink generation pipeline、M2 reachability 和 M3 结构化 PoC planning。
 
 ## 测试策略
 
@@ -108,8 +108,9 @@ test_regression_nested_semgrep_trace_location()
 - sink generation report。
 - taint path generation report。
 - reachability report。
+- PoC generation report。
 - benchmark summary 和 baseline 输出。
-- 未来 PoC/exp report。
+- 未来 exp report。
 
 要求：
 

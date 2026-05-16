@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "stage": "M3",
+  "expected_status": "candidate",
+  "plan_count": 0,
+  "poc_plans": [],
+  "unknowns_include": [
+    "reachable=null 的路径证据不足"
+  ]
+}

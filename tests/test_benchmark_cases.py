@@ -297,6 +297,38 @@ def test_evaluate_benchmark_case_passes_curated_m2_source_control_local_var_case
     )
 
 
+def test_evaluate_benchmark_case_passes_curated_m3_poc_plan_case() -> None:
+    result = evaluate_benchmark_case(
+        CASES_ROOT / "curated-open-redirect-poc-plan-source-control-local-var",
+        repo_root=ROOT,
+    )
+
+    assert result["kind"] == "benchmark_case_evaluation"
+    assert result["case_id"] == "curated-open-redirect-poc-plan-source-control-local-var"
+    assert result["stage"] == "M3"
+    assert result["passed"] is True
+    plan = result["poc_report"]["plans"][0]
+    assert plan["execution_state"] == "not_run"
+    assert plan["request"]["method"] == "GET"
+    assert plan["request"]["path"] == "/login"
+    assert plan["trigger_input"]["location"] == "query_or_form"
+    assert plan["trigger_input"]["name"] == "next"
+
+
+def test_evaluate_benchmark_case_passes_curated_m3_blocked_case() -> None:
+    result = evaluate_benchmark_case(
+        CASES_ROOT / "curated-open-redirect-poc-plan-blocked",
+        repo_root=ROOT,
+    )
+
+    assert result["kind"] == "benchmark_case_evaluation"
+    assert result["case_id"] == "curated-open-redirect-poc-plan-blocked"
+    assert result["stage"] == "M3"
+    assert result["passed"] is True
+    assert result["poc_report"]["plans"] == []
+    assert "reachable=false 的路径保留为阻断证据" in result["poc_report"]["unknowns"][0]
+
+
 def test_evaluate_benchmark_case_passes_curated_m2_reachability_alias_assignment_unknown_case(
 ) -> None:
     result = evaluate_benchmark_case(
@@ -334,14 +366,17 @@ def test_evaluate_benchmark_cases_summarizes_curated_cases() -> None:
     result = evaluate_benchmark_cases(CASES_ROOT, repo_root=ROOT)
 
     assert result["kind"] == "benchmark_case_suite_evaluation"
-    assert result["total"] == 28
+    assert result["total"] == 31
     assert result["passed"] is True
-    assert result["passed_count"] == 28
+    assert result["passed_count"] == 31
     assert result["failed_count"] == 0
     assert {item["case_id"] for item in result["results"]} == {
         "curated-command-execution-system",
         "curated-deserialization-deserialize",
         "curated-insufficient-evidence",
+        "curated-open-redirect-poc-plan-blocked",
+        "curated-open-redirect-poc-plan-source-control-local-var",
+        "curated-open-redirect-poc-plan-unknown",
         "curated-open-redirect-reachability-app-get",
         "curated-open-redirect-reachability-add-url-rule",
         "curated-open-redirect-reachability-alias-assignment-unknown",
@@ -376,7 +411,7 @@ def test_summarize_benchmark_suite_omits_full_sink_reports() -> None:
     summary = summarize_benchmark_suite(result)
 
     assert summary["kind"] == "benchmark_case_suite_summary"
-    assert summary["total"] == 28
+    assert summary["total"] == 31
     assert summary["passed"] is True
     assert all("sink_report" not in item for item in summary["cases"])
     assert all(item["failed_checks"] == [] for item in summary["cases"])

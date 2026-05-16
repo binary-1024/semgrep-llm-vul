@@ -9,6 +9,9 @@ from semgrep_llm_vul.models import (
     CodeLocation,
     Evidence,
     FunctionSignature,
+    PocPlan,
+    PocRequestShape,
+    PocTriggerInput,
     ReachabilityAssessment,
     ReachabilityCallStep,
     ReachabilityEntrypoint,
@@ -21,6 +24,7 @@ from semgrep_llm_vul.models import (
     TaintPath,
     VulnerabilityInput,
 )
+from semgrep_llm_vul.poc_generation import PocGenerationReport
 from semgrep_llm_vul.reachability import ReachabilityReport
 from semgrep_llm_vul.taint_path_generation import TaintPathGenerationReport
 
@@ -121,6 +125,29 @@ def semantic_hint_report_to_dict(
     }
 
 
+def poc_generation_report_to_dict(
+    report: PocGenerationReport,
+    *,
+    task: VulnerabilityInput,
+) -> dict[str, Any]:
+    """将 PoC planning report 转为稳定 JSON 结构。"""
+
+    return {
+        "schema_version": 1,
+        "kind": "poc_generation_report",
+        "mode": task.mode.value,
+        "target": {
+            "repo_url": task.target.repo_url,
+            "affected_version": task.target.affected_version,
+            "fixed_version": task.target.fixed_version,
+            "language": task.target.language,
+        },
+        "plans": [_poc_plan_to_dict(plan) for plan in report.plans],
+        "evidence": [_evidence_to_dict(evidence) for evidence in report.evidence],
+        "unknowns": list(report.unknowns),
+    }
+
+
 def _reachability_assessment_to_dict(
     assessment: ReachabilityAssessment,
 ) -> dict[str, Any]:
@@ -153,6 +180,45 @@ def _semantic_hint_to_dict(hint: SemanticHint) -> dict[str, Any]:
         "preconditions": list(hint.preconditions),
         "failure_modes": list(hint.failure_modes),
         "unknowns": list(hint.unknowns),
+    }
+
+
+def _poc_plan_to_dict(plan: PocPlan) -> dict[str, Any]:
+    return {
+        "verdict": plan.verdict.value,
+        "execution_state": plan.execution_state.value,
+        "vulnerability_type": plan.vulnerability_type,
+        "path": _taint_path_to_dict(plan.path),
+        "entrypoint": _entrypoint_to_dict(plan.entrypoint),
+        "call_chain": [_call_step_to_dict(step) for step in plan.call_chain],
+        "trigger_input": _trigger_input_to_dict(plan.trigger_input),
+        "request": _request_shape_to_dict(plan.request),
+        "expected_effect": plan.expected_effect,
+        "preconditions": list(plan.preconditions),
+        "limitations": list(plan.limitations),
+        "evidence": [_evidence_to_dict(evidence) for evidence in plan.evidence],
+        "unknowns": list(plan.unknowns),
+    }
+
+
+def _trigger_input_to_dict(trigger_input: PocTriggerInput) -> dict[str, Any]:
+    return {
+        "location": trigger_input.location.value,
+        "name": trigger_input.name,
+        "value": trigger_input.value,
+        "reasoning": trigger_input.reasoning,
+    }
+
+
+def _request_shape_to_dict(request: PocRequestShape) -> dict[str, Any]:
+    return {
+        "method": request.method,
+        "path": request.path,
+        "parameter_location": request.parameter_location.value,
+        "parameters": [
+            {"name": parameter.name, "value": parameter.value}
+            for parameter in request.parameters
+        ],
     }
 
 

@@ -98,7 +98,7 @@ def test_benchmark_templates_exist_and_are_not_discovered_as_cases() -> None:
 
     discovered_from_root = discover_benchmark_cases(ROOT / "benchmarks")
 
-    assert len(discovered_from_root) == 30
+    assert len(discovered_from_root) == 33
     assert all(case.case_id != "replace-with-kebab-case-id" for case in discovered_from_root)
 
 
@@ -186,148 +186,38 @@ def test_benchmark_evaluations_to_dict_counts_outcomes() -> None:
     assert report["summary"]["failed"] == 0
     assert report["summary"]["passed"] == 11
     assert report["summary"]["blocked"] == 1
-    assert report["summary"]["unsupported"] == 18
+    assert report["summary"]["unsupported"] == 21
     assert report["coverage"]["by_type"] == {
-        "curated_minimal": 25,
+        "curated_minimal": 28,
         "real_vulnerability": 3,
         "synthetic_benchmark": 2,
     }
-    assert report["coverage"]["by_stage"] == {"M1": 12, "M2": 17, "M3": 1}
-    assert report["gaps"] == [
-        {
-            "case_id": "curated-open-redirect-reachability",
-            "code": "unsupported_stage",
-            "stage": "M2",
-            "source": "project-curated",
-            "message": "当前 evaluator 不支持 M2。",
-        },
-        {
-            "case_id": "curated-open-redirect-reachability-add-url-rule",
-            "code": "unsupported_stage",
-            "stage": "M2",
-            "source": "project-curated",
-            "message": "当前 evaluator 不支持 M2。",
-        },
-        {
-            "case_id": "curated-open-redirect-reachability-alias-assignment-unknown",
-            "code": "unsupported_stage",
-            "stage": "M2",
-            "source": "project-curated",
-            "message": "当前 evaluator 不支持 M2。",
-        },
-        {
-            "case_id": "curated-open-redirect-reachability-app-get",
-            "code": "unsupported_stage",
-            "stage": "M2",
-            "source": "project-curated",
-            "message": "当前 evaluator 不支持 M2。",
-        },
-        {
-            "case_id": "curated-open-redirect-reachability-blocked",
-            "code": "unsupported_stage",
-            "stage": "M2",
-            "source": "project-curated",
-            "message": "当前 evaluator 不支持 M2。",
-        },
-        {
-            "case_id": "curated-open-redirect-reachability-blueprint-prefix",
-            "code": "unsupported_stage",
-            "stage": "M2",
-            "source": "project-curated",
-            "message": "当前 evaluator 不支持 M2。",
-        },
-        {
-            "case_id": "curated-open-redirect-reachability-blueprint-unregistered",
-            "code": "unsupported_stage",
-            "stage": "M2",
-            "source": "project-curated",
-            "message": "当前 evaluator 不支持 M2。",
-        },
-        {
-            "case_id": "curated-open-redirect-reachability-cross-file-helper",
-            "code": "unsupported_stage",
-            "stage": "M2",
-            "source": "project-curated",
-            "message": "当前 evaluator 不支持 M2。",
-        },
-        {
-            "case_id": "curated-open-redirect-reachability-from-import-alias-helper",
-            "code": "unsupported_stage",
-            "stage": "M2",
-            "source": "project-curated",
-            "message": "当前 evaluator 不支持 M2。",
-        },
-        {
-            "case_id": "curated-open-redirect-reachability-from-import-helper",
-            "code": "unsupported_stage",
-            "stage": "M2",
-            "source": "project-curated",
-            "message": "当前 evaluator 不支持 M2。",
-        },
-        {
-            "case_id": "curated-open-redirect-reachability-helper",
-            "code": "unsupported_stage",
-            "stage": "M2",
-            "source": "project-curated",
-            "message": "当前 evaluator 不支持 M2。",
-        },
-        {
-            "case_id": "curated-open-redirect-reachability-import-alias-helper",
-            "code": "unsupported_stage",
-            "stage": "M2",
-            "source": "project-curated",
-            "message": "当前 evaluator 不支持 M2。",
-        },
-        {
-            "case_id": "curated-open-redirect-reachability-multi-layer-helper",
-            "code": "unsupported_stage",
-            "stage": "M2",
-            "source": "project-curated",
-            "message": "当前 evaluator 不支持 M2。",
-        },
-        {
-            "case_id": "curated-open-redirect-reachability-relative-path-guard",
-            "code": "unsupported_stage",
-            "stage": "M2",
-            "source": "project-curated",
-            "message": "当前 evaluator 不支持 M2。",
-        },
-        {
-            "case_id": "curated-open-redirect-reachability-source-control-local-var",
-            "code": "unsupported_stage",
-            "stage": "M2",
-            "source": "project-curated",
-            "message": "当前 evaluator 不支持 M2。",
-        },
-        {
-            "case_id": "curated-open-redirect-reachability-unknown",
-            "code": "unsupported_stage",
-            "stage": "M2",
-            "source": "project-curated",
-            "message": "当前 evaluator 不支持 M2。",
-        },
-        {
-            "case_id": "curated-open-redirect-taint-path",
-            "code": "unsupported_stage",
-            "stage": "M2",
-            "source": "project-curated",
-            "message": "当前 evaluator 不支持 M2。",
-        },
-        {
-            "case_id": "cvefixes-dataset-intake-unsupported",
-            "code": "unsupported_source_ingestion",
-            "stage": "M1",
-            "source": "CVEfixes",
-            "message": "当前不支持直接导入完整 CVEfixes 数据库。",
-        },
-        {
-            "case_id": "vul4j-real-java-intake-blocked",
-            "code": "blocked_runtime",
-            "stage": "M3",
-            "source": "Vul4J",
-            "message": "需要隔离环境、checkout 或运行边界后才能执行。",
-        },
-    ]
+    assert report["coverage"]["by_stage"] == {"M1": 12, "M2": 17, "M3": 4}
+    gap_ids = {gap["case_id"] for gap in report["gaps"]}
+    assert gap_ids == {
+        "curated-open-redirect-poc-plan-blocked",
+        "curated-open-redirect-poc-plan-source-control-local-var",
+        "curated-open-redirect-poc-plan-unknown",
+        "curated-open-redirect-reachability",
+        "curated-open-redirect-reachability-add-url-rule",
+        "curated-open-redirect-reachability-alias-assignment-unknown",
+        "curated-open-redirect-reachability-app-get",
+        "curated-open-redirect-reachability-blocked",
+        "curated-open-redirect-reachability-blueprint-prefix",
+        "curated-open-redirect-reachability-blueprint-unregistered",
+        "curated-open-redirect-reachability-cross-file-helper",
+        "curated-open-redirect-reachability-from-import-alias-helper",
+        "curated-open-redirect-reachability-from-import-helper",
+        "curated-open-redirect-reachability-helper",
+        "curated-open-redirect-reachability-import-alias-helper",
+        "curated-open-redirect-reachability-multi-layer-helper",
+        "curated-open-redirect-reachability-relative-path-guard",
+        "curated-open-redirect-reachability-source-control-local-var",
+        "curated-open-redirect-reachability-unknown",
+        "curated-open-redirect-taint-path",
+        "cvefixes-dataset-intake-unsupported",
+        "vul4j-real-java-intake-blocked",
+    }
     first_case = report["cases"][0]
     assert first_case["type"] in {
         "curated_minimal",
@@ -345,12 +235,12 @@ def test_benchmark_cases_to_dict_outputs_inventory() -> None:
 
     assert inventory["kind"] == "benchmark_case_inventory"
     assert inventory["summary"] == {
-        "total": 30,
-        "candidate": 28,
+        "total": 33,
+        "candidate": 31,
         "blocked": 1,
         "unsupported": 1,
     }
-    assert inventory["coverage"]["by_stage"] == {"M1": 12, "M2": 17, "M3": 1}
+    assert inventory["coverage"]["by_stage"] == {"M1": 12, "M2": 17, "M3": 4}
     assert inventory["cases"][0]["safety"]["contains_poc"] is False
 
 
@@ -441,10 +331,10 @@ def test_evaluate_benchmarks_cli_outputs_json_report(capsys) -> None:
     report = json.loads(captured.out)
     assert report["kind"] == "benchmark_evaluation_report"
     assert report["summary"]["failed"] == 0
-    assert report["summary"]["total"] == 30
+    assert report["summary"]["total"] == 33
     assert report["summary"]["passed"] == 11
     assert report["summary"]["blocked"] == 1
-    assert report["summary"]["unsupported"] == 18
+    assert report["summary"]["unsupported"] == 21
     assert {gap["code"] for gap in report["gaps"]} == {
         "blocked_runtime",
         "unsupported_stage",

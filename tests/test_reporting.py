@@ -6,13 +6,27 @@ from semgrep_llm_vul import (
     Evidence,
     FunctionSignature,
     InputMode,
+    PocExecutionState,
+    PocParameterLocation,
+    PocPlan,
+    PocRequestParameter,
+    PocRequestShape,
+    PocTriggerInput,
+    PocVerdict,
+    ReachabilityEntrypoint,
     SemanticHint,
     SemanticHintKind,
     SemanticHintReport,
+    SinkCandidate,
+    SourceCandidate,
+    TaintPath,
+    TaintStep,
     VulnerabilityInput,
 )
 from semgrep_llm_vul.models import EvidenceKind, SourceReference
+from semgrep_llm_vul.poc_generation import PocGenerationReport
 from semgrep_llm_vul.reporting import (
+    poc_generation_report_to_dict,
     semantic_hint_report_to_dict,
     sink_generation_report_to_dict,
     taint_path_generation_report_to_dict,
@@ -140,3 +154,86 @@ def test_semantic_hint_report_to_dict_has_stable_shape() -> None:
         "Could be a safe wrapper that validates destinations."
     ]
     assert report["unknowns"] == ["LLM hints are candidates only, not final verdicts."]
+
+
+def test_poc_generation_report_to_dict_has_stable_shape() -> None:
+    task = VulnerabilityInput(
+        target=AnalysisTarget(
+            repo_url="https://github.com/example/flask-app",
+            affected_version="v1.0.0",
+            fixed_version="v1.0.1",
+            language="python",
+        ),
+        description="Open redirect through next parameter.",
+        mode=InputMode.UNKNOWN_SINK,
+    )
+    location = CodeLocation(path="app/routes.py", start_line=12)
+    evidence = Evidence(
+        source=SourceReference(kind=EvidenceKind.CODE_LOCATION, location=location),
+        summary="request.args reaches redirect.",
+        reasoning="The same route reads next and returns redirect(next_url).",
+        confidence=0.8,
+    )
+    plan = PocPlan(
+        verdict=PocVerdict.PLANNED,
+        execution_state=PocExecutionState.NOT_RUN,
+        vulnerability_type="open_redirect",
+        path=TaintPath(
+            source=SourceCandidate(
+                name='request.args["next"]',
+                location=location,
+                reason="User-controlled query parameter.",
+                confidence=0.8,
+                evidence=(evidence,),
+            ),
+            sink=SinkCandidate(
+                signature=FunctionSignature(raw="redirect(location)", name="redirect"),
+                reason="redirect can send users to attacker-controlled locations.",
+                confidence=0.8,
+                evidence=(evidence,),
+            ),
+            steps=(TaintStep(location=location, symbol="redirect", evidence=(evidence,)),),
+            reachable=True,
+            evidence=(evidence,),
+        ),
+        entrypoint=ReachabilityEntrypoint(
+            kind="flask_route",
+            name="GET /login",
+            location=location,
+            evidence=(evidence,),
+        ),
+        trigger_input=PocTriggerInput(
+            location=PocParameterLocation.QUERY,
+            name="next",
+            value="https://attacker.example/poc",
+            reasoning="source 直接来自 request.args。",
+        ),
+        request=PocRequestShape(
+            method="GET",
+            path="/login",
+            parameter_location=PocParameterLocation.QUERY,
+            parameters=(PocRequestParameter(name="next", value="https://attacker.example/poc"),),
+        ),
+        expected_effect="响应返回 30x，并把 Location 指向攻击者控制 URL。",
+        evidence=(evidence,),
+        unknowns=("未验证认证要求。",),
+        limitations=("当前未实际发送请求。",),
+    )
+
+    report = poc_generation_report_to_dict(
+        PocGenerationReport(
+            plans=(plan,),
+            evidence=(evidence,),
+            unknowns=("M3 当前默认不执行请求。",),
+        ),
+        task=task,
+    )
+
+    assert report["schema_version"] == 1
+    assert report["kind"] == "poc_generation_report"
+    assert report["plans"][0]["verdict"] == "planned"
+    assert report["plans"][0]["execution_state"] == "not_run"
+    assert report["plans"][0]["trigger_input"]["location"] == "query"
+    assert report["plans"][0]["request"]["method"] == "GET"
+    assert report["plans"][0]["request"]["parameters"][0]["name"] == "next"
+    assert report["unknowns"] == ["M3 当前默认不执行请求。"]

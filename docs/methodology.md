@@ -137,14 +137,14 @@ final vulnerability judgment
 - sink generation：输出候选或推荐 sink，不声明漏洞可利用。
 - taint path generation：输出候选路径，不声明入口可触达。
 - reachability confirmation：声明路径可触达、不可达或 unknown。
-- PoC generation：说明触发方式、前置条件和预期效果。
+- PoC generation：说明触发方式、前置条件和预期效果；当前第一版优先输出结构化 planning report。
 - exp verification：通过执行日志、退出码、请求响应或行为差异给出最终判断。
 
 阶段结论必须允许降级：
 
 - `recommended` 可以降级为 `candidate`。
 - `reachable` 可以降级为 `unknown` 或 `not_reachable`。
-- PoC 可以标记为 `not_run`、`failed_to_trigger` 或 `environment_missing`。
+- PoC 可以标记为 `not_run`、`failed_to_trigger` 或 `environment_missing`；第一版默认从 `not_run` 起步，不能冒充 `verified`。
 - exp 可以标记为 `verified`、`not_verified`、`inconclusive`。
 
 ## 证据链原则
@@ -294,8 +294,15 @@ Semgrep 是跨语言分析入口之一，不是唯一事实来源。
 ### M3：PoC
 
 - 输入：reachable path、入口参数、运行方式、版本信息。
-- 输出：最小触发输入、请求样例或脚本、预期效果、未运行原因。
+- 输出：最小触发输入、请求样例或结构化 planning report、预期效果、未运行原因。
 - 验证：隔离环境、可重复命令、失败状态。
+
+当前第一版的推荐形态是 report-first：
+
+- 只消费 `reachable=true` 的路径；
+- 默认输出 `execution_state=not_run`；
+- 明确保留 `reachable=false` 与 `reachable=null` 的阻断/证据不足语义；
+- 先证明“知道如何触发”，再在后续 M4 进入真实执行验证。
 
 ### M4：exp
 

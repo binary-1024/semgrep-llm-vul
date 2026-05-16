@@ -7,7 +7,15 @@ from semgrep_llm_vul import (
     Evidence,
     FunctionSignature,
     InputMode,
+    PocExecutionState,
+    PocParameterLocation,
+    PocPlan,
+    PocRequestParameter,
+    PocRequestShape,
+    PocTriggerInput,
+    PocVerdict,
     ReachabilityAssessment,
+    ReachabilityEntrypoint,
     SemanticHint,
     SemanticHintKind,
     SinkCandidate,
@@ -179,3 +187,49 @@ def test_semantic_hint_confidence_must_be_in_range() -> None:
             reasoning="Invalid confidence should fail.",
             confidence=1.2,
         )
+
+
+def test_poc_plan_keeps_structured_request_shape() -> None:
+    location = CodeLocation(path="app/routes.py", start_line=12)
+    source = SourceCandidate(
+        name='request.args["next"]',
+        location=location,
+        reason="User-controlled query parameter.",
+        confidence=0.8,
+    )
+    sink = SinkCandidate(
+        signature=FunctionSignature(raw="redirect(location)", name="redirect"),
+        reason="redirect can send users to attacker-controlled locations.",
+        confidence=0.8,
+    )
+    path = TaintPath(
+        source=source,
+        sink=sink,
+        steps=(TaintStep(location=location, symbol="redirect"),),
+        reachable=True,
+    )
+
+    plan = PocPlan(
+        verdict=PocVerdict.PLANNED,
+        execution_state=PocExecutionState.NOT_RUN,
+        vulnerability_type="open_redirect",
+        path=path,
+        entrypoint=ReachabilityEntrypoint(kind="flask_route", name="GET /login"),
+        trigger_input=PocTriggerInput(
+            location=PocParameterLocation.QUERY,
+            name="next",
+            value="https://attacker.example/poc",
+            reasoning="source 直接来自 request.args。",
+        ),
+        request=PocRequestShape(
+            method="GET",
+            path="/login",
+            parameter_location=PocParameterLocation.QUERY,
+            parameters=(PocRequestParameter(name="next", value="https://attacker.example/poc"),),
+        ),
+        expected_effect="响应返回 30x 并外跳。",
+    )
+
+    assert plan.execution_state is PocExecutionState.NOT_RUN
+    assert plan.request.parameter_location is PocParameterLocation.QUERY
+    assert plan.request.parameters[0].name == "next"

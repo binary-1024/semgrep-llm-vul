@@ -100,6 +100,8 @@
 
 目标：基于确认的可触达污点路径生成 PoC。
 
+当前状态：M3 第一版最小闭环已完成。当前已经可以把 `reachable=true` 的路径转换成默认 `execution_state=not_run` 的结构化 PoC planning report；`reachable=false` 与 `reachable=null` 会继续保留为阻断/证据不足，不进入 PoC 执行语义。
+
 输入：
 
 - 已确认可触达污点路径。
@@ -160,7 +162,7 @@
 
 ## 当前下一步
 
-下一步进入里程碑 3 规划：PoC 生成。
+下一步进入里程碑 4 规划：exp 验证与生成。
 
 M1 当前已经具备：
 
@@ -170,13 +172,13 @@ M1 当前已经具备：
 - benchmark/case harness。
 - `./scripts/benchmark` 独立回归入口。
 
-这些能力已足够支撑 M2 的第一版输入，并已形成第一版最小闭环。除非 M3 实现暴露新的 M2 blocker，否则暂停继续加深 benchmark 工具链、sink heuristic 或更多局部入口模型支线。
+这些能力已足够支撑 M3 的第一版输入，并已形成第一版最小闭环。除非 M4 实现暴露新的 M2/M3 blocker，否则暂停继续加深 benchmark 工具链、sink heuristic 或更多局部入口模型支线。
 
 此外，项目已经具备未来 LLM 语义增强层的最小结构化 contract：`SemanticHint` /
 `SemanticHintReport` 可用于承载 unfamiliar API 的 source/sink/candidate_sanitizer
 候选语义、适用版本、前提、失败模式和 unknowns，但当前仍未接入真实 LLM provider 或在线检索。
 
-M2 当前闭环能力：
+M2/M3 当前闭环能力：
 
 - `generate_taint_path_report` 最小候选路径生成入口。
 - `generate-taint-paths` JSON 报告入口。
@@ -188,24 +190,27 @@ M2 当前闭环能力：
 - 最小 Flask route 入口提取、Flask method-specific decorator 入口提取（当前已回归 `@*.get(...)`）、Blueprint + `register_blueprint(..., url_prefix=...)` 组合入口提取、模块级 `app.add_url_rule(...)` 入口提取、同文件 helper call chain、direct import 的跨文件一层 helper call chain、module alias attribute call 的一层 helper call chain、`ImportFrom` module attribute call / alias call 的一层 helper call chain、最多两层 helper hop 的有界局部 helper chain、handler-local 相对路径 guard 的 blocking evidence，以及基于 `source.location` 本地赋值语句的 source controllability AST 证据已接入 source root fixture。
 - `reachable=true|false|null` 三态都已有本地 source root 或本地 evidence fixture 驱动的 curated 回归。
 - 普通 assignment alias、动态 registration 变体、未注册 Blueprint、跨函数 guard/sanitizer 和未回归的 decorator alias 当前已被显式锁在边界外，证据不足时继续保持 `reachable=null`。
+- `generate-poc` 已接入最小结构化 PoC planning report，可从 `reachable=true` 的 Flask open redirect 路径恢复 method/path、参数位置、参数键名、最小样例值、预期效果和前提条件。
+- `reachable=false` 与 `reachable=null` 已分别具备 M3 负边界回归，确保阻断证据和证据不足不会被误升级为可执行 PoC。
+- M3 executable suite 已覆盖 `reachable=true`、`reachable=false` 与 `reachable=null` 三类 planning 结果。
 
-建议下一个 M3 具体任务：
+建议下一个 M4 具体任务：
 
 ```md
 ## 任务
 
-围绕已确认可触达路径建立最小 PoC planning 能力。
+围绕结构化 PoC planning report 建立最小 execution / verification contract。
 
 ## 背景
 
-项目已经具备 M2 第一版所需的最小可触达闭环：candidate taint path、`reachable=true|false|null` 三态、入口证据、局部调用链、source controllability、局部 blocking factor，以及稳定的 benchmark/case 回归。下一步应把这些 M2 输出变成 M3 可以消费的 PoC planning 输入，而不是继续无止境扩 M2 语法角落。
+项目已经具备 M3 第一版所需的最小 planning 闭环：candidate taint path、`reachable=true|false|null` 三态、入口证据、局部调用链、source controllability、局部 blocking factor，以及结构化 `PoCPlan` / `PocGenerationReport`。下一步应把这些 M3 输出变成 M4 可以消费的 execution / verification 输入。
 
 ## 范围
 
-- 只消费 `reachable=true` 的路径进入 PoC planning。
-- 为 PoC 规划补最小结构化输出和 fixture。
-- 保持当前 `reachable=true|false|null` 语义不回退。
-- 明确 `reachable=null` 与 `reachable=false` 不能直接进入 PoC 执行。
+- 只消费已有 `PoCPlan(execution_state=not_run)` 进入 M4。
+- 为 execution state、日志、退出码或响应差异补最小结构化输出和 fixture。
+- 保持当前 `reachable=true|false|null` 与 `not_run` 语义不回退。
+- 明确 `not_run` 不等于 `verified`。
 
 ## 非目标
 
@@ -213,13 +218,13 @@ M2 当前闭环能力：
 - 不联网拉取真实 GitHub repo。
 - 不实现完整跨语言调用图。
 - 不直接执行破坏性 payload。
-- 不把 candidate path 或未运行 PoC 标记为 verified。
+- 不把未运行 PoC 或单版本行为误标为 verified。
 
 ## 验收标准
 
-- 新增最小 PoC planning 输出及其单元测试或 benchmark/case 回归。
-- 只有 `reachable=true` 的路径会进入 PoC planning。
-- `reachable=false` 与 `reachable=null` 的路径继续保留为证据，不进入 PoC 执行。
+- 新增最小 execution / verification contract 及其单元测试或 benchmark/case 回归。
+- 只有 `not_run` 的结构化 PoC plan 会进入 M4。
+- 受影响版本 / 修复版本对照语义保持明确，不提前宣称 verified。
 - `./scripts/benchmark` 继续通过。
 - `./scripts/check` 通过。
 ```

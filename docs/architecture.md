@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-仓库已经完成 M0 基础 harness，并具备语言无关数据模型、分析任务输入模型、Semgrep finding 归一化、Semgrep taint-mode trace 到候选 `TaintPath` 的最小归一化能力、M1 最小 sink generation pipeline、M2 最小 taint path generation 入口，以及用于未来 LLM 语义增强层的结构化 `SemanticHint` / `SemanticHintReport` contract。
+仓库已经完成 M0 基础 harness，并具备语言无关数据模型、分析任务输入模型、Semgrep finding 归一化、Semgrep taint-mode trace 到候选 `TaintPath` 的最小归一化能力、M1 最小 sink generation pipeline、M2 最小 taint path generation 与 reachability 入口、M3 最小结构化 PoC planning 入口，以及用于未来 LLM 语义增强层的结构化 `SemanticHint` / `SemanticHintReport` contract。
 
 ## 当前数据流
 
@@ -108,7 +108,26 @@ ReachabilityAssessment(reachable=true|false|null)
 - CLI：`uv run semgrep-llm-vul confirm-reachability <analysis-input> --semgrep-json <semgrep.json> --reachability-json <reachability.json>`
 - 本地入口提取：`uv run semgrep-llm-vul confirm-reachability <analysis-input> --semgrep-json <semgrep.json> --source-root <source-root>`
 - JSON 序列化：`semgrep_llm_vul.reporting.reachability_report_to_dict`
-- 语义边界：只消费本地结构化证据或最小 Flask route 源码入口；当前源码入口模型支持 `@*.route(...)` decorator route、Flask method-specific decorators（当前已回归 `@*.get(...)`）、Blueprint handler 与 `register_blueprint(..., url_prefix=...)` 的最小组合入口、模块级 `app.add_url_rule(...)` registration route、handler 本体内 sink、同文件 direct helper call chain、direct import 的跨文件一层 helper call chain、module alias attribute call 形式的一层 helper call chain、`from app import helpers` 与 `from app import helpers as h` 这类 `ImportFrom` module attribute call / alias call 形式的一层 helper call chain、最多两层 helper hop 的有界局部 helper chain，以及 handler-local 的最小相对路径 guard blocking evidence；source controllability 也已支持最小本地 AST 证据：当 `source.name` 只是局部变量时，可以根据 `source.location` 对应赋值语句确认它是否直接来自 `request.args/form/values/json` 等 Flask request 字段；普通 assignment alias（例如 `alias = h`）、更一般的动态 registration、未回归的 decorator alias、未注册 Blueprint、跨函数 guard/sanitizer 和跨语句传播仍不解析，遇到这类边界时保持 `reachable=null`；不扫描真实 repo；不构建完整跨语言调用图；不做 PoC/exp 验证。
+- 语义边界：只消费本地结构化证据或最小 Flask route 源码入口；当前源码入口模型支持 `@*.route(...)` decorator route、Flask method-specific decorators（当前已回归 `@*.get(...)`）、Blueprint handler 与 `register_blueprint(..., url_prefix=...)` 的最小组合入口、模块级 `app.add_url_rule(...)` registration route、handler 本体内 sink、同文件 direct helper call chain、direct import 的跨文件一层 helper call chain、module alias attribute call 形式的一层 helper call chain、`from app import helpers` 与 `from app import helpers as h` 这类 `ImportFrom` module attribute call / alias call 形式的一层 helper call chain、最多两层 helper hop 的有界局部 helper chain，以及 handler-local 的最小相对路径 guard blocking evidence；source controllability 也已支持最小本地 AST 证据：当 `source.name` 只是局部变量时，可以根据 `source.location` 对应赋值语句确认它是否直接来自 `request.args/form/values/json` 等 Flask request 字段，并额外恢复 `request_field` / `request_key` 这类可供 M3 planning 消费的最小参数信息；普通 assignment alias（例如 `alias = h`）、更一般的动态 registration、未回归的 decorator alias、未注册 Blueprint、跨函数 guard/sanitizer 和跨语句传播仍不解析，遇到这类边界时保持 `reachable=null`；不扫描真实 repo；不构建完整跨语言调用图；不做 PoC/exp 验证。
+
+M3 第一版采用结构化 PoC planning/report：
+
+```text
+ReachabilityAssessment(reachable=true)
+  + entrypoint method/path
+  + source control parameter evidence
+  ↓
+PocPlan(execution_state=not_run)
+```
+
+当前实现入口：
+
+- `semgrep_llm_vul.poc_generation.generate_poc_report`
+- 输出模型：`PocGenerationReport`
+- 输入证据：`VulnerabilityInput`、`ReachabilityReport`
+- CLI：`uv run semgrep-llm-vul generate-poc <analysis-input> --semgrep-json <semgrep.json> --source-root <source-root>`
+- JSON 序列化：`semgrep_llm_vul.reporting.poc_generation_report_to_dict`
+- 语义边界：第一版只消费 `reachable=true` 的路径，只支持安全验证型、默认 `execution_state=not_run` 的结构化 planning；当前优先覆盖 Flask open redirect 场景，可恢复入口 method/path、参数位置、参数键名、最小样例值、预期效果、前提条件、unknowns 和 limitations；`reachable=false` 与 `reachable=null` 只保留为证据，不进入 PoC 执行语义；不直接生成破坏性 payload，不声明 `verified`。
 
 ## 预期方向
 

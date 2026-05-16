@@ -684,6 +684,8 @@ def test_discover_flask_route_evidence_confirms_source_control_from_local_ast() 
     assert source_evidence.source.location.path == "app/routes.py"
     assert source_evidence.source.location.start_line == 14
     assert source_evidence.source.metadata["evidence_type"] == "source_assignment_ast"
+    assert source_evidence.source.metadata["request_field"] == "values"
+    assert source_evidence.source.metadata["request_key"] == "next"
 
 
 def test_generate_reachability_report_keeps_unmatched_path_unknown() -> None:

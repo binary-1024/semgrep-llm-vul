@@ -55,6 +55,33 @@ class SemanticHintKind(str, Enum):
     CANDIDATE_GUARD = "candidate_guard"
 
 
+class PocVerdict(str, Enum):
+    """PoC planning 结论类型。"""
+
+    PLANNED = "planned"
+
+
+class PocExecutionState(str, Enum):
+    """PoC 当前执行状态。"""
+
+    NOT_RUN = "not_run"
+    FAILED_TO_TRIGGER = "failed_to_trigger"
+    ENVIRONMENT_MISSING = "environment_missing"
+
+
+class PocParameterLocation(str, Enum):
+    """PoC 参数位置。"""
+
+    QUERY = "query"
+    FORM = "form"
+    QUERY_OR_FORM = "query_or_form"
+    JSON = "json"
+    HEADER = "header"
+    COOKIE = "cookie"
+    PATH = "path"
+    UNKNOWN = "unknown"
+
+
 @dataclass(frozen=True)
 class CodeLocation:
     """代码位置，行列号使用 1-based 语义。"""
@@ -307,6 +334,53 @@ class ReachabilityAssessment:
     def __post_init__(self) -> None:
         if self.reachable is False and not self.blocking_factors:
             raise ValueError("reachable=false 必须提供明确 blocking_factors")
+
+
+@dataclass(frozen=True)
+class PocRequestParameter:
+    """PoC 请求中的一个参数。"""
+
+    name: str
+    value: str
+
+
+@dataclass(frozen=True)
+class PocTriggerInput:
+    """PoC 最小触发输入。"""
+
+    location: PocParameterLocation
+    name: str
+    value: str
+    reasoning: str
+
+
+@dataclass(frozen=True)
+class PocRequestShape:
+    """PoC 请求形态。"""
+
+    method: str
+    path: str
+    parameter_location: PocParameterLocation
+    parameters: tuple[PocRequestParameter, ...] = ()
+
+
+@dataclass(frozen=True)
+class PocPlan:
+    """结构化 PoC planning 结果。"""
+
+    verdict: PocVerdict
+    execution_state: PocExecutionState
+    vulnerability_type: str
+    path: TaintPath
+    entrypoint: ReachabilityEntrypoint
+    trigger_input: PocTriggerInput
+    request: PocRequestShape
+    expected_effect: str
+    call_chain: tuple[ReachabilityCallStep, ...] = ()
+    preconditions: tuple[str, ...] = ()
+    evidence: tuple[Evidence, ...] = ()
+    unknowns: tuple[str, ...] = ()
+    limitations: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

@@ -1391,8 +1391,10 @@ def _source_ast_evidence(
     if assignment is None:
         return None
     value = _assignment_value(assignment)
-    if value is None or not _is_request_controlled_expr(value):
+    request_descriptor = None if value is None else _request_control_descriptor(value)
+    if request_descriptor is None:
         return None
+    request_field, request_key = request_descriptor
     return Evidence(
         source=SourceReference(
             kind=EvidenceKind.REACHABILITY_EVIDENCE,
@@ -1402,6 +1404,8 @@ def _source_ast_evidence(
                 "framework": "flask",
                 "source_root": str(source_root),
                 "evidence_type": "source_assignment_ast",
+                "request_field": request_field,
+                "request_key": request_key,
             },
         ),
         summary=(
@@ -1470,46 +1474,73 @@ def _assignment_value(node: ast.Assign | ast.AnnAssign | ast.NamedExpr) -> ast.e
 
 
 def _is_request_controlled_expr(node: ast.AST) -> bool:
-    if _is_request_field(node):
-        return True
+    return _request_control_descriptor(node) is not None
+
+
+def _request_control_descriptor(node: ast.AST) -> tuple[str, str | None] | None:
     if isinstance(node, ast.Subscript):
-        return _is_request_field(node.value)
+        if isinstance(node.value, ast.Attribute) and _is_request_field(node.value):
+            return node.value.attr, _constant_string(node.slice)
+        return _request_control_descriptor(node.value)
     if isinstance(node, ast.Call):
         if isinstance(node.func, ast.Attribute) and _is_request_field(node.func.value):
-            return True
-        return _is_request_controlled_expr(node.func)
+            request_key = _constant_string(node.args[0]) if node.args else None
+            return node.func.value.attr, request_key
+        return _request_control_descriptor(node.func)
     if isinstance(node, ast.BoolOp):
-        return any(_is_request_controlled_expr(value) for value in node.values)
+        for value in node.values:
+            descriptor = _request_control_descriptor(value)
+            if descriptor is not None:
+                return descriptor
+        return None
     if isinstance(node, ast.IfExp):
-        return any(
-            _is_request_controlled_expr(value)
-            for value in (node.test, node.body, node.orelse)
-        )
+        for value in (node.test, node.body, node.orelse):
+            descriptor = _request_control_descriptor(value)
+            if descriptor is not None:
+                return descriptor
+        return None
     if isinstance(node, ast.Compare):
-        return _is_request_controlled_expr(node.left) or any(
-            _is_request_controlled_expr(comparator) for comparator in node.comparators
-        )
+        descriptor = _request_control_descriptor(node.left)
+        if descriptor is not None:
+            return descriptor
+        for comparator in node.comparators:
+            descriptor = _request_control_descriptor(comparator)
+            if descriptor is not None:
+                return descriptor
+        return None
     if isinstance(node, ast.UnaryOp):
-        return _is_request_controlled_expr(node.operand)
+        return _request_control_descriptor(node.operand)
     if isinstance(node, ast.BinOp):
-        return _is_request_controlled_expr(node.left) or _is_request_controlled_expr(
-            node.right
-        )
+        return _request_control_descriptor(node.left) or _request_control_descriptor(node.right)
     if isinstance(node, ast.Tuple | ast.List | ast.Set):
-        return any(_is_request_controlled_expr(value) for value in node.elts)
+        for value in node.elts:
+            descriptor = _request_control_descriptor(value)
+            if descriptor is not None:
+                return descriptor
+        return None
     if isinstance(node, ast.Dict):
-        return any(
-            _is_request_controlled_expr(value)
-            for value in (*node.keys, *node.values)
-            if value is not None
-        )
+        for value in (*node.keys, *node.values):
+            if value is None:
+                continue
+            descriptor = _request_control_descriptor(value)
+            if descriptor is not None:
+                return descriptor
+        return None
     if isinstance(node, ast.NamedExpr):
-        return _is_request_controlled_expr(node.value)
+        return _request_control_descriptor(node.value)
     if isinstance(node, ast.Attribute):
-        return _is_request_controlled_expr(node.value)
+        return _request_control_descriptor(node.value)
     if isinstance(node, ast.Expr):
-        return _is_request_controlled_expr(node.value)
-    return False
+        return _request_control_descriptor(node.value)
+    if _is_request_field(node):
+        return node.attr, None
+    return None
+
+
+def _constant_string(node: ast.AST) -> str | None:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    return None
 
 
 def _is_request_field(node: ast.AST) -> bool:
