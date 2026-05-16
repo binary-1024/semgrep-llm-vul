@@ -121,6 +121,8 @@ sink 位于该 helper 函数体内，也可以输出 `reachable=true`。
 当前也显式回归“未注册 Blueprint 不算真实入口”：如果 handler 使用 `@bp.get(...)` 或
 `@bp.route(...)`，但本地源码中缺少对应的 `register_blueprint(...)` 证据，仍然必须保持
 `reachable=null`。
+当前还支持一类最小本地 guard/blocking evidence：如果 handler 在到达 sink 前明确把用户输入
+限制为相对路径，并在不满足条件时提前返回常量 redirect，也可以输出 `reachable=false`。
 当前还支持有界多层 helper chain：如果 route handler 先调用同文件 helper，再由该
 helper 继续进入第二层 helper，且 sink 位于该第二层 helper 函数体内，也可以输出
 `reachable=true`。当前边界固定为最多两层 helper hop。
@@ -165,6 +167,7 @@ case id 使用小写 kebab-case：
 - `curated-open-redirect-reachability-add-url-rule`：M2 reachability add-url-rule case，验证模块级 `app.add_url_rule(...)` 入口注册也可以输出 `reachable=true`。
 - `curated-open-redirect-reachability-blueprint-prefix`：M2 reachability blueprint case，验证 Blueprint handler 在 `register_blueprint(..., url_prefix=...)` 后可以恢复真实入口路径并输出 `reachable=true`。
 - `curated-open-redirect-reachability-blueprint-unregistered`：M2 reachability blueprint negative case，验证未注册 Blueprint 继续保持 `reachable=null`。
+- `curated-open-redirect-reachability-relative-path-guard`：M2 blocked case，验证 handler-local 相对路径 guard 可以从本地 AST 中生成 `reachable=false`。
 - `curated-open-redirect-reachability-blocked`：M2 reachability blocked case，验证明确阻断因素可以输出 `reachable=false`。
 - `curated-open-redirect-reachability-cross-file-helper`：M2 reachability cross-file helper case，验证 route handler 直接调用导入的 helper 时可以输出 `reachable=true`。
 - `curated-open-redirect-reachability-alias-assignment-unknown`：M2 reachability negative case，验证 route handler 通过 assignment alias 调用 helper 时继续保持 `reachable=null`。
