@@ -174,6 +174,10 @@ class _FlaskRoute:
     source_path: Path
     entrypoint_location: CodeLocation
     entrypoint_model: str
+    owner: str | None
+    registration_path: str | None = None
+    registration_line: int | None = None
+    url_prefix: str | None = None
 
 
 @dataclass(frozen=True)
@@ -205,6 +209,15 @@ class _ImportedModule:
 
 
 @dataclass(frozen=True)
+class _BlueprintRegistration:
+    target_path: str
+    blueprint_name: str
+    url_prefix: str
+    source_path: Path
+    location: CodeLocation
+
+
+@dataclass(frozen=True)
 class _PythonModule:
     path: str
     source_path: Path
@@ -213,6 +226,8 @@ class _PythonModule:
     functions: tuple[_PythonFunction, ...]
     imported_functions: tuple[_ImportedFunction, ...]
     imported_modules: tuple[_ImportedModule, ...]
+    blueprint_names: tuple[str, ...]
+    blueprint_registrations: tuple[_BlueprintRegistration, ...]
 
 
 def _python_modules_by_path(root: Path) -> dict[str, _PythonModule]:
@@ -223,6 +238,7 @@ def _python_modules_by_path(root: Path) -> dict[str, _PythonModule]:
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         except (OSError, SyntaxError):
             continue
+        blueprint_names = _blueprint_names_from_ast(tree)
         functions = tuple(
             _python_function_from_ast(node, relative=relative)
             for node in tree.body
@@ -252,8 +268,17 @@ def _python_modules_by_path(root: Path) -> dict[str, _PythonModule]:
             functions=functions,
             imported_functions=imported_functions,
             imported_modules=imported_modules,
+            blueprint_names=blueprint_names,
+            blueprint_registrations=_blueprint_registrations_from_ast(
+                tree,
+                relative=relative,
+                source_path=path,
+                blueprint_names=blueprint_names,
+                imported_functions=imported_functions,
+                imported_modules=imported_modules,
+            ),
         )
-    return modules
+    return _expand_blueprint_routes(modules)
 
 
 def _python_function_from_ast(function: _RouteFunction, *, relative: str) -> _PythonFunction:
@@ -382,7 +407,7 @@ def _route_from_function(
         route = _route_from_decorator(decorator)
         if route is None:
             continue
-        route_path, methods, entrypoint_model = route
+        route_path, methods, entrypoint_model, owner = route
         return _FlaskRoute(
             path=relative,
             route=route_path,
@@ -394,6 +419,7 @@ def _route_from_function(
                 start_line=decorator.lineno,
             ),
             entrypoint_model=entrypoint_model,
+            owner=owner,
         )
     return None
 
@@ -432,9 +458,66 @@ def _routes_from_add_url_rule(
                     start_line=node.lineno,
                 ),
                 entrypoint_model="add_url_rule",
+                owner=_attribute_owner_name_from_call(call),
             )
         )
     return tuple(routes)
+
+
+def _expand_blueprint_routes(
+    module_index: dict[str, _PythonModule],
+) -> dict[str, _PythonModule]:
+    registrations_by_blueprint: dict[tuple[str, str], list[_BlueprintRegistration]] = {}
+    for module in module_index.values():
+        for registration in module.blueprint_registrations:
+            registrations_by_blueprint.setdefault(
+                (registration.target_path, registration.blueprint_name),
+                [],
+            ).append(registration)
+
+    expanded_modules: dict[str, _PythonModule] = {}
+    for path, module in module_index.items():
+        expanded_routes: list[_FlaskRoute] = []
+        for route in module.routes:
+            if route.owner is None or route.owner not in module.blueprint_names:
+                expanded_routes.append(route)
+                continue
+            registrations = registrations_by_blueprint.get((path, route.owner), [])
+            expanded_routes.extend(
+                _route_with_blueprint_registration(route, registration)
+                for registration in registrations
+            )
+        expanded_modules[path] = _PythonModule(
+            path=module.path,
+            source_path=module.source_path,
+            tree=module.tree,
+            routes=tuple(expanded_routes),
+            functions=module.functions,
+            imported_functions=module.imported_functions,
+            imported_modules=module.imported_modules,
+            blueprint_names=module.blueprint_names,
+            blueprint_registrations=module.blueprint_registrations,
+        )
+    return expanded_modules
+
+
+def _route_with_blueprint_registration(
+    route: _FlaskRoute,
+    registration: _BlueprintRegistration,
+) -> _FlaskRoute:
+    return _FlaskRoute(
+        path=route.path,
+        route=_compose_flask_route(registration.url_prefix, route.route),
+        methods=route.methods,
+        function=route.function,
+        source_path=route.source_path,
+        entrypoint_location=route.entrypoint_location,
+        entrypoint_model=_blueprint_entrypoint_model(route.entrypoint_model),
+        owner=route.owner,
+        registration_path=registration.location.path,
+        registration_line=registration.location.start_line,
+        url_prefix=registration.url_prefix,
+    )
 
 
 def _route_for_sink_location(
@@ -624,7 +707,7 @@ def _is_attribute_call(node: ast.Call, attribute_name: str) -> bool:
 
 def _route_from_decorator(
     decorator: ast.expr,
-) -> tuple[str, tuple[str, ...], str] | None:
+) -> tuple[str, tuple[str, ...], str, str | None] | None:
     if not isinstance(decorator, ast.Call):
         return None
     attr_name = _attribute_name_from_call(decorator)
@@ -633,10 +716,11 @@ def _route_from_decorator(
     route_path = _string_argument_from_call(decorator, positional_index=0, keyword_name=None)
     if route_path is None:
         return None
+    owner = _attribute_owner_name_from_call(decorator)
     if attr_name == "route":
         methods = _methods_from_call(decorator)
-        return route_path, methods, "route_decorator"
-    return route_path, (attr_name.upper(),), f"method_decorator_{attr_name}"
+        return route_path, methods, "route_decorator", owner
+    return route_path, (attr_name.upper(),), f"method_decorator_{attr_name}", owner
 
 
 def _route_path_from_add_url_rule(call: ast.Call) -> str | None:
@@ -647,6 +731,153 @@ def _attribute_name_from_call(call: ast.Call) -> str | None:
     if not isinstance(call.func, ast.Attribute):
         return None
     return call.func.attr
+
+
+def _attribute_owner_name_from_call(call: ast.Call) -> str | None:
+    if not isinstance(call.func, ast.Attribute):
+        return None
+    if not isinstance(call.func.value, ast.Name):
+        return None
+    return call.func.value.id
+
+
+def _blueprint_names_from_ast(tree: ast.Module) -> tuple[str, ...]:
+    blueprint_names: list[str] = []
+    for node in tree.body:
+        if not isinstance(node, ast.Assign) or len(node.targets) != 1:
+            continue
+        target = node.targets[0]
+        if not isinstance(target, ast.Name):
+            continue
+        if not _is_blueprint_constructor(node.value):
+            continue
+        blueprint_names.append(target.id)
+    return tuple(blueprint_names)
+
+
+def _is_blueprint_constructor(node: ast.AST) -> bool:
+    if not isinstance(node, ast.Call):
+        return False
+    if isinstance(node.func, ast.Name):
+        return node.func.id == "Blueprint"
+    return isinstance(node.func, ast.Attribute) and node.func.attr == "Blueprint"
+
+
+def _blueprint_registrations_from_ast(
+    tree: ast.Module,
+    *,
+    relative: str,
+    source_path: Path,
+    blueprint_names: tuple[str, ...],
+    imported_functions: tuple[_ImportedFunction, ...],
+    imported_modules: tuple[_ImportedModule, ...],
+) -> tuple[_BlueprintRegistration, ...]:
+    registrations: list[_BlueprintRegistration] = []
+    for node in tree.body:
+        if not isinstance(node, ast.Expr) or not isinstance(node.value, ast.Call):
+            continue
+        call = node.value
+        if not _is_attribute_call(call, "register_blueprint"):
+            continue
+        blueprint_ref = _blueprint_reference_argument(call)
+        if blueprint_ref is None:
+            continue
+        resolved = _resolve_blueprint_reference(
+            blueprint_ref,
+            relative=relative,
+            blueprint_names=blueprint_names,
+            imported_functions=imported_functions,
+            imported_modules=imported_modules,
+        )
+        if resolved is None:
+            continue
+        target_path, blueprint_name = resolved
+        registrations.append(
+            _BlueprintRegistration(
+                target_path=target_path,
+                blueprint_name=blueprint_name,
+                url_prefix=_string_keyword_argument(call, keyword_name="url_prefix") or "",
+                source_path=source_path,
+                location=CodeLocation(
+                    path=relative,
+                    start_line=node.lineno,
+                ),
+            )
+        )
+    return tuple(registrations)
+
+
+def _blueprint_reference_argument(call: ast.Call) -> ast.expr | None:
+    if call.args:
+        return call.args[0]
+    for keyword in call.keywords:
+        if keyword.arg == "blueprint":
+            return keyword.value
+    return None
+
+
+def _resolve_blueprint_reference(
+    value: ast.expr,
+    *,
+    relative: str,
+    blueprint_names: tuple[str, ...],
+    imported_functions: tuple[_ImportedFunction, ...],
+    imported_modules: tuple[_ImportedModule, ...],
+) -> tuple[str, str] | None:
+    if isinstance(value, ast.Name):
+        if value.id in blueprint_names:
+            return relative, value.id
+        imported_symbol = next(
+            (candidate for candidate in imported_functions if candidate.local_name == value.id),
+            None,
+        )
+        if imported_symbol is None:
+            return None
+        return imported_symbol.target_path, imported_symbol.target_name
+
+    if isinstance(value, ast.Attribute) and isinstance(value.value, ast.Name):
+        imported_module = next(
+            (
+                candidate
+                for candidate in imported_modules
+                if candidate.local_name == value.value.id
+            ),
+            None,
+        )
+        if imported_module is None:
+            return None
+        return imported_module.target_path, value.attr
+    return None
+
+
+def _string_keyword_argument(call: ast.Call, *, keyword_name: str) -> str | None:
+    for keyword in call.keywords:
+        if keyword.arg != keyword_name:
+            continue
+        value = keyword.value
+        if isinstance(value, ast.Constant) and isinstance(value.value, str):
+            return value.value
+        return None
+    return None
+
+
+def _compose_flask_route(url_prefix: str, route_path: str) -> str:
+    prefix = url_prefix or ""
+    if prefix and not prefix.startswith("/"):
+        prefix = f"/{prefix}"
+    if not prefix:
+        return route_path
+    if route_path == "/":
+        return f"{prefix.rstrip('/')}/"
+    return f"{prefix.rstrip('/')}/{route_path.lstrip('/')}"
+
+
+def _blueprint_entrypoint_model(entrypoint_model: str) -> str:
+    if entrypoint_model == "add_url_rule":
+        return "blueprint_add_url_rule"
+    if entrypoint_model.startswith("method_decorator_"):
+        return f"blueprint_{entrypoint_model}"
+    return "blueprint_route_decorator"
 
 
 def _view_func_name_from_add_url_rule(call: ast.Call) -> str | None:
@@ -722,12 +953,15 @@ def _record_from_flask_route(
         if helper_paths
         else "handler"
     )
+    inspect_paths = [
+        str(source_root / function.path)
+        for function in call_chain_functions[1:]
+        if function.path != route.path
+    ]
+    if route.registration_path and route.registration_path != route.path:
+        inspect_paths.append(str(source_root / route.registration_path))
     helper_inspect_paths = tuple(
-        dict.fromkeys(
-            str(source_root / function.path)
-            for function in call_chain_functions[1:]
-            if function.path != route.path
-        )
+        dict.fromkeys(inspect_paths)
     )
     source_control = _source_control_assessment(
         taint_path,
@@ -746,6 +980,9 @@ def _record_from_flask_route(
                     "entrypoint_model": route.entrypoint_model,
                     "call_chain_functions": [function.name for function in call_chain_functions],
                     "call_chain_paths": [function.path for function in call_chain_functions],
+                    "blueprint_registration_path": route.registration_path,
+                    "blueprint_registration_line": route.registration_line,
+                    "blueprint_url_prefix": route.url_prefix,
                 },
             ),
             summary=_flask_route_summary(
@@ -847,6 +1084,13 @@ def _flask_route_reasoning(
 
 
 def _flask_entrypoint_origin(entrypoint_model: str) -> str:
+    if entrypoint_model == "blueprint_add_url_rule":
+        return "Blueprint add_url_rule(...) + register_blueprint(...)"
+    if entrypoint_model.startswith("blueprint_method_decorator_"):
+        method = entrypoint_model.removeprefix("blueprint_method_decorator_")
+        return f"Blueprint @*.{method}(...) + register_blueprint(...)"
+    if entrypoint_model == "blueprint_route_decorator":
+        return "Blueprint @*.route(...) + register_blueprint(...)"
     if entrypoint_model == "add_url_rule":
         return "app.add_url_rule(...) 注册"
     if entrypoint_model.startswith("method_decorator_"):

@@ -17,6 +17,8 @@ ROOT = Path(__file__).resolve().parent.parent
 SEMGREP_DIR = ROOT / "fixtures" / "semgrep"
 REACHABILITY_DIR = ROOT / "fixtures" / "reachability"
 FLASK_APP_DIR = REACHABILITY_DIR / "flask-app"
+FLASK_BLUEPRINT_APP_DIR = REACHABILITY_DIR / "flask-blueprint-app"
+FLASK_BLUEPRINT_UNREGISTERED_APP_DIR = REACHABILITY_DIR / "flask-blueprint-unregistered-app"
 FLASK_GET_APP_DIR = REACHABILITY_DIR / "flask-get-app"
 FLASK_ADD_URL_RULE_APP_DIR = REACHABILITY_DIR / "flask-add-url-rule-app"
 FLASK_ASYNC_APP_DIR = REACHABILITY_DIR / "flask-async-app"
@@ -77,6 +79,20 @@ def _app_get_taint_report():
     sink_report = generate_sink_report(task, semgrep_findings=findings)
     semgrep_paths = tuple(
         load_semgrep_taint_paths(SEMGREP_DIR / "taint-result-with-app-get-trace.json")
+    )
+    return generate_taint_path_report(
+        task,
+        sink_report=sink_report,
+        semgrep_taint_paths=semgrep_paths,
+    )
+
+
+def _blueprint_taint_report():
+    task = _task()
+    findings = tuple(load_semgrep_findings(SEMGREP_DIR / "taint-result-with-blueprint-trace.json"))
+    sink_report = generate_sink_report(task, semgrep_findings=findings)
+    semgrep_paths = tuple(
+        load_semgrep_taint_paths(SEMGREP_DIR / "taint-result-with-blueprint-trace.json")
     )
     return generate_taint_path_report(
         task,
@@ -303,6 +319,57 @@ def test_discover_flask_route_evidence_supports_app_get_entrypoint() -> None:
     assert "@*.get(...)" in assessment.entrypoint.evidence[0].reasoning
     assert assessment.source_control is not None
     assert assessment.source_control.controlled is True
+
+
+def test_discover_flask_route_evidence_supports_blueprint_prefix_entrypoint() -> None:
+    task = _task()
+    taint_report = _blueprint_taint_report()
+    records = discover_flask_route_evidence(
+        FLASK_BLUEPRINT_APP_DIR,
+        taint_paths=taint_report.paths,
+    )
+
+    report = generate_reachability_report(
+        task,
+        taint_report=taint_report,
+        evidence_records=records,
+    )
+
+    assessment = report.assessments[0]
+    assert assessment.reachable is True
+    assert assessment.entrypoint is not None
+    assert assessment.entrypoint.name == "GET /auth/login"
+    assert assessment.entrypoint.location is not None
+    assert assessment.entrypoint.location.start_line == 7
+    assert assessment.entrypoint.evidence[0].source.metadata["entrypoint_model"] == (
+        "blueprint_method_decorator_get"
+    )
+    assert assessment.entrypoint.evidence[0].source.metadata["blueprint_registration_path"] == (
+        "app/app.py"
+    )
+    assert assessment.entrypoint.evidence[0].source.metadata["blueprint_registration_line"] == 5
+    assert assessment.entrypoint.evidence[0].source.metadata["blueprint_url_prefix"] == "/auth"
+    assert "register_blueprint" in assessment.entrypoint.evidence[0].reasoning
+    assert assessment.source_control is not None
+    assert assessment.source_control.controlled is True
+
+
+def test_discover_flask_route_evidence_keeps_unregistered_blueprint_unknown() -> None:
+    task = _task()
+    taint_report = _blueprint_taint_report()
+    records = discover_flask_route_evidence(
+        FLASK_BLUEPRINT_UNREGISTERED_APP_DIR,
+        taint_paths=taint_report.paths,
+    )
+
+    report = generate_reachability_report(
+        task,
+        taint_report=taint_report,
+        evidence_records=records,
+    )
+
+    assert records == ()
+    assert report.assessments[0].reachable is None
 
 
 def test_discover_flask_route_evidence_supports_add_url_rule_entrypoint() -> None:
