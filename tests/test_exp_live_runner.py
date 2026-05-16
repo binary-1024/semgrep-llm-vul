@@ -4,6 +4,7 @@ from semgrep_llm_vul.exp_verification import (
     ExpVerificationReport,
     LocalExecutionError,
     collect_local_execution_records,
+    collect_managed_fixture_execution_records,
     generate_exp_verification_report,
 )
 from tests.helpers import (
@@ -15,16 +16,10 @@ from tests.helpers import (
 
 def test_collect_local_execution_records_returns_verified_for_loopback_targets() -> None:
     task, poc_report = build_open_redirect_poc_report()
-
-    with (
-        run_open_redirect_server("affected") as affected_base_url,
-        run_open_redirect_server("fixed") as fixed_base_url,
-    ):
-        execution_records = collect_local_execution_records(
-            poc_report,
-            affected_base_url=affected_base_url,
-            fixed_base_url=fixed_base_url,
-        )
+    execution_records = collect_managed_fixture_execution_records(
+        poc_report,
+        fixture_name="open_redirect_pair",
+    )
 
     report = generate_exp_verification_report(
         task,
