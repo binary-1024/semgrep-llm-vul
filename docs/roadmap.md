@@ -187,7 +187,7 @@ M2 当前已经具备：
 - M2 taint path candidate 已纳入 benchmark/case harness。
 - M2 reachability evidence model 已完成 Insight 和 ADR。
 - `ReachabilityAssessment`、`ReachabilityReport` 和 `confirm-reachability` 最小本地入口。
-- 最小 Flask route 入口提取、同文件 helper call chain、direct import 的跨文件一层 helper call chain、module alias attribute call 的一层 helper call chain、`ImportFrom` module attribute call / alias call 的一层 helper call chain、最多两层 helper hop 的有界局部 helper chain，以及基于 `source.location` 本地赋值语句的 source controllability AST 证据已接入 source root fixture；普通 assignment alias 当前已被显式锁为 `reachable=null` 边界。
+- 最小 Flask route 入口提取、模块级 `app.add_url_rule(...)` 入口提取、同文件 helper call chain、direct import 的跨文件一层 helper call chain、module alias attribute call 的一层 helper call chain、`ImportFrom` module attribute call / alias call 的一层 helper call chain、最多两层 helper hop 的有界局部 helper chain，以及基于 `source.location` 本地赋值语句的 source controllability AST 证据已接入 source root fixture；普通 assignment alias、动态 registration 变体当前已被显式锁在边界外，证据不足时继续保持 `reachable=null`。
 
 建议下一个 M2 具体任务：
 

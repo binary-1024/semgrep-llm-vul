@@ -98,7 +98,7 @@ def test_benchmark_templates_exist_and_are_not_discovered_as_cases() -> None:
 
     discovered_from_root = discover_benchmark_cases(ROOT / "benchmarks")
 
-    assert len(discovered_from_root) == 25
+    assert len(discovered_from_root) == 26
     assert all(case.case_id != "replace-with-kebab-case-id" for case in discovered_from_root)
 
 
@@ -186,16 +186,23 @@ def test_benchmark_evaluations_to_dict_counts_outcomes() -> None:
     assert report["summary"]["failed"] == 0
     assert report["summary"]["passed"] == 11
     assert report["summary"]["blocked"] == 1
-    assert report["summary"]["unsupported"] == 13
+    assert report["summary"]["unsupported"] == 14
     assert report["coverage"]["by_type"] == {
-        "curated_minimal": 20,
+        "curated_minimal": 21,
         "real_vulnerability": 3,
         "synthetic_benchmark": 2,
     }
-    assert report["coverage"]["by_stage"] == {"M1": 12, "M2": 12, "M3": 1}
+    assert report["coverage"]["by_stage"] == {"M1": 12, "M2": 13, "M3": 1}
     assert report["gaps"] == [
         {
             "case_id": "curated-open-redirect-reachability",
+            "code": "unsupported_stage",
+            "stage": "M2",
+            "source": "project-curated",
+            "message": "当前 evaluator 不支持 M2。",
+        },
+        {
+            "case_id": "curated-open-redirect-reachability-add-url-rule",
             "code": "unsupported_stage",
             "stage": "M2",
             "source": "project-curated",
@@ -310,12 +317,12 @@ def test_benchmark_cases_to_dict_outputs_inventory() -> None:
 
     assert inventory["kind"] == "benchmark_case_inventory"
     assert inventory["summary"] == {
-        "total": 25,
-        "candidate": 23,
+        "total": 26,
+        "candidate": 24,
         "blocked": 1,
         "unsupported": 1,
     }
-    assert inventory["coverage"]["by_stage"] == {"M1": 12, "M2": 12, "M3": 1}
+    assert inventory["coverage"]["by_stage"] == {"M1": 12, "M2": 13, "M3": 1}
     assert inventory["cases"][0]["safety"]["contains_poc"] is False
 
 
@@ -406,10 +413,10 @@ def test_evaluate_benchmarks_cli_outputs_json_report(capsys) -> None:
     report = json.loads(captured.out)
     assert report["kind"] == "benchmark_evaluation_report"
     assert report["summary"]["failed"] == 0
-    assert report["summary"]["total"] == 25
+    assert report["summary"]["total"] == 26
     assert report["summary"]["passed"] == 11
     assert report["summary"]["blocked"] == 1
-    assert report["summary"]["unsupported"] == 13
+    assert report["summary"]["unsupported"] == 14
     assert {gap["code"] for gap in report["gaps"]} == {
         "blocked_runtime",
         "unsupported_stage",

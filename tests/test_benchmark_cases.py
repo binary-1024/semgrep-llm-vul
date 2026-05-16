@@ -92,6 +92,24 @@ def test_evaluate_benchmark_case_passes_curated_m2_reachability_case() -> None:
     )
 
 
+def test_evaluate_benchmark_case_passes_curated_m2_reachability_add_url_rule_case() -> None:
+    result = evaluate_benchmark_case(
+        CASES_ROOT / "curated-open-redirect-reachability-add-url-rule",
+        repo_root=ROOT,
+    )
+
+    assert result["kind"] == "benchmark_case_evaluation"
+    assert result["case_id"] == "curated-open-redirect-reachability-add-url-rule"
+    assert result["stage"] == "M2"
+    assert result["passed"] is True
+    assessment = result["reachability_report"]["assessments"][0]
+    assert assessment["reachable"] is True
+    assert assessment["entrypoint"]["kind"] == "flask_route"
+    assert assessment["entrypoint"]["evidence"][0]["source"]["metadata"]["entrypoint_model"] == (
+        "add_url_rule"
+    )
+
+
 def test_evaluate_benchmark_case_passes_curated_m2_reachability_blocked_case() -> None:
     result = evaluate_benchmark_case(
         CASES_ROOT / "curated-open-redirect-reachability-blocked",
@@ -251,14 +269,15 @@ def test_evaluate_benchmark_cases_summarizes_curated_cases() -> None:
     result = evaluate_benchmark_cases(CASES_ROOT, repo_root=ROOT)
 
     assert result["kind"] == "benchmark_case_suite_evaluation"
-    assert result["total"] == 23
+    assert result["total"] == 24
     assert result["passed"] is True
-    assert result["passed_count"] == 23
+    assert result["passed_count"] == 24
     assert result["failed_count"] == 0
     assert {item["case_id"] for item in result["results"]} == {
         "curated-command-execution-system",
         "curated-deserialization-deserialize",
         "curated-insufficient-evidence",
+        "curated-open-redirect-reachability-add-url-rule",
         "curated-open-redirect-reachability-alias-assignment-unknown",
         "curated-open-redirect-safe-diff",
         "curated-open-redirect-safe-negative",
@@ -288,7 +307,7 @@ def test_summarize_benchmark_suite_omits_full_sink_reports() -> None:
     summary = summarize_benchmark_suite(result)
 
     assert summary["kind"] == "benchmark_case_suite_summary"
-    assert summary["total"] == 23
+    assert summary["total"] == 24
     assert summary["passed"] is True
     assert all("sink_report" not in item for item in summary["cases"])
     assert all(item["failed_checks"] == [] for item in summary["cases"])

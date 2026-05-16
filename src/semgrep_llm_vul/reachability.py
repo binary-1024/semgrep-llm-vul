@@ -172,6 +172,8 @@ class _FlaskRoute:
     methods: tuple[str, ...]
     function: _PythonFunction
     source_path: Path
+    entrypoint_location: CodeLocation
+    entrypoint_model: str
 
 
 @dataclass(frozen=True)
@@ -234,6 +236,14 @@ def _python_modules_by_path(root: Path) -> dict[str, _PythonModule]:
             if route is None:
                 continue
             routes.append(route)
+        routes.extend(
+            _routes_from_add_url_rule(
+                tree,
+                functions=functions,
+                relative=relative,
+                source_path=path,
+            )
+        )
         modules[relative] = _PythonModule(
             path=relative,
             source_path=path,
@@ -379,8 +389,52 @@ def _route_from_function(
             methods=methods,
             function=function,
             source_path=source_path,
+            entrypoint_location=CodeLocation(
+                path=relative,
+                start_line=decorator.lineno,
+            ),
+            entrypoint_model="route_decorator",
         )
     return None
+
+
+def _routes_from_add_url_rule(
+    tree: ast.Module,
+    *,
+    functions: tuple[_PythonFunction, ...],
+    relative: str,
+    source_path: Path,
+) -> tuple[_FlaskRoute, ...]:
+    function_by_name = {function.name: function for function in functions}
+    routes: list[_FlaskRoute] = []
+    for node in tree.body:
+        if not isinstance(node, ast.Expr) or not isinstance(node.value, ast.Call):
+            continue
+        call = node.value
+        if not _is_attribute_call(call, "add_url_rule"):
+            continue
+        route_path = _route_path_from_add_url_rule(call)
+        view_func_name = _view_func_name_from_add_url_rule(call)
+        if route_path is None or view_func_name is None:
+            continue
+        function = function_by_name.get(view_func_name)
+        if function is None:
+            continue
+        routes.append(
+            _FlaskRoute(
+                path=relative,
+                route=route_path,
+                methods=_methods_from_call(call),
+                function=function,
+                source_path=source_path,
+                entrypoint_location=CodeLocation(
+                    path=relative,
+                    start_line=node.lineno,
+                ),
+                entrypoint_model="add_url_rule",
+            )
+        )
+    return tuple(routes)
 
 
 def _route_for_sink_location(
@@ -564,23 +618,64 @@ def _call_target_from_ast(node: ast.Call) -> tuple[str, str | None, int | None] 
     return None
 
 
+def _is_attribute_call(node: ast.Call, attribute_name: str) -> bool:
+    return isinstance(node.func, ast.Attribute) and node.func.attr == attribute_name
+
+
 def _route_from_decorator(decorator: ast.expr) -> tuple[str, tuple[str, ...]] | None:
     if not isinstance(decorator, ast.Call):
         return None
-    func = decorator.func
-    if not isinstance(func, ast.Attribute) or func.attr != "route":
+    if not _is_attribute_call(decorator, "route"):
         return None
-    if not decorator.args or not isinstance(decorator.args[0], ast.Constant):
+    route_path = _string_argument_from_call(decorator, positional_index=0, keyword_name=None)
+    if route_path is None:
         return None
-    route_path = decorator.args[0].value
-    if not isinstance(route_path, str):
-        return None
-    methods = _methods_from_decorator(decorator)
+    methods = _methods_from_call(decorator)
     return route_path, methods
 
 
-def _methods_from_decorator(decorator: ast.Call) -> tuple[str, ...]:
-    for keyword in decorator.keywords:
+def _route_path_from_add_url_rule(call: ast.Call) -> str | None:
+    return _string_argument_from_call(call, positional_index=0, keyword_name="rule")
+
+
+def _view_func_name_from_add_url_rule(call: ast.Call) -> str | None:
+    for keyword in call.keywords:
+        if keyword.arg != "view_func":
+            continue
+        value = keyword.value
+        if isinstance(value, ast.Name):
+            return value.id
+        return None
+    if len(call.args) >= 3 and isinstance(call.args[2], ast.Name):
+        return call.args[2].id
+    return None
+
+
+def _string_argument_from_call(
+    call: ast.Call,
+    *,
+    positional_index: int,
+    keyword_name: str | None,
+) -> str | None:
+    if len(call.args) > positional_index:
+        value = call.args[positional_index]
+        if isinstance(value, ast.Constant) and isinstance(value.value, str):
+            return value.value
+        return None
+    if keyword_name is None:
+        return None
+    for keyword in call.keywords:
+        if keyword.arg != keyword_name:
+            continue
+        value = keyword.value
+        if isinstance(value, ast.Constant) and isinstance(value.value, str):
+            return value.value
+        return None
+    return None
+
+
+def _methods_from_call(call: ast.Call) -> tuple[str, ...]:
+    for keyword in call.keywords:
         if keyword.arg != "methods":
             continue
         value = keyword.value
@@ -602,8 +697,7 @@ def _record_from_flask_route(
     module_index: dict[str, _PythonModule],
     source_root: Path,
 ) -> ReachabilityEvidenceRecord:
-    decorator_line = route.function.function.decorator_list[0].lineno
-    entrypoint_location = CodeLocation(path=route.path, start_line=decorator_line)
+    entrypoint_location = route.entrypoint_location
     route_function_name = route.function.name
     sink_location = taint_path.sink.signature.location
     method = route.methods[0] if route.methods else "GET"
@@ -638,6 +732,7 @@ def _record_from_flask_route(
                 metadata={
                     "framework": "flask",
                     "source_root": str(source_root),
+                    "entrypoint_model": route.entrypoint_model,
                     "call_chain_functions": [function.name for function in call_chain_functions],
                     "call_chain_paths": [function.path for function in call_chain_functions],
                 },
@@ -648,7 +743,11 @@ def _record_from_flask_route(
                 route_function_name=route_function_name,
                 helper_names=helper_names,
             ),
-            reasoning=_flask_route_reasoning(helper_names, helper_scope=helper_scope),
+            reasoning=_flask_route_reasoning(
+                helper_names,
+                helper_scope=helper_scope,
+                entrypoint_model=route.entrypoint_model,
+            ),
             confidence=0.7,
             reproducible_steps=(
                 f"inspect {route.source_path}",
@@ -712,10 +811,16 @@ def _flask_route_summary(
     )
 
 
-def _flask_route_reasoning(helper_names: list[str], *, helper_scope: str) -> str:
+def _flask_route_reasoning(
+    helper_names: list[str],
+    *,
+    helper_scope: str,
+    entrypoint_model: str,
+) -> str:
+    entrypoint_origin = _flask_entrypoint_origin(entrypoint_model)
     if not helper_names:
         return (
-            "该入口由本地 Python AST 从 @*.route(...) 装饰器提取，"
+            f"该入口由本地 Python AST 从 {entrypoint_origin} 提取，"
             "sink 位于该 handler 函数体内。"
         )
     helper_path = " -> ".join(helper_names)
@@ -724,10 +829,16 @@ def _flask_route_reasoning(helper_names: list[str], *, helper_scope: str) -> str
     else:
         helper_reason = f"route handler 通过 import 解析和局部 helper chain 调用 {helper_path}，"
     return (
-        "该入口由本地 Python AST 从 @*.route(...) 装饰器提取，"
+        f"该入口由本地 Python AST 从 {entrypoint_origin} 提取，"
         + helper_reason
         + "且 sink 位于该局部调用链到达的函数体内。"
     )
+
+
+def _flask_entrypoint_origin(entrypoint_model: str) -> str:
+    if entrypoint_model == "add_url_rule":
+        return "app.add_url_rule(...) 注册"
+    return "@*.route(...) 装饰器"
 
 
 def _line_within(line: int | None, function: _RouteFunction) -> bool:
