@@ -366,6 +366,27 @@ def test_evaluate_benchmark_case_passes_curated_m4_meta_refresh_verified_case() 
     assert verification["fixed"]["effect_state"] == "effect_not_observed"
 
 
+def test_evaluate_benchmark_case_passes_curated_m4_refresh_header_verified_case() -> None:
+    result = evaluate_benchmark_case(
+        CASES_ROOT / "curated-open-redirect-exp-refresh-header-verified",
+        repo_root=ROOT,
+    )
+
+    assert result["kind"] == "benchmark_case_evaluation"
+    assert result["case_id"] == "curated-open-redirect-exp-refresh-header-verified"
+    assert result["stage"] == "M4"
+    assert result["passed"] is True
+    verification = result["exp_report"]["verifications"][0]
+    assert verification["verdict"] == "verified"
+    assert verification["affected"]["status_code"] == 200
+    assert verification["affected"]["effect_state"] == "effect_observed"
+    assert (
+        verification["affected"]["response_headers"]["Refresh"]
+        == "0; url=https://attacker.example/poc"
+    )
+    assert verification["fixed"]["effect_state"] == "effect_not_observed"
+
+
 def test_evaluate_benchmark_case_passes_curated_m4_not_verified_case() -> None:
     result = evaluate_benchmark_case(
         CASES_ROOT / "curated-open-redirect-exp-not-verified",
@@ -428,6 +449,26 @@ def test_evaluate_benchmark_case_passes_curated_m4_meta_refresh_live_verified_ca
     assert verification["fixed"]["effect_state"] == "effect_not_observed"
 
 
+def test_evaluate_benchmark_case_passes_curated_m4_refresh_header_live_verified_case() -> None:
+    result = evaluate_benchmark_case(
+        LIVE_CASES_ROOT / "curated-open-redirect-exp-refresh-header-live-verified",
+        repo_root=ROOT,
+    )
+
+    assert result["kind"] == "benchmark_case_evaluation"
+    assert result["case_id"] == "curated-open-redirect-exp-refresh-header-live-verified"
+    assert result["stage"] == "M4"
+    assert result["passed"] is True
+    verification = result["exp_report"]["verifications"][0]
+    assert verification["verdict"] == "verified"
+    assert verification["affected"]["status_code"] == 200
+    assert (
+        verification["affected"]["response_headers"]["Refresh"]
+        == "0; url=https://attacker.example/poc"
+    )
+    assert verification["fixed"]["effect_state"] == "effect_not_observed"
+
+
 def test_evaluate_benchmark_case_rejects_live_case_without_isolation(tmp_path) -> None:
     case_dir = tmp_path / "case"
     shutil.copytree(
@@ -482,9 +523,9 @@ def test_evaluate_benchmark_cases_summarizes_curated_cases() -> None:
     result = evaluate_benchmark_cases(CASES_ROOT, repo_root=ROOT)
 
     assert result["kind"] == "benchmark_case_suite_evaluation"
-    assert result["total"] == 35
+    assert result["total"] == 36
     assert result["passed"] is True
-    assert result["passed_count"] == 35
+    assert result["passed_count"] == 36
     assert result["failed_count"] == 0
     assert {item["case_id"] for item in result["results"]} == {
         "curated-command-execution-system",
@@ -492,6 +533,7 @@ def test_evaluate_benchmark_cases_summarizes_curated_cases() -> None:
         "curated-open-redirect-exp-inconclusive",
         "curated-open-redirect-exp-meta-refresh-verified",
         "curated-open-redirect-exp-not-verified",
+        "curated-open-redirect-exp-refresh-header-verified",
         "curated-open-redirect-exp-verified",
         "curated-insufficient-evidence",
         "curated-open-redirect-poc-plan-blocked",
@@ -531,7 +573,7 @@ def test_summarize_benchmark_suite_omits_full_sink_reports() -> None:
     summary = summarize_benchmark_suite(result)
 
     assert summary["kind"] == "benchmark_case_suite_summary"
-    assert summary["total"] == 35
+    assert summary["total"] == 36
     assert summary["passed"] is True
     assert all("sink_report" not in item for item in summary["cases"])
     assert all(item["failed_checks"] == [] for item in summary["cases"])

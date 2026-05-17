@@ -88,3 +88,27 @@ def test_collect_managed_fixture_execution_records_supports_meta_refresh_fixture
     assert verification.affected.effect_state.value == "effect_observed"
     assert verification.affected.response_body_excerpt is not None
     assert "meta http-equiv" in verification.affected.response_body_excerpt
+
+
+def test_collect_managed_fixture_execution_records_supports_refresh_header_fixture() -> None:
+    task, poc_report = build_open_redirect_poc_report()
+    execution_records = collect_managed_fixture_execution_records(
+        poc_report,
+        fixture_name="open_redirect_refresh_header_pair",
+    )
+
+    report = generate_exp_verification_report(
+        task,
+        poc_report=poc_report,
+        execution_records=execution_records,
+    )
+
+    verification = report.verifications[0]
+    assert verification.verdict.value == "verified"
+    assert verification.affected.status_code == 200
+    assert verification.affected.effect_state.value == "effect_observed"
+    assert (
+        dict(verification.affected.response_headers)["Refresh"]
+        == "0; url=https://attacker.example/poc"
+    )
+    assert verification.affected.response_body_excerpt == "<html><body>redirecting</body></html>"

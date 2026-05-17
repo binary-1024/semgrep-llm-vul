@@ -29,4 +29,4 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/live-cases --repo-root .
 
 - 当前只支持 M4 live case。
 - 当前只允许仓库内置 `managed_fixture`，不允许任意脚本、命令或公网目标。
-- 当前内置 fixture 为 `open_redirect_pair` 与 `open_redirect_meta_refresh_pair`。
+- 当前内置 fixture 为 `open_redirect_pair`、`open_redirect_meta_refresh_pair` 与 `open_redirect_refresh_header_pair`。

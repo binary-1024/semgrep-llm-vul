@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-仓库已经完成 M0 基础 harness，并具备语言无关数据模型、分析任务输入模型、Semgrep finding 归一化、Semgrep taint-mode trace 到候选 `TaintPath` 的最小归一化能力、M1 最小 sink generation pipeline、M2 最小 taint path generation 与 reachability 入口、M3 最小结构化 PoC planning 入口、M4 最小结构化 exp verification 入口，以及用于未来 LLM 语义增强层的结构化 `SemanticHint` / `SemanticHintReport` contract。
+仓库已经完成 M0 基础 harness，并具备语言无关数据模型、分析任务输入模型、Semgrep finding 归一化、Semgrep taint-mode trace 到候选 `TaintPath` 的最小归一化能力、M1 最小 sink generation pipeline、M2 最小 taint path generation 与 reachability 入口、M3 最小结构化 PoC planning 入口、M4 最小结构化 exp verification 入口，以及用于未来 LLM 语义增强层的结构化 `SemanticHint` / `SemanticHintReport` contract。当前 `M1 ~ M4` 已形成一条窄范围、证据优先、可回归的端到端分析与验证骨架。
 
 ## 当前数据流
 
@@ -151,7 +151,7 @@ ExpVerificationReport(verdict=verified|not_verified|inconclusive)
 - 输入证据：`VulnerabilityInput`、`PocGenerationReport`、本地 execution evidence JSON 或 loopback live HTTP 观察
 - CLI：`uv run semgrep-llm-vul verify-exp <analysis-input> --semgrep-json <semgrep.json> --source-root <source-root> [--execution-json <execution.json> | --affected-base-url <base-url> --fixed-base-url <base-url>]`
 - JSON 序列化：`semgrep_llm_vul.reporting.exp_verification_report_to_dict`
-- 语义边界：第一版只消费 `PocPlan(execution_state=not_run)`；只支持 `http_request_replay` 这一类窄 runner；当前 effect observation 覆盖 Flask open redirect 的两类最小信号：header redirect（`30x + Location`）与 `meta refresh` body signature，可据此给出 `effect_observed`、`effect_not_observed` 或 `effect_unknown`；最终 verdict 只允许 `verified`、`not_verified`、`inconclusive`，并且 `verified` 必须要求 affected 观察到效果且 fixed 未观察到效果；当前支持三类 observation 来源：本地 execution evidence JSON、loopback live HTTP replay，以及仓库内置 managed fixture startup 驱动的 loopback live replay；managed fixture 当前作为内部 runtime 暴露给 pytest/live harness 和 opt-in live benchmark cases，不是公开 CLI startup 接口；live runner 只允许 `localhost` / `127.0.0.1` / `::1`，不自动启动真实项目服务，不跟随 redirect，不连接真实公网目标，不处理 secrets，不执行破坏性 payload；当前不支持通用 body diff、JS 执行或浏览器渲染。
+- 语义边界：第一版只消费 `PocPlan(execution_state=not_run)`；只支持 `http_request_replay` 这一类窄 runner；当前 effect observation 覆盖 Flask open redirect 的三类最小信号：header redirect（`30x + Location`）、`Refresh` response header 与 `meta refresh` body signature，可据此给出 `effect_observed`、`effect_not_observed` 或 `effect_unknown`；最终 verdict 只允许 `verified`、`not_verified`、`inconclusive`，并且 `verified` 必须要求 affected 观察到效果且 fixed 未观察到效果；当前支持三类 observation 来源：本地 execution evidence JSON、loopback live HTTP replay，以及仓库内置 managed fixture startup 驱动的 loopback live replay；managed fixture 当前作为内部 runtime 暴露给 pytest/live harness 和 opt-in live benchmark cases，不是公开 CLI startup 接口；live runner 只允许 `localhost` / `127.0.0.1` / `::1`，不自动启动真实项目服务，不跟随 redirect，不连接真实公网目标，不处理 secrets，不执行破坏性 payload；当前不支持通用 body diff、JS 执行或浏览器渲染。
 
 ## 预期方向
 

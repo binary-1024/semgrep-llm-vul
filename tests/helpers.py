@@ -53,7 +53,7 @@ def build_open_redirect_poc_report():
 def run_open_redirect_server(mode: str, *, style: str = "header_redirect"):
     if mode not in {"affected", "fixed"}:
         raise ValueError(f"unsupported mode: {mode}")
-    if style not in {"header_redirect", "meta_refresh"}:
+    if style not in {"header_redirect", "meta_refresh", "refresh_header"}:
         raise ValueError(f"unsupported style: {style}")
 
     class _Handler(BaseHTTPRequestHandler):
@@ -69,6 +69,14 @@ def run_open_redirect_server(mode: str, *, style: str = "header_redirect"):
                 self.send_response(302)
                 self.send_header("Location", location)
                 self.end_headers()
+                return
+            if style == "refresh_header":
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                if mode == "affected" and next_url:
+                    self.send_header("Refresh", f"0; url={next_url}")
+                self.end_headers()
+                self.wfile.write(b"<html><body>redirecting</body></html>")
                 return
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")

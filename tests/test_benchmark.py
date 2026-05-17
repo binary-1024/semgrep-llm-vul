@@ -98,7 +98,7 @@ def test_benchmark_templates_exist_and_are_not_discovered_as_cases() -> None:
 
     discovered_from_root = discover_benchmark_cases(ROOT / "benchmarks")
 
-    assert len(discovered_from_root) == 37
+    assert len(discovered_from_root) == 38
     assert all(case.case_id != "replace-with-kebab-case-id" for case in discovered_from_root)
 
 
@@ -186,18 +186,19 @@ def test_benchmark_evaluations_to_dict_counts_outcomes() -> None:
     assert report["summary"]["failed"] == 0
     assert report["summary"]["passed"] == 11
     assert report["summary"]["blocked"] == 1
-    assert report["summary"]["unsupported"] == 25
+    assert report["summary"]["unsupported"] == 26
     assert report["coverage"]["by_type"] == {
-        "curated_minimal": 32,
+        "curated_minimal": 33,
         "real_vulnerability": 3,
         "synthetic_benchmark": 2,
     }
-    assert report["coverage"]["by_stage"] == {"M1": 12, "M2": 17, "M3": 4, "M4": 4}
+    assert report["coverage"]["by_stage"] == {"M1": 12, "M2": 17, "M3": 4, "M4": 5}
     gap_ids = {gap["case_id"] for gap in report["gaps"]}
     assert gap_ids == {
         "curated-open-redirect-exp-inconclusive",
         "curated-open-redirect-exp-meta-refresh-verified",
         "curated-open-redirect-exp-not-verified",
+        "curated-open-redirect-exp-refresh-header-verified",
         "curated-open-redirect-exp-verified",
         "curated-open-redirect-poc-plan-blocked",
         "curated-open-redirect-poc-plan-source-control-local-var",
@@ -239,12 +240,12 @@ def test_benchmark_cases_to_dict_outputs_inventory() -> None:
 
     assert inventory["kind"] == "benchmark_case_inventory"
     assert inventory["summary"] == {
-        "total": 37,
-        "candidate": 35,
+        "total": 38,
+        "candidate": 36,
         "blocked": 1,
         "unsupported": 1,
     }
-    assert inventory["coverage"]["by_stage"] == {"M1": 12, "M2": 17, "M3": 4, "M4": 4}
+    assert inventory["coverage"]["by_stage"] == {"M1": 12, "M2": 17, "M3": 4, "M4": 5}
     assert inventory["cases"][0]["safety"]["contains_poc"] is False
 
 
@@ -335,10 +336,10 @@ def test_evaluate_benchmarks_cli_outputs_json_report(capsys) -> None:
     report = json.loads(captured.out)
     assert report["kind"] == "benchmark_evaluation_report"
     assert report["summary"]["failed"] == 0
-    assert report["summary"]["total"] == 37
+    assert report["summary"]["total"] == 38
     assert report["summary"]["passed"] == 11
     assert report["summary"]["blocked"] == 1
-    assert report["summary"]["unsupported"] == 25
+    assert report["summary"]["unsupported"] == 26
     assert {gap["code"] for gap in report["gaps"]} == {
         "blocked_runtime",
         "unsupported_stage",

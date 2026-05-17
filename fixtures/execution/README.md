@@ -7,11 +7,12 @@
 - fixture 类型：generated / project-curated
 - 来源：项目内合成的最小 HTTP request/response 观察
 - 目的：离线表达 affected / fixed 版本在同一 request artifact 下的最小对照结果
-- 当前覆盖场景：Flask open redirect（header redirect / body `meta refresh`）
+- 当前覆盖场景：Flask open redirect（header redirect / response header `Refresh` / body `meta refresh`）
 
 ## 文件说明
 
 - `open-redirect-verified.json`：affected 观察到外跳，fixed 未观察到外跳。
+- `open-redirect-refresh-header-verified.json`：affected 在 response header `Refresh` 中表达外跳，fixed 未观察到该效果。
 - `open-redirect-meta-refresh-verified.json`：affected 在 response body 的 `meta refresh` 中表达外跳，fixed 未观察到该效果。
 - `open-redirect-not-verified.json`：affected 与 fixed 都未观察到外跳，用于锁定 `not_verified`。
 - `open-redirect-inconclusive.json`：affected 观察到外跳，但 fixed 环境缺失，结果保持 `inconclusive`。

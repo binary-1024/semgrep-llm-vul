@@ -301,6 +301,43 @@ def test_verify_exp_cli_can_use_meta_refresh_live_runner(capsys) -> None:
     assert "meta http-equiv" in report["verifications"][0]["affected"]["response_body_excerpt"]
 
 
+def test_verify_exp_cli_can_use_refresh_header_live_runner(capsys) -> None:
+    with (
+        run_open_redirect_server("affected", style="refresh_header") as affected_base_url,
+        run_open_redirect_server("fixed", style="refresh_header") as fixed_base_url,
+    ):
+        exit_code = main(
+            [
+                "verify-exp",
+                str(ROOT / "examples" / "analysis" / "unknown-sink.yaml"),
+                "--semgrep-json",
+                str(
+                    ROOT
+                    / "fixtures"
+                    / "semgrep"
+                    / "taint-result-with-source-control-local-var-trace.json"
+                ),
+                "--source-root",
+                str(ROOT / "fixtures" / "reachability" / "flask-source-control-local-var-app"),
+                "--affected-base-url",
+                affected_base_url,
+                "--fixed-base-url",
+                fixed_base_url,
+            ]
+        )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    report = json.loads(captured.out)
+    assert report["verifications"][0]["verdict"] == "verified"
+    assert report["verifications"][0]["affected"]["status_code"] == 200
+    assert report["verifications"][0]["affected"]["effect_state"] == "effect_observed"
+    assert (
+        report["verifications"][0]["affected"]["response_headers"]["Refresh"]
+        == "0; url=https://attacker.example/poc"
+    )
+
+
 def test_verify_exp_cli_reports_missing_loopback_target_as_inconclusive(capsys) -> None:
     with run_open_redirect_server("affected") as affected_base_url:
         exit_code = main(
@@ -712,6 +749,33 @@ def test_evaluate_case_cli_outputs_meta_refresh_live_case_report(capsys) -> None
     assert report["exp_report"]["verifications"][0]["affected"]["status_code"] == 200
 
 
+def test_evaluate_case_cli_outputs_refresh_header_live_case_report(capsys) -> None:
+    exit_code = main(
+        [
+            "evaluate-case",
+            str(
+                ROOT
+                / "benchmarks"
+                / "live-cases"
+                / "curated-open-redirect-exp-refresh-header-live-verified"
+            ),
+            "--repo-root",
+            str(ROOT),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    report = json.loads(captured.out)
+    assert report["kind"] == "benchmark_case_evaluation"
+    assert report["case_id"] == "curated-open-redirect-exp-refresh-header-live-verified"
+    assert report["passed"] is True
+    assert (
+        report["exp_report"]["verifications"][0]["affected"]["response_headers"]["Refresh"]
+        == "0; url=https://attacker.example/poc"
+    )
+
+
 def test_evaluate_cases_cli_outputs_json_report(capsys) -> None:
     exit_code = main(
         [
@@ -726,7 +790,7 @@ def test_evaluate_cases_cli_outputs_json_report(capsys) -> None:
     assert exit_code == 0
     report = json.loads(captured.out)
     assert report["kind"] == "benchmark_case_suite_evaluation"
-    assert report["total"] == 35
+    assert report["total"] == 36
     assert report["passed"] is True
 
 
@@ -744,11 +808,12 @@ def test_evaluate_cases_cli_outputs_live_suite_report(capsys) -> None:
     assert exit_code == 0
     report = json.loads(captured.out)
     assert report["kind"] == "benchmark_case_suite_evaluation"
-    assert report["total"] == 2
+    assert report["total"] == 3
     assert report["passed"] is True
     assert {item["case_id"] for item in report["results"]} == {
         "curated-open-redirect-exp-live-verified",
         "curated-open-redirect-exp-meta-refresh-live-verified",
+        "curated-open-redirect-exp-refresh-header-live-verified",
     }
 
 
@@ -767,7 +832,7 @@ def test_evaluate_cases_cli_outputs_summary_report(capsys) -> None:
     assert exit_code == 0
     report = json.loads(captured.out)
     assert report["kind"] == "benchmark_case_suite_summary"
-    assert report["total"] == 35
+    assert report["total"] == 36
     assert report["passed"] is True
     assert all("sink_report" not in item for item in report["cases"])
 
@@ -784,8 +849,8 @@ def test_validate_benchmarks_cli_outputs_inventory(capsys) -> None:
     assert exit_code == 0
     inventory = json.loads(captured.out)
     assert inventory["kind"] == "benchmark_case_inventory"
-    assert inventory["summary"]["total"] == 37
-    assert inventory["summary"]["candidate"] == 35
+    assert inventory["summary"]["total"] == 38
+    assert inventory["summary"]["candidate"] == 36
 
 
 def test_benchmark_summary_cli_outputs_short_json(capsys) -> None:
@@ -808,11 +873,11 @@ def test_benchmark_summary_cli_outputs_short_json(capsys) -> None:
     assert summary["passed"] is True
     assert "evaluation" not in summary
     assert "inventory_evaluation" in summary
-    assert summary["inventory"]["summary"]["total"] == 37
+    assert summary["inventory"]["summary"]["total"] == 38
     assert summary["inventory"]["scope"].startswith("case inventory")
-    assert summary["inventory_evaluation"]["summary"]["unsupported"] == 25
+    assert summary["inventory_evaluation"]["summary"]["unsupported"] == 26
     assert summary["inventory_evaluation"]["scope"].startswith("M1 sink generation")
-    assert summary["executable_suite"]["total"] == 35
+    assert summary["executable_suite"]["total"] == 36
     assert summary["executable_suite"]["scope"].startswith("M1/M2/M3/M4")
     assert summary["known_limitations"] == [
         (
@@ -843,7 +908,7 @@ def test_benchmark_baseline_cli_outputs_markdown(capsys) -> None:
     assert "M1 sink generation inventory/gap evaluation" in captured.out
     assert "M1/M2/M3/M4 staged executable case checks" in captured.out
     assert "## Known Limitations" in captured.out
-    assert "| total | 37 |" in captured.out
+    assert "| total | 38 |" in captured.out
     assert "`curated-open-redirect-reachability`" in captured.out
 
 

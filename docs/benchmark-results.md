@@ -21,6 +21,7 @@
 - M4.1 loopback live runner 与 M4.2 managed fixture runtime 已进入 pytest 集成回归。
 - M4.3 已新增单独的 opt-in live suite：`benchmarks/live-cases/`；它默认不纳入 `benchmarks/cases` executable suite。
 - M4.4 已新增 body-signature effect observation；当前可通过 response body 中的 `meta refresh` 识别 open redirect 差异。
+- M4.5 已新增 refresh-header effect observation；当前可通过 response header `Refresh` 识别 open redirect 差异。
 - inventory evaluator 仍只支持 M1 sink generation，所以会把 M2/M3/M4 cases 作为 `unsupported_stage` gap 记录。
 - 完整外部数据集 ingestion 和需要隔离运行环境的真实漏洞 case 仍处于边界记录阶段，不作为当前自动回归失败。
 
@@ -50,12 +51,12 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/live-cases --repo-root .
 
 ## Inventory Baseline
 
-当前 `benchmarks/cases/` 共收录 37 个 case：
+当前 `benchmarks/cases/` 共收录 38 个 case：
 
 | 维度 | 数量 |
 | --- | ---: |
-| total | 37 |
-| candidate | 35 |
+| total | 38 |
+| candidate | 36 |
 | unsupported | 1 |
 | blocked | 1 |
 
@@ -66,13 +67,13 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/live-cases --repo-root .
 | M1 | 12 |
 | M2 | 17 |
 | M3 | 4 |
-| M4 | 4 |
+| M4 | 5 |
 
 按 case 类型：
 
 | 类型 | 数量 |
 | --- | ---: |
-| curated_minimal | 32 |
+| curated_minimal | 33 |
 | real_vulnerability | 3 |
 | synthetic_benchmark | 2 |
 
@@ -80,7 +81,7 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/live-cases --repo-root .
 
 | 来源 | 数量 |
 | --- | ---: |
-| project-curated | 32 |
+| project-curated | 33 |
 | CVEfixes | 1 |
 | NIST SARD / Juliet-style CWE sample | 1 |
 | OWASP Benchmark | 1 |
@@ -94,11 +95,11 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/live-cases --repo-root .
 | outcome | 数量 |
 | --- | ---: |
 | passed | 11 |
-| unsupported | 25 |
+| unsupported | 26 |
 | blocked | 1 |
 | failed | 0 |
 | error | 0 |
-| total | 37 |
+| total | 38 |
 
 当前 gaps：
 
@@ -110,6 +111,7 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/live-cases --repo-root .
 | `curated-open-redirect-exp-inconclusive` | `unsupported_stage` | inventory evaluator 当前不支持 M4。 |
 | `curated-open-redirect-exp-meta-refresh-verified` | `unsupported_stage` | inventory evaluator 当前不支持 M4。 |
 | `curated-open-redirect-exp-not-verified` | `unsupported_stage` | inventory evaluator 当前不支持 M4。 |
+| `curated-open-redirect-exp-refresh-header-verified` | `unsupported_stage` | inventory evaluator 当前不支持 M4。 |
 | `curated-open-redirect-exp-verified` | `unsupported_stage` | inventory evaluator 当前不支持 M4。 |
 | `curated-open-redirect-reachability` | `unsupported_stage` | inventory evaluator 当前不支持 M2。 |
 | `curated-open-redirect-reachability-add-url-rule` | `unsupported_stage` | inventory evaluator 当前不支持 M2。 |
@@ -135,16 +137,16 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/live-cases --repo-root .
 
 | 指标 | 数量 |
 | --- | ---: |
-| total | 35 |
-| passed_count | 35 |
+| total | 36 |
+| passed_count | 36 |
 | failed_count | 0 |
 
 `./scripts/benchmark-live` 当前结果：
 
 | 指标 | 数量 |
 | --- | ---: |
-| total | 2 |
-| passed_count | 2 |
+| total | 3 |
+| passed_count | 3 |
 | failed_count | 0 |
 
 ## 能力边界
@@ -156,9 +158,10 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/live-cases --repo-root .
 - M2 taint path candidate、reachability `true|false|null`、Flask decorator route positive、Flask `@*.get(...)` method-specific decorator positive、Blueprint + `register_blueprint(..., url_prefix=...)` positive、未注册 Blueprint 保持 `reachable=null`、模块级 `app.add_url_rule(...)` route positive、同文件 helper call chain、跨文件 direct helper call chain、module alias attribute call helper call chain、`ImportFrom` module attribute call / alias call helper call chain、有界 multi-layer helper call chain、handler-local 相对路径 guard 的 `reachable=false`、基于 `source.location` 的 source controllability 本地 AST 证据，以及 assignment alias 保持 `reachable=null` 的最小 curated case 回归。
 - M4 differential verification 已支持 `verified`、`not_verified`、`inconclusive` 三类 curated case，且当前会显式区分 `execution_state`、`effect_state` 与最终 verdict。
 - M4.1 已支持 loopback live HTTP replay：对已运行在 `localhost` / `127.0.0.1` / `::1` 上的本地目标发起真实首跳请求，并继续复用现有 observation / verdict contract。
-- M4.2 已支持仓库内置 managed fixture runtime：可以由内部 helper 受控地启动 `open_redirect_pair` 与 `open_redirect_meta_refresh_pair`，再走现有 live runner / verdict contract。
-- M4.3 已支持 opt-in live benchmark case：当前可通过 `benchmarks/live-cases/curated-open-redirect-exp-live-verified` 与 `benchmarks/live-cases/curated-open-redirect-exp-meta-refresh-live-verified` 分别验证 `managed_fixture(open_redirect_pair) -> verified` 与 `managed_fixture(open_redirect_meta_refresh_pair) -> verified`。
+- M4.2 已支持仓库内置 managed fixture runtime：可以由内部 helper 受控地启动 `open_redirect_pair`、`open_redirect_meta_refresh_pair` 与 `open_redirect_refresh_header_pair`，再走现有 live runner / verdict contract。
+- M4.3 已支持 opt-in live benchmark case：当前可通过 `benchmarks/live-cases/curated-open-redirect-exp-live-verified`、`benchmarks/live-cases/curated-open-redirect-exp-meta-refresh-live-verified` 与 `benchmarks/live-cases/curated-open-redirect-exp-refresh-header-live-verified` 分别验证 `managed_fixture(open_redirect_pair) -> verified`、`managed_fixture(open_redirect_meta_refresh_pair) -> verified` 与 `managed_fixture(open_redirect_refresh_header_pair) -> verified`。
 - M4.4 已支持最小 body-signature effect observation：当前可通过 response body 中的 `meta refresh` 判断 open redirect 是否在 affected / fixed 间表现出差异，并把摘要写入 `response_body_excerpt`。
+- M4.5 已支持最小 refresh-header effect observation：当前可通过 response header `Refresh` 判断 open redirect 是否在 affected / fixed 间表现出差异。
 - benchmark inventory、gap 和 executable suite 三层输出。
 - benchmark summary 使用 `inventory_evaluation` 和 `executable_suite` 区分 inventory/gap evaluation 与 M1/M2/M3/M4 executable suite，避免把 M2/M3/M4 `unsupported_stage` 误读为 suite 不支持。
 - exp verification report 当前已提升到 `schema_version=2`，用于稳定承载 response-level evidence 摘要字段。
@@ -166,8 +169,8 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/live-cases --repo-root .
 当前未覆盖或暂不自动化：
 
 - M2 reachability `true|false|null` 已有最小本地证据模型和 curated 回归，且已能从本地 Flask fixture 源码提取 decorator route 证据、`@*.get(...)` 这类 method-specific decorator 证据、Blueprint + `register_blueprint(..., url_prefix=...)` 组合证据、模块级 `app.add_url_rule(...)` registration 证据、同文件 helper call chain 证据、direct import 的跨文件 helper call chain 证据、module alias attribute call 证据、`ImportFrom` module attribute call / alias call 证据、最多两层 helper hop 的局部 helper chain 证据、handler-local 相对路径 guard 的 blocking evidence，以及 `source.location` 对应赋值语句的 source controllability AST 证据；普通 assignment alias、未注册 Blueprint 和更一般的 guard/sanitizer 当前继续保持 `reachable=null`。
-- M4 当前虽然已具备 loopback live runner、受控 managed fixture runtime、两条 opt-in live cases 和最小 body-signature observation，但仍未进入真实项目服务自动启动、容器隔离、会话/鉴权或更广的 runner/effect 类型。
-- 当前 body observation 仍然只覆盖 open redirect 的 `meta refresh`；不支持通用 body diff、JS redirect、浏览器渲染或更复杂的 DOM 语义。
+- M4 当前虽然已具备 loopback live runner、受控 managed fixture runtime、三条 opt-in live cases，以及最小 response-level observation family，但仍未进入真实项目服务自动启动、容器隔离、会话/鉴权或更广的 runner/effect 类型。
+- 当前 response-level observation 仍只覆盖 open redirect 的 `Location`、`Refresh` 与 `meta refresh`；不支持通用 body diff、JS redirect、浏览器渲染或更复杂的 DOM 语义。
 - 完整 CVEfixes ingestion 尚未实现。
 - Vul4J 等需要 checkout、构建、运行或隔离环境的 case 尚未进入自动执行。
 - 真实外部项目的大规模 benchmark 下载、缓存和采样流程尚未建立。
@@ -175,7 +178,7 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/live-cases --repo-root .
 
 ## 下一步
 
-当前 M4 已经完成 report-first 闭环，并补上了 loopback live runner、managed fixture runtime、两条 opt-in live cases 和最小 body-signature observation。下一步优先考虑：
+当前 M4 已经在窄范围内形成可回归闭环，并补上了 loopback live runner、managed fixture runtime、三条 opt-in live cases，以及最小 response-level observation family。后续优先考虑：
 
 - 更明确的 managed fixture family 元数据；
 - 更强的 observation contract，例如更多 response-level signature、error signature 或 stdout/stderr；

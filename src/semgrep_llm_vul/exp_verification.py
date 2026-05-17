@@ -40,6 +40,10 @@ _META_REFRESH_URL_RE = re.compile(
     r"<meta[^>]+http-equiv=[\"']?refresh[\"']?[^>]+content=[\"'][^\"'>]*url\s*=\s*([^\"'>\s;]+)[^\"'>]*[\"']",
     re.IGNORECASE,
 )
+_REFRESH_HEADER_URL_RE = re.compile(
+    r"(?:^|;)\s*\d+\s*;\s*url\s*=\s*([^;]+)",
+    re.IGNORECASE,
+)
 
 
 class ExecutionEvidenceError(ValueError):
@@ -250,7 +254,7 @@ def _verification_from_plan(
         "当前只支持 http_request_replay 这一类窄 runner。",
         (
             "当前 effect observation 只覆盖 Flask open redirect，"
-            "包括 header redirect 与 meta refresh body signature。"
+            "包括 Location header、Refresh header 与 meta refresh body signature。"
         ),
         (
             "当前支持 execution evidence JSON 或 loopback live HTTP replay；"
@@ -659,6 +663,7 @@ def _open_redirect_effect_from_record(
 ) -> tuple[ExpEffectState, str, tuple[str, ...]]:
     headers = {name.lower(): value for name, value in record.response_headers}
     location = headers.get("location")
+    refresh_header_url = _extract_refresh_header_url(headers.get("refresh"))
     status_code = record.status_code
     if _looks_external_url(location):
         if location == plan.trigger_input.value:
@@ -671,6 +676,18 @@ def _open_redirect_effect_from_record(
             ExpEffectState.EFFECT_OBSERVED,
             "响应返回 30x，Location 指向外部 URL，观察到 open redirect 风格效果。",
             ("实际 Location 与 M3 样例值不完全一致，需要人工确认是否为等价外跳。",),
+        )
+    if _looks_external_url(refresh_header_url):
+        if refresh_header_url == plan.trigger_input.value:
+            return (
+                ExpEffectState.EFFECT_OBSERVED,
+                "响应头中的 Refresh 与攻击者控制的外部 URL 一致。",
+                (),
+            )
+        return (
+            ExpEffectState.EFFECT_OBSERVED,
+            "响应头中的 Refresh 指向外部 URL，观察到 open redirect 风格效果。",
+            ("实际 Refresh 目标与 M3 样例值不完全一致，需要人工确认是否为等价外跳。",),
         )
     meta_refresh_url = _extract_meta_refresh_url(record.response_body_text)
     if _looks_external_url(meta_refresh_url):
@@ -688,18 +705,21 @@ def _open_redirect_effect_from_record(
     if status_code is not None and not 300 <= status_code < 400:
         return (
             ExpEffectState.EFFECT_NOT_OBSERVED,
-            f"响应状态码为 {status_code}，且未观察到 Location 或 meta refresh 外跳效果。",
+            f"响应状态码为 {status_code}，且未观察到 Location、Refresh 或 meta refresh 外跳效果。",
             (),
         )
-    if not location:
+    if not location and not headers.get("refresh"):
         return (
             ExpEffectState.EFFECT_NOT_OBSERVED,
-            "响应缺少 Location header，且 body 未观察到可用于 open redirect 的 meta refresh 效果。",
+            (
+                "响应缺少 Location / Refresh header，"
+                "且 body 未观察到可用于 open redirect 的 meta refresh 效果。"
+            ),
             (),
         )
     return (
         ExpEffectState.EFFECT_NOT_OBSERVED,
-        "响应重定向到站内或非外部目标，且 body 未观察到外跳效果。",
+        "响应中的 Location / Refresh 仅指向站内或非外部目标，且 body 未观察到外跳效果。",
         (),
     )
 
@@ -712,6 +732,15 @@ def _extract_meta_refresh_url(body: str | None) -> str:
     if not body:
         return ""
     match = _META_REFRESH_URL_RE.search(body)
+    if match is None:
+        return ""
+    return match.group(1).strip()
+
+
+def _extract_refresh_header_url(value: str | None) -> str:
+    if not value:
+        return ""
+    match = _REFRESH_HEADER_URL_RE.search(value)
     if match is None:
         return ""
     return match.group(1).strip()

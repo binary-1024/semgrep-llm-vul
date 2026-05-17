@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-仓库已经接入 Python/uv 测试 harness。当前测试覆盖包导入、核心数据模型、分析任务 YAML/JSON 输入解析、CLI 行为、Semgrep finding 归一化、Semgrep taint trace 归一化、最小 sink generation pipeline、M2 reachability、M3 结构化 PoC planning、M4 结构化 exp verification，以及 loopback live runner / managed fixture runtime / opt-in live cases / body-signature effect observation 的本地 HTTP 集成回归。
+仓库已经接入 Python/uv 测试 harness。当前测试覆盖包导入、核心数据模型、分析任务 YAML/JSON 输入解析、CLI 行为、Semgrep finding 归一化、Semgrep taint trace 归一化、最小 sink generation pipeline、M2 reachability、M3 结构化 PoC planning、M4 结构化 exp verification，以及 loopback live runner / managed fixture runtime / opt-in live cases / response-level effect observation 的本地 HTTP 集成回归。
 
 ## 测试策略
 

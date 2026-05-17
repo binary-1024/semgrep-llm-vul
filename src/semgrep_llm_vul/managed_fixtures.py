@@ -41,6 +41,8 @@ def managed_fixture_targets(
         style = "header_redirect"
     elif name == "open_redirect_meta_refresh_pair":
         style = "meta_refresh"
+    elif name == "open_redirect_refresh_header_pair":
+        style = "refresh_header"
     else:
         raise ManagedFixtureError(f"不支持的 managed fixture：{name}")
 
@@ -67,7 +69,7 @@ def managed_fixture_targets(
 def _run_open_redirect_server(mode: str, *, timeout_seconds: float, style: str):
     if mode not in {"affected", "fixed"}:
         raise ManagedFixtureError(f"unsupported fixture mode: {mode}")
-    if style not in {"header_redirect", "meta_refresh"}:
+    if style not in {"header_redirect", "meta_refresh", "refresh_header"}:
         raise ManagedFixtureError(f"unsupported fixture style: {style}")
 
     class _Handler(BaseHTTPRequestHandler):
@@ -88,6 +90,14 @@ def _run_open_redirect_server(mode: str, *, timeout_seconds: float, style: str):
                 self.send_response(302)
                 self.send_header("Location", location)
                 self.end_headers()
+                return
+            if style == "refresh_header":
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                if mode == "affected" and next_url:
+                    self.send_header("Refresh", f"0; url={next_url}")
+                self.end_headers()
+                self.wfile.write(b"<html><body>redirecting</body></html>")
                 return
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
