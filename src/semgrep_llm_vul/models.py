@@ -436,6 +436,7 @@ class ExpObservation:
     exit_code: int | None = None
     status_code: int | None = None
     response_headers: tuple[tuple[str, str], ...] = ()
+    response_body_excerpt: str | None = None
     observed_effect: str | None = None
     evidence: tuple[Evidence, ...] = ()
     unknowns: tuple[str, ...] = ()

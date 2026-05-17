@@ -160,7 +160,7 @@ def exp_verification_report_to_dict(
     """将 exp verification report 转为稳定 JSON 结构。"""
 
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "kind": "exp_verification_report",
         "mode": task.mode.value,
         "target": {
@@ -291,6 +291,7 @@ def _exp_observation_to_dict(
         "response_headers": {
             name: value for name, value in observation.response_headers
         },
+        "response_body_excerpt": observation.response_body_excerpt,
         "observed_effect": observation.observed_effect,
         "evidence": [_evidence_to_dict(evidence) for evidence in observation.evidence],
         "unknowns": list(observation.unknowns),

@@ -25,6 +25,10 @@
 | 0015 | [M4 第一版先使用结构化 exp verification/report](0015-use-structured-exp-verification-first.md) | Accepted | [为 M4 引入最小结构化 exp verification 闭环](../Insight/20260516-m4-structured-exp-verification.md) | M4 exp verification、执行边界、对照语义 |
 | 0016 | [M4.1 使用 loopback live HTTP replay runner](0016-use-loopback-live-http-replay-runner.md) | Accepted | [为 M4.1 引入 loopback live HTTP replay runner](../Insight/20260516-m4-local-http-replay-runner.md) | M4 live runner、安全边界、真实本地执行 |
 | 0017 | [M4.2 使用受控 managed fixture startup](0017-use-managed-fixture-startup-for-m4.md) | Accepted | [为 M4.2 引入受控 managed fixture app 启停](../Insight/20260517-m4-managed-fixture-startup.md) | M4 受控服务启停、CLI 执行边界 |
+| 0018 | [M4.3 使用 opt-in live benchmark cases](0018-use-opt-in-live-benchmark-cases-for-m4.md) | Accepted | [为 M4.3 引入 opt-in live benchmark cases](../Insight/20260517-m4-opt-in-live-cases.md) | M4 live case、benchmark 分层、managed fixture 第二消费者 |
+| 0019 | [M4.4 使用 body-signature effect observation](0019-use-body-signature-observation-for-m4.md) | Accepted | [为 M4.4 引入 body-signature effect observation](../Insight/20260517-m4-body-signature-observation.md) | M4 observation contract、response body 证据、open redirect body redirect |
+| 0020 | [M4.5 使用 refresh-header effect observation](0020-use-refresh-header-observation-for-m4.md) | Accepted | [为 M4.5 引入 refresh-header effect observation](../Insight/20260517-m4-refresh-header-observation.md) | M4 observation contract、response header 证据、open redirect refresh redirect |
+| 0021 | [将当前窄范围定义下的 M4 收口为完成状态](0021-close-bounded-m4-as-complete.md) | Accepted | [当前窄范围下将 M4 收口为完成状态](../Insight/20260517-m4-completion-boundary.md) | 路线图语义、goal stop rule、后 M4 扩展边界 |
 
 ## 使用方式
 

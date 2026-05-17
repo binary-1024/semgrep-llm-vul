@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-仓库已经接入 Python/uv 测试 harness。当前测试覆盖包导入、核心数据模型、分析任务 YAML/JSON 输入解析、CLI 行为、Semgrep finding 归一化、Semgrep taint trace 归一化、最小 sink generation pipeline、M2 reachability、M3 结构化 PoC planning、M4 结构化 exp verification，以及 loopback live runner / managed fixture runtime 的本地 HTTP 集成回归。
+仓库已经接入 Python/uv 测试 harness。当前测试覆盖包导入、核心数据模型、分析任务 YAML/JSON 输入解析、CLI 行为、Semgrep finding 归一化、Semgrep taint trace 归一化、最小 sink generation pipeline、M2 reachability、M3 结构化 PoC planning、M4 结构化 exp verification，以及 loopback live runner / managed fixture runtime / opt-in live cases / response-level effect observation 的本地 HTTP 集成回归。
 
 ## 测试策略
 
@@ -14,6 +14,35 @@
 4. 畸形输入的错误处理
 5. 来自真实 findings 的回归案例
 6. 便于人工审查的输出格式
+
+## 端到端 Smoke
+
+当前仓库除了阶段级 CLI 集成测试外，还应保留一层专门命名的 full-chain E2E smoke，
+用于锁定当前主线中“用户如何从分析输入一路走到最终 verdict”的最小可工作链路。
+
+当前 dedicated E2E smoke 位于：
+
+- `tests/test_e2e_cli.py`
+
+当前覆盖两条最小链路：
+
+1. offline full-chain：
+   `generate-sinks -> generate-taint-paths -> confirm-reachability -> generate-poc -> verify-exp --execution-json`
+2. live full-chain：
+   `generate-sinks -> generate-taint-paths -> confirm-reachability -> generate-poc -> verify-exp --affected-base-url --fixed-base-url`
+
+要求：
+
+- 优先锁当前主线支持最稳定的一条漏洞类型，不追求一次覆盖所有场景。
+- E2E smoke 只验证“整条链能否工作、关键语义是否保持”，不替代阶段级单元/回归测试。
+- live E2E 继续只允许 loopback 本地目标，不连接公网，不依赖 secrets。
+- 如果新增新的主线闭环，应优先考虑是否需要补一条同级 dedicated E2E smoke。
+
+运行方式：
+
+```bash
+./scripts/e2e-smoke
+```
 
 ## 测试分类
 
@@ -101,6 +130,8 @@ test_regression_nested_semgrep_trace_location()
 
 如果需要自动起本地目标，优先使用仓库内置 managed fixture runtime，而不是任意脚本或 shell 命令。
 
+如果需要把真实 loopback 执行沉淀成 case，优先放到 `benchmarks/live-cases/`，而不是混入默认 `benchmarks/cases/`。
+
 未来如果出现耗时测试，可增加 marker：
 
 ```text
@@ -128,6 +159,7 @@ test_regression_nested_semgrep_trace_location()
 - 对 evidence、location、unknowns、blocking factors 等证据链字段做结构断言。
 - 对语义命名做断言；例如 benchmark summary 应使用 `inventory_evaluation`，不得退回容易误读的 `evaluation`。
 - 当报告字段重命名或语义调整时，应提升 `schema_version`，并补充对应 CLI 或报告契约测试。
+- 当前 M4 exp verification report 已提升到 `schema_version=2`，用于稳定承载 `response_body_excerpt` 这类 response-level evidence。
 - 避免对非关键排序或完整大 JSON 做脆弱断言；必要时先生成摘要再断言。
 - 如果需要 snapshot，应优先 snapshot 小型、脱敏、稳定的报告片段。
 
@@ -204,6 +236,7 @@ Semgrep fixture 可以通过以下命令从样例项目和规则生成：
 ./scripts/test
 ./scripts/check
 ./scripts/benchmark
+./scripts/benchmark-live
 ./scripts/benchmark-summary
 ```
 
@@ -216,5 +249,6 @@ uv build
 uv run semgrep-llm-vul validate-benchmarks
 uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .
 uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-only
+uv run semgrep-llm-vul evaluate-cases benchmarks/live-cases --repo-root .
 uv run semgrep-llm-vul benchmark-baseline --artifact-base . --repo-root . --markdown
 ```

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import http.client
 import json
+import re
 import socket
 from dataclasses import dataclass
 from pathlib import Path
@@ -34,6 +35,15 @@ from semgrep_llm_vul.poc_generation import PocGenerationReport
 _TARGET_HOST_PLACEHOLDER = "http://TARGET_HOST"
 _EXTERNAL_URL_PREFIXES = ("http://", "https://")
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+_BODY_EXCERPT_LIMIT = 200
+_META_REFRESH_URL_RE = re.compile(
+    r"<meta[^>]+http-equiv=[\"']?refresh[\"']?[^>]+content=[\"'][^\"'>]*url\s*=\s*([^\"'>\s;]+)[^\"'>]*[\"']",
+    re.IGNORECASE,
+)
+_REFRESH_HEADER_URL_RE = re.compile(
+    r"(?:^|;)\s*\d+\s*;\s*url\s*=\s*([^;]+)",
+    re.IGNORECASE,
+)
 
 
 class ExecutionEvidenceError(ValueError):
@@ -66,6 +76,7 @@ class ExecutionEvidenceRecord:
     exit_code: int | None = None
     status_code: int | None = None
     response_headers: tuple[tuple[str, str], ...] = ()
+    response_body_text: str | None = None
     notes: tuple[str, ...] = ()
     evidence: tuple[Evidence, ...] = ()
 
@@ -241,7 +252,10 @@ def _verification_from_plan(
     unknowns: list[str] = []
     limitations = [
         "当前只支持 http_request_replay 这一类窄 runner。",
-        "当前 effect observation 只覆盖 Flask open redirect 这类可由 redirect 行为表达的场景。",
+        (
+            "当前 effect observation 只覆盖 Flask open redirect，"
+            "包括 Location header、Refresh header 与 meta refresh body signature。"
+        ),
         (
             "当前支持 execution evidence JSON 或 loopback live HTTP replay；"
             "不自动启动真实服务，不连接真实公网目标。"
@@ -433,13 +447,14 @@ def _execute_local_request(
         response = connection.getresponse()
         response_headers = tuple(response.getheaders())
         status_code = response.status
-        response.read()
+        response_body_text = _decode_response_body(response.read())
         notes = request_notes
         execution_state = ExpExecutionState.COMPLETED
         exit_code = 0
     except ConnectionRefusedError:
         response_headers = ()
         status_code = None
+        response_body_text = None
         notes = (
             *request_notes,
             f"{target.version_role.value} 目标未监听：{target.base_url}",
@@ -449,6 +464,7 @@ def _execute_local_request(
     except socket.gaierror:
         response_headers = ()
         status_code = None
+        response_body_text = None
         notes = (
             *request_notes,
             f"{target.version_role.value} 目标地址无法解析：{target.base_url}",
@@ -458,6 +474,7 @@ def _execute_local_request(
     except TimeoutError:
         response_headers = ()
         status_code = None
+        response_body_text = None
         notes = (
             *request_notes,
             f"{target.version_role.value} 本地请求超时：{target.base_url}",
@@ -467,6 +484,7 @@ def _execute_local_request(
     except OSError as exc:
         response_headers = ()
         status_code = None
+        response_body_text = None
         notes = (
             *request_notes,
             f"{target.version_role.value} 本地请求失败：{exc}",
@@ -514,6 +532,7 @@ def _execute_local_request(
         exit_code=exit_code,
         status_code=status_code,
         response_headers=response_headers,
+        response_body_text=response_body_text,
         notes=tuple(notes),
         evidence=evidence,
     )
@@ -612,6 +631,7 @@ def _observation_from_record(
         exit_code=record.exit_code,
         status_code=record.status_code,
         response_headers=record.response_headers,
+        response_body_excerpt=_body_excerpt(record.response_body_text),
         observed_effect=observed_effect,
         evidence=record.evidence,
         unknowns=tuple(dict.fromkeys((*record.notes, *unknowns))),
@@ -643,19 +663,8 @@ def _open_redirect_effect_from_record(
 ) -> tuple[ExpEffectState, str, tuple[str, ...]]:
     headers = {name.lower(): value for name, value in record.response_headers}
     location = headers.get("location")
+    refresh_header_url = _extract_refresh_header_url(headers.get("refresh"))
     status_code = record.status_code
-    if status_code is not None and not 300 <= status_code < 400:
-        return (
-            ExpEffectState.EFFECT_NOT_OBSERVED,
-            f"响应状态码为 {status_code}，未观察到 30x redirect 行为。",
-            (),
-        )
-    if not location:
-        return (
-            ExpEffectState.EFFECT_NOT_OBSERVED,
-            "响应缺少 Location header，未观察到可用于 open redirect 的跳转效果。",
-            (),
-        )
     if _looks_external_url(location):
         if location == plan.trigger_input.value:
             return (
@@ -668,15 +677,82 @@ def _open_redirect_effect_from_record(
             "响应返回 30x，Location 指向外部 URL，观察到 open redirect 风格效果。",
             ("实际 Location 与 M3 样例值不完全一致，需要人工确认是否为等价外跳。",),
         )
+    if _looks_external_url(refresh_header_url):
+        if refresh_header_url == plan.trigger_input.value:
+            return (
+                ExpEffectState.EFFECT_OBSERVED,
+                "响应头中的 Refresh 与攻击者控制的外部 URL 一致。",
+                (),
+            )
+        return (
+            ExpEffectState.EFFECT_OBSERVED,
+            "响应头中的 Refresh 指向外部 URL，观察到 open redirect 风格效果。",
+            ("实际 Refresh 目标与 M3 样例值不完全一致，需要人工确认是否为等价外跳。",),
+        )
+    meta_refresh_url = _extract_meta_refresh_url(record.response_body_text)
+    if _looks_external_url(meta_refresh_url):
+        if meta_refresh_url == plan.trigger_input.value:
+            return (
+                ExpEffectState.EFFECT_OBSERVED,
+                "响应 body 中的 meta refresh 与攻击者控制的外部 URL 一致。",
+                (),
+            )
+        return (
+            ExpEffectState.EFFECT_OBSERVED,
+            "响应 body 中的 meta refresh 指向外部 URL，观察到 open redirect 风格效果。",
+            ("实际 body redirect 目标与 M3 样例值不完全一致，需要人工确认是否为等价外跳。",),
+        )
+    if status_code is not None and not 300 <= status_code < 400:
+        return (
+            ExpEffectState.EFFECT_NOT_OBSERVED,
+            f"响应状态码为 {status_code}，且未观察到 Location、Refresh 或 meta refresh 外跳效果。",
+            (),
+        )
+    if not location and not headers.get("refresh"):
+        return (
+            ExpEffectState.EFFECT_NOT_OBSERVED,
+            (
+                "响应缺少 Location / Refresh header，"
+                "且 body 未观察到可用于 open redirect 的 meta refresh 效果。"
+            ),
+            (),
+        )
     return (
         ExpEffectState.EFFECT_NOT_OBSERVED,
-        "响应重定向到站内或非外部目标，未观察到 open redirect 效果。",
+        "响应中的 Location / Refresh 仅指向站内或非外部目标，且 body 未观察到外跳效果。",
         (),
     )
 
 
-def _looks_external_url(value: str) -> bool:
-    return value.startswith(_EXTERNAL_URL_PREFIXES)
+def _looks_external_url(value: str | None) -> bool:
+    return isinstance(value, str) and value.startswith(_EXTERNAL_URL_PREFIXES)
+
+
+def _extract_meta_refresh_url(body: str | None) -> str:
+    if not body:
+        return ""
+    match = _META_REFRESH_URL_RE.search(body)
+    if match is None:
+        return ""
+    return match.group(1).strip()
+
+
+def _extract_refresh_header_url(value: str | None) -> str:
+    if not value:
+        return ""
+    match = _REFRESH_HEADER_URL_RE.search(value)
+    if match is None:
+        return ""
+    return match.group(1).strip()
+
+
+def _body_excerpt(body: str | None) -> str | None:
+    if not body:
+        return None
+    compact = " ".join(body.split())
+    if len(compact) <= _BODY_EXCERPT_LIMIT:
+        return compact
+    return f"{compact[:_BODY_EXCERPT_LIMIT - 3]}..."
 
 
 def _derive_verdict(
@@ -811,6 +887,7 @@ def _execution_record_from_dict(
         raise ExecutionEvidenceError("execution observation.response 必须是 object")
     status_code = _optional_int(response.get("status_code"))
     response_headers = _headers_from_mapping(response.get("headers"))
+    response_body_text = _optional_str(response.get("body"))
     notes = _string_list(data.get("notes"), field="execution observation.notes")
     evidence = (
         Evidence(
@@ -841,6 +918,7 @@ def _execution_record_from_dict(
         exit_code=exit_code,
         status_code=status_code,
         response_headers=response_headers,
+        response_body_text=response_body_text,
         notes=tuple(notes),
         evidence=evidence,
     )
@@ -928,6 +1006,12 @@ def _optional_str(value: object) -> str | None:
     if not isinstance(value, str):
         raise ExecutionEvidenceError("execution observation 中的字符串字段必须是字符串或 null")
     return value
+
+
+def _decode_response_body(body: bytes) -> str | None:
+    if not body:
+        return None
+    return body.decode("utf-8", errors="replace")
 
 
 def _string_list(value: object, *, field: str) -> tuple[str, ...]:

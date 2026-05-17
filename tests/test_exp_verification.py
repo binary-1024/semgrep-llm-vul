@@ -99,3 +99,46 @@ def test_generate_exp_verification_report_returns_inconclusive_when_fixed_env_mi
     assert verification.affected.effect_state.value == "effect_observed"
     assert verification.fixed.execution_state.value == "environment_missing"
     assert any("fixed 版本执行未完成" in item for item in verification.unknowns)
+
+
+def test_generate_exp_verification_report_supports_meta_refresh_body_observation() -> None:
+    task, poc_report = _poc_report()
+    execution_fixture = ROOT / "fixtures" / "execution" / "open-redirect-meta-refresh-verified.json"
+
+    report = generate_exp_verification_report(
+        task,
+        poc_report=poc_report,
+        execution_records=load_execution_evidence(execution_fixture),
+    )
+
+    verification = report.verifications[0]
+    assert verification.verdict.value == "verified"
+    assert verification.affected.status_code == 200
+    assert verification.affected.effect_state.value == "effect_observed"
+    assert verification.affected.response_body_excerpt is not None
+    assert "meta http-equiv" in verification.affected.response_body_excerpt
+    assert verification.fixed.effect_state.value == "effect_not_observed"
+
+
+def test_generate_exp_verification_report_supports_refresh_header_observation() -> None:
+    task, poc_report = _poc_report()
+    execution_fixture = (
+        ROOT / "fixtures" / "execution" / "open-redirect-refresh-header-verified.json"
+    )
+
+    report = generate_exp_verification_report(
+        task,
+        poc_report=poc_report,
+        execution_records=load_execution_evidence(execution_fixture),
+    )
+
+    verification = report.verifications[0]
+    assert verification.verdict.value == "verified"
+    assert verification.affected.status_code == 200
+    assert verification.affected.effect_state.value == "effect_observed"
+    assert (
+        dict(verification.affected.response_headers)["Refresh"]
+        == "0; url=https://attacker.example/poc"
+    )
+    assert verification.affected.response_body_excerpt is None
+    assert verification.fixed.effect_state.value == "effect_not_observed"

@@ -2,6 +2,9 @@
 
 本目录按 case 组织 benchmark/case harness。
 
+需要真实 loopback 执行的 opt-in live cases 不放在本目录，而是单独放在
+`../live-cases/`，避免污染默认 `./scripts/benchmark` 的离线、稳定语义。
+
 ## Case 目录结构
 
 ```text

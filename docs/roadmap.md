@@ -2,6 +2,31 @@
 
 本文档把项目目标拆成可执行里程碑。每个里程碑都以 harness 为核心：明确输入、输出、验证方式和失败反馈。
 
+## 项目进度总览
+
+当前项目已经完成从 `M0` 到 `M4` 的第一版最小闭环，状态如下：
+
+| 里程碑 | 当前状态 | 当前说明 |
+| --- | --- | --- |
+| M0 | 已完成 | Python 3.10 + `uv` harness、测试、lint、build、CI、Git/文档规范已稳定。 |
+| M1 | 已完成第一版 | 已具备最小 deterministic sink candidate pipeline，并纳入默认 benchmark/case harness。 |
+| M2 | 已完成第一版 | 已具备 taint path candidate、`reachable=true/false/null` 三态、本地入口/调用链/source control/blocking evidence。 |
+| M3 | 已完成第一版 | 已具备结构化 PoC planning，默认输出 `execution_state=not_run`。 |
+| M4 | 已完成当前窄范围版本（收口于 M4.5） | 已具备结构化 exp verification、loopback live runner、managed fixture runtime、opt-in live cases，以及 open redirect 场景下的最小 response-level observation family。 |
+
+当前文档职责分工：
+
+- `README.md`：稳定入口、常用命令、核心文档导航。
+- `docs/roadmap.md`：当前阶段、项目进度、下一步任务和里程碑计划。
+- `docs/architecture.md`：当前架构状态、模块边界和数据流。
+- `docs/benchmark-results.md`：benchmark/case baseline、覆盖计数和能力边界。
+
+当前主线判断：
+
+- 当前四个主线里程碑 `M1 ~ M4` 的窄范围版本都已经闭环。
+- `benchmarks/live-cases/` 当前是 opt-in live suite，不进入默认 `./scripts/benchmark`。
+- 后续工作默认视为“后 M4 扩展”，不再把更多 observation family 或更强执行面默认算作当前 M4 未完成项。
+
 ## 里程碑 0：项目 Harness
 
 目标：让项目具备可开发、可验证、可回滚的基础工程环境。
@@ -133,7 +158,7 @@
 
 目标：生成并执行 exp 脚本，用于验证漏洞判断是否正确。
 
-当前状态：M4 第一版最小闭环已完成，并已推进到 M4.2。当前已经可以把 `PocPlan(execution_state=not_run)` 转换成结构化 exp verification report，并结合本地 execution evidence、loopback live HTTP replay 或仓库内置 managed fixture runtime 对 affected / fixed 版本做最小差分验证；当前 verdict 支持 `verified`、`not_verified`、`inconclusive`，runner 仍保持窄类型 `http_request_replay`，effect observation 当前仅覆盖 Flask open redirect。
+当前状态：M4 第一版最小闭环已完成，并已推进到 M4.5。当前已经可以把 `PocPlan(execution_state=not_run)` 转换成结构化 exp verification report，并结合本地 execution evidence、loopback live HTTP replay、仓库内置 managed fixture runtime 或 opt-in live case 对 affected / fixed 版本做最小差分验证；当前 verdict 支持 `verified`、`not_verified`、`inconclusive`，runner 仍保持窄类型 `http_request_replay`，effect observation 当前覆盖 Flask open redirect 的 `Location` header、`Refresh` response header 与 `meta refresh` body signature。
 
 输入：
 
@@ -164,7 +189,14 @@
 
 ## 当前下一步
 
-当前主线已经完成 M4 第一版最小闭环，并补上了 M4.1 的 loopback live runner 和 M4.2 的 managed fixture runtime。下一步优先扩 M4 的 effect coverage 与少量 opt-in live case，而不是重新回到 M2/M3 语法角落。
+当前主线已经完成 M4 当前窄范围版本，并补上了 M4.1 的 loopback live runner、M4.2 的 managed fixture runtime、M4.3 的 opt-in live cases、M4.4 的 body-signature effect observation，以及 M4.5 的 refresh-header effect observation。
+
+后续下一步不再表述为“M4 还没做完”，而是优先从以下后 M4 扩展方向中选择：
+
+- 扩更强的 response-level observation family，例如 error signature；
+- 扩更多漏洞类型，而不只停留在 Flask open redirect；
+- 扩更真实但仍受控的运行环境，例如容器或项目级 fixture；
+- 扩 LLM 语义增强层的真实消费路径，但仍保持证据约束。
 
 M1 当前已经具备：
 
@@ -198,14 +230,17 @@ M2/M3/M4 当前闭环能力：
 - `verify-exp` 已接入最小结构化 exp verification report，可从 M3 plan 派生出 `http_request_replay` request artifact，并结合本地 execution evidence 或 loopback live HTTP replay 输出 `execution_state`、`effect_state` 和最终 `verdict`。
 - M4 executable suite 已覆盖 `verified`、`not_verified` 与 `inconclusive` 三类差分验证结果。
 - M4.1 已有 loopback live runner 的单元测试与 CLI 回归；当前只允许 `localhost` / `127.0.0.1` / `::1`，不自动启动服务，不跟随 redirect。
-- M4.2 已有仓库内置 managed fixture runtime，可由内部 helper 受控地启动 `open_redirect_pair` 并复用现有 live runner；当前不暴露为公开 startup CLI。
+- M4.2 已有仓库内置 managed fixture runtime，可由内部 helper 受控地启动 `open_redirect_pair`、`open_redirect_meta_refresh_pair` 与 `open_redirect_refresh_header_pair` 并复用现有 live runner；当前不暴露为公开 startup CLI。
+- M4.3 已有单独的 `benchmarks/live-cases/` opt-in live suite，并回归 `managed_fixture=open_redirect_pair`、`managed_fixture=open_redirect_meta_refresh_pair` 与 `managed_fixture=open_redirect_refresh_header_pair` 的 `verified` 正例；默认 `./scripts/benchmark` 不消费该 root。
+- M4.4 已新增 body-signature effect observation；当前支持 open redirect 下的 `meta refresh` body signature。
+- M4.5 已新增 refresh-header effect observation；当前支持 open redirect 下的 `Refresh: ... url=...` response header，不支持通用 body diff、JS redirect 或浏览器渲染。
 
-建议下一个 M4 扩展任务：
+建议下一个后 M4 扩展任务：
 
 ```md
 ## 任务
 
-在保持当前差分 verification contract 稳定的前提下，把 managed fixture runtime 推进到少量 opt-in live case 与更广 observation。
+在保持当前差分 verification contract 稳定的前提下，继续扩 M4 的 observation contract，而不是把 live suite 混进默认 benchmark root。
 
 ## 背景
 

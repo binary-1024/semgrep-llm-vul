@@ -12,9 +12,12 @@ from ruamel.yaml.error import YAMLError
 from semgrep_llm_vul.analysis_input import AnalysisInputError, parse_analysis_input
 from semgrep_llm_vul.exp_verification import (
     ExecutionEvidenceError,
+    LocalExecutionError,
+    collect_managed_fixture_execution_records,
     generate_exp_verification_report,
     load_execution_evidence,
 )
+from semgrep_llm_vul.managed_fixtures import ManagedFixtureError
 from semgrep_llm_vul.poc_generation import generate_poc_report
 from semgrep_llm_vul.reachability import (
     ReachabilityEvidenceError,
@@ -249,6 +252,7 @@ def _evaluate_m4_case(
     reachability_json = _reachability_json_paths(case_data, repo_root=root)
     source_roots = _source_root_paths(case_data, repo_root=root)
     execution_json = _execution_json_paths(case_data, repo_root=root)
+    managed_fixture = _managed_fixture_name(case_data)
     try:
         findings = tuple(
             finding
@@ -304,6 +308,23 @@ def _evaluate_m4_case(
         task,
         reachability_report=reachability_report,
     )
+    if managed_fixture is not None:
+        if execution_json:
+            raise BenchmarkCaseError(
+                "M4 case 不能同时声明 inputs.execution_json 和 inputs.managed_fixture"
+            )
+        if not _requires_isolation(case_data):
+            raise BenchmarkCaseError(
+                "使用 inputs.managed_fixture 的 live case 必须声明 "
+                "safety.requires_isolation=true"
+            )
+        try:
+            execution_records = collect_managed_fixture_execution_records(
+                poc_report,
+                fixture_name=managed_fixture,
+            )
+        except (LocalExecutionError, ManagedFixtureError) as exc:
+            raise BenchmarkCaseError(f"case managed fixture 无法执行：{exc}") from exc
     exp_report = generate_exp_verification_report(
         task,
         poc_report=poc_report,
@@ -411,6 +432,24 @@ def _execution_json_paths(
     repo_root: Path,
 ) -> tuple[Path, ...]:
     return _input_paths(case_data, field="execution_json", repo_root=repo_root)
+
+
+def _managed_fixture_name(case_data: dict[str, Any]) -> str | None:
+    inputs = _required_mapping(case_data, "inputs")
+    value = inputs.get("managed_fixture")
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value:
+        raise BenchmarkCaseError("inputs.managed_fixture 必须是非空字符串")
+    return value
+
+
+def _requires_isolation(case_data: dict[str, Any]) -> bool:
+    safety = _required_mapping(case_data, "safety")
+    value = safety.get("requires_isolation")
+    if not isinstance(value, bool):
+        raise BenchmarkCaseError("safety.requires_isolation 必须是 bool")
+    return value
 
 
 def _input_paths(

@@ -47,9 +47,11 @@
 ```bash
 ./scripts/check
 ./scripts/test
+./scripts/e2e-smoke
 ./scripts/lint
 ./scripts/build
 ./scripts/benchmark
+./scripts/benchmark-live
 ./scripts/benchmark-summary
 ./scripts/update-semgrep-fixtures
 uv run semgrep-llm-vul validate-benchmarks
@@ -59,11 +61,13 @@ uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .
 这些脚本通过 `uv` 执行：
 
 - `./scripts/test` 运行 `pytest`
+- `./scripts/e2e-smoke` 运行 full-chain CLI E2E smoke tests
 - `./scripts/lint` 运行 `ruff check .`
 - `./scripts/build` 运行 `uv build`
 - `./scripts/check` 依次运行 lint、test 和 build
 - `./scripts/update-semgrep-fixtures` 从样例项目生成 Semgrep fixture
 - `./scripts/benchmark` 校验并执行 benchmark/case harness，覆盖 inventory/gap evaluator 和 M1/M2/M3/M4 case suite
+- `./scripts/benchmark-live` 显式执行 opt-in live case suite，覆盖少量需要 managed fixture 的 M4 live cases
 - `./scripts/benchmark-summary` 输出 benchmark/case harness 短摘要
 - `uv run semgrep-llm-vul validate-benchmarks` 校验 benchmark/case 目录并输出 inventory
 - `uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .` 执行 M1 benchmark/case evaluator
@@ -94,6 +98,7 @@ uv run semgrep-llm-vul generate-sinks \
 
 ```bash
 ./scripts/benchmark
+./scripts/benchmark-live
 ./scripts/benchmark-summary
 uv run semgrep-llm-vul validate-benchmarks
 uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .
@@ -111,6 +116,13 @@ uv run semgrep-llm-vul evaluate-case \
 
 ```bash
 uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root .
+```
+
+评估 opt-in live cases：
+
+```bash
+uv run semgrep-llm-vul evaluate-cases benchmarks/live-cases --repo-root .
+./scripts/benchmark-live
 ```
 
 生成 taint path candidate JSON 报告：
@@ -170,7 +182,9 @@ uv run semgrep-llm-vul verify-exp \
 当前 `verify-exp` 只消费 `PocPlan(execution_state=not_run)` 对应的等价输入，输出带
 `execution_state`、`effect_state` 和最终 `verdict` 的结构化 exp verification report；
 第一版 runner 仅支持 `http_request_replay`，effect observation 当前仅覆盖 Flask open
-redirect 这一类可由 redirect 行为差异表达的场景。
+redirect 的三类最小信号：`30x + Location` header redirect、`Refresh` response header，
+以及 response body 中的 `meta refresh` body signature；当前不支持通用 body diff、JS
+redirect 或浏览器渲染。
 
 也可以对已经运行在 loopback 上的本地目标发起真实 replay：
 

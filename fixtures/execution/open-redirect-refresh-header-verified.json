@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "observations": [
+    {
+      "plan_match": {
+        "entrypoint_name": "GET /login",
+        "parameter_name": "next",
+        "sink_name": "redirect",
+        "vulnerability_type": "open_redirect"
+      },
+      "version_role": "affected",
+      "version": "v1.0.0",
+      "execution_state": "completed",
+      "request": {
+        "method": "GET",
+        "path": "/login",
+        "parameter_location": "query_or_form",
+        "parameters": [
+          {
+            "name": "next",
+            "value": "https://attacker.example/poc"
+          }
+        ]
+      },
+      "exit_code": 0,
+      "response": {
+        "status_code": 200,
+        "headers": {
+          "Content-Type": "text/html; charset=utf-8",
+          "Refresh": "0; url=https://attacker.example/poc"
+        }
+      },
+      "notes": [
+        "使用 Refresh response header 形式表达 vulnerable redirect。"
+      ]
+    },
+    {
+      "plan_match": {
+        "entrypoint_name": "GET /login",
+        "parameter_name": "next",
+        "sink_name": "redirect",
+        "vulnerability_type": "open_redirect"
+      },
+      "version_role": "fixed",
+      "version": "v1.0.1",
+      "execution_state": "completed",
+      "request": {
+        "method": "GET",
+        "path": "/login",
+        "parameter_location": "query_or_form",
+        "parameters": [
+          {
+            "name": "next",
+            "value": "https://attacker.example/poc"
+          }
+        ]
+      },
+      "exit_code": 0,
+      "response": {
+        "status_code": 200,
+        "headers": {
+          "Content-Type": "text/html; charset=utf-8"
+        }
+      },
+      "notes": [
+        "fixed 版本未观察到 Refresh response header。"
+      ]
+    }
+  ]
+}

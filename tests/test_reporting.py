@@ -357,11 +357,12 @@ def test_exp_verification_report_to_dict_has_stable_shape() -> None:
         task=task,
     )
 
-    assert report["schema_version"] == 1
+    assert report["schema_version"] == 2
     assert report["kind"] == "exp_verification_report"
     assert report["verifications"][0]["verdict"] == "verified"
     assert report["verifications"][0]["exp_request"]["runner"] == "http_request_replay"
     assert report["verifications"][0]["affected"]["execution_state"] == "completed"
     assert report["verifications"][0]["affected"]["effect_state"] == "effect_observed"
+    assert report["verifications"][0]["affected"]["response_body_excerpt"] is None
     assert report["verifications"][0]["fixed"]["response_headers"]["Location"] == "/"
     assert report["unknowns"] == ["M4 当前只支持本地 execution evidence。"]
