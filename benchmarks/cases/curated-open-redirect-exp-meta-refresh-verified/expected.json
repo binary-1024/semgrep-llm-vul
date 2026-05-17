@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "stage": "M4",
+  "expected_status": "candidate",
+  "verification_count": 1,
+  "exp_verifications": [
+    {
+      "verdict": "verified",
+      "vulnerability_type": "open_redirect",
+      "entrypoint_name": "GET /login",
+      "parameter_name": "next",
+      "runner": "http_request_replay",
+      "affected_execution_state": "completed",
+      "affected_effect_state": "effect_observed",
+      "fixed_execution_state": "completed",
+      "fixed_effect_state": "effect_not_observed"
+    }
+  ]
+}

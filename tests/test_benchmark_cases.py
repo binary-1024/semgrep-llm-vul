@@ -348,6 +348,24 @@ def test_evaluate_benchmark_case_passes_curated_m4_verified_case() -> None:
     assert verification["fixed"]["effect_state"] == "effect_not_observed"
 
 
+def test_evaluate_benchmark_case_passes_curated_m4_meta_refresh_verified_case() -> None:
+    result = evaluate_benchmark_case(
+        CASES_ROOT / "curated-open-redirect-exp-meta-refresh-verified",
+        repo_root=ROOT,
+    )
+
+    assert result["kind"] == "benchmark_case_evaluation"
+    assert result["case_id"] == "curated-open-redirect-exp-meta-refresh-verified"
+    assert result["stage"] == "M4"
+    assert result["passed"] is True
+    verification = result["exp_report"]["verifications"][0]
+    assert verification["verdict"] == "verified"
+    assert verification["affected"]["status_code"] == 200
+    assert verification["affected"]["effect_state"] == "effect_observed"
+    assert "meta http-equiv" in verification["affected"]["response_body_excerpt"]
+    assert verification["fixed"]["effect_state"] == "effect_not_observed"
+
+
 def test_evaluate_benchmark_case_passes_curated_m4_not_verified_case() -> None:
     result = evaluate_benchmark_case(
         CASES_ROOT / "curated-open-redirect-exp-not-verified",
@@ -388,6 +406,22 @@ def test_evaluate_benchmark_case_passes_curated_m4_live_verified_case() -> None:
     assert result["case_id"] == "curated-open-redirect-exp-live-verified"
     assert result["stage"] == "M4"
     assert result["passed"] is True
+
+
+def test_evaluate_benchmark_case_passes_curated_m4_meta_refresh_live_verified_case() -> None:
+    result = evaluate_benchmark_case(
+        LIVE_CASES_ROOT / "curated-open-redirect-exp-meta-refresh-live-verified",
+        repo_root=ROOT,
+    )
+
+    assert result["kind"] == "benchmark_case_evaluation"
+    assert result["case_id"] == "curated-open-redirect-exp-meta-refresh-live-verified"
+    assert result["stage"] == "M4"
+    assert result["passed"] is True
+    verification = result["exp_report"]["verifications"][0]
+    assert verification["verdict"] == "verified"
+    assert verification["affected"]["status_code"] == 200
+    assert "meta http-equiv" in verification["affected"]["response_body_excerpt"]
     verification = result["exp_report"]["verifications"][0]
     assert verification["verdict"] == "verified"
     assert verification["affected"]["execution_state"] == "completed"
@@ -448,14 +482,15 @@ def test_evaluate_benchmark_cases_summarizes_curated_cases() -> None:
     result = evaluate_benchmark_cases(CASES_ROOT, repo_root=ROOT)
 
     assert result["kind"] == "benchmark_case_suite_evaluation"
-    assert result["total"] == 34
+    assert result["total"] == 35
     assert result["passed"] is True
-    assert result["passed_count"] == 34
+    assert result["passed_count"] == 35
     assert result["failed_count"] == 0
     assert {item["case_id"] for item in result["results"]} == {
         "curated-command-execution-system",
         "curated-deserialization-deserialize",
         "curated-open-redirect-exp-inconclusive",
+        "curated-open-redirect-exp-meta-refresh-verified",
         "curated-open-redirect-exp-not-verified",
         "curated-open-redirect-exp-verified",
         "curated-insufficient-evidence",
@@ -496,7 +531,7 @@ def test_summarize_benchmark_suite_omits_full_sink_reports() -> None:
     summary = summarize_benchmark_suite(result)
 
     assert summary["kind"] == "benchmark_case_suite_summary"
-    assert summary["total"] == 34
+    assert summary["total"] == 35
     assert summary["passed"] is True
     assert all("sink_report" not in item for item in summary["cases"])
     assert all(item["failed_checks"] == [] for item in summary["cases"])

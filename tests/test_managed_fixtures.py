@@ -33,3 +33,10 @@ def test_managed_fixture_targets_uses_fresh_ports_across_runs() -> None:
             urlsplit(second.fixed_base_url).port,
         }
     assert first_ports.isdisjoint(second_ports)
+
+
+def test_managed_fixture_targets_supports_meta_refresh_pair() -> None:
+    with managed_fixture_targets("open_redirect_meta_refresh_pair") as targets:
+        assert targets.name == "open_redirect_meta_refresh_pair"
+        assert targets.affected_base_url.startswith("http://127.0.0.1:")
+        assert targets.fixed_base_url.startswith("http://127.0.0.1:")

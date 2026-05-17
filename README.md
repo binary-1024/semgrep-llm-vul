@@ -182,7 +182,8 @@ uv run semgrep-llm-vul verify-exp \
 当前 `verify-exp` 只消费 `PocPlan(execution_state=not_run)` 对应的等价输入，输出带
 `execution_state`、`effect_state` 和最终 `verdict` 的结构化 exp verification report；
 第一版 runner 仅支持 `http_request_replay`，effect observation 当前仅覆盖 Flask open
-redirect 这一类可由 redirect 行为差异表达的场景。
+redirect 的两类最小信号：`30x + Location` header redirect 与 response body 中的
+`meta refresh` body signature；当前不支持通用 body diff、JS redirect 或浏览器渲染。
 
 也可以对已经运行在 loopback 上的本地目标发起真实 replay：
 

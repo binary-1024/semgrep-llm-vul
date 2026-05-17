@@ -37,12 +37,24 @@ def managed_fixture_targets(
     if timeout_seconds <= 0:
         raise ManagedFixtureError("timeout_seconds 必须为正数")
 
-    if name != "open_redirect_pair":
+    if name == "open_redirect_pair":
+        style = "header_redirect"
+    elif name == "open_redirect_meta_refresh_pair":
+        style = "meta_refresh"
+    else:
         raise ManagedFixtureError(f"不支持的 managed fixture：{name}")
 
     with (
-        _run_open_redirect_server("affected", timeout_seconds=timeout_seconds) as affected_base_url,
-        _run_open_redirect_server("fixed", timeout_seconds=timeout_seconds) as fixed_base_url,
+        _run_open_redirect_server(
+            "affected",
+            timeout_seconds=timeout_seconds,
+            style=style,
+        ) as affected_base_url,
+        _run_open_redirect_server(
+            "fixed",
+            timeout_seconds=timeout_seconds,
+            style=style,
+        ) as fixed_base_url,
     ):
         yield ManagedFixtureTargets(
             name=name,
@@ -52,9 +64,11 @@ def managed_fixture_targets(
 
 
 @contextmanager
-def _run_open_redirect_server(mode: str, *, timeout_seconds: float):
+def _run_open_redirect_server(mode: str, *, timeout_seconds: float, style: str):
     if mode not in {"affected", "fixed"}:
         raise ManagedFixtureError(f"unsupported fixture mode: {mode}")
+    if style not in {"header_redirect", "meta_refresh"}:
+        raise ManagedFixtureError(f"unsupported fixture style: {style}")
 
     class _Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:  # noqa: N802
@@ -69,10 +83,24 @@ def _run_open_redirect_server(mode: str, *, timeout_seconds: float):
                 self.end_headers()
                 return
             next_url = parse_qs(parsed.query).get("next", ["/"])[0]
-            location = next_url if mode == "affected" and next_url else "/"
-            self.send_response(302)
-            self.send_header("Location", location)
+            if style == "header_redirect":
+                location = next_url if mode == "affected" and next_url else "/"
+                self.send_response(302)
+                self.send_header("Location", location)
+                self.end_headers()
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
+            if mode == "affected" and next_url:
+                body = (
+                    "<html><head>"
+                    f'<meta http-equiv="refresh" content="0; url={next_url}">'
+                    "</head><body>redirecting</body></html>"
+                )
+            else:
+                body = "<html><body>stay local</body></html>"
+            self.wfile.write(body.encode("utf-8"))
 
         def log_message(self, format: str, *args) -> None:  # noqa: A003
             return

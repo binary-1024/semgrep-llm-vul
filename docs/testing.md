@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-仓库已经接入 Python/uv 测试 harness。当前测试覆盖包导入、核心数据模型、分析任务 YAML/JSON 输入解析、CLI 行为、Semgrep finding 归一化、Semgrep taint trace 归一化、最小 sink generation pipeline、M2 reachability、M3 结构化 PoC planning、M4 结构化 exp verification，以及 loopback live runner / managed fixture runtime / opt-in live cases 的本地 HTTP 集成回归。
+仓库已经接入 Python/uv 测试 harness。当前测试覆盖包导入、核心数据模型、分析任务 YAML/JSON 输入解析、CLI 行为、Semgrep finding 归一化、Semgrep taint trace 归一化、最小 sink generation pipeline、M2 reachability、M3 结构化 PoC planning、M4 结构化 exp verification，以及 loopback live runner / managed fixture runtime / opt-in live cases / body-signature effect observation 的本地 HTTP 集成回归。
 
 ## 测试策略
 
@@ -159,6 +159,7 @@ test_regression_nested_semgrep_trace_location()
 - 对 evidence、location、unknowns、blocking factors 等证据链字段做结构断言。
 - 对语义命名做断言；例如 benchmark summary 应使用 `inventory_evaluation`，不得退回容易误读的 `evaluation`。
 - 当报告字段重命名或语义调整时，应提升 `schema_version`，并补充对应 CLI 或报告契约测试。
+- 当前 M4 exp verification report 已提升到 `schema_version=2`，用于稳定承载 `response_body_excerpt` 这类 response-level evidence。
 - 避免对非关键排序或完整大 JSON 做脆弱断言；必要时先生成摘要再断言。
 - 如果需要 snapshot，应优先 snapshot 小型、脱敏、稳定的报告片段。
 
@@ -235,6 +236,7 @@ Semgrep fixture 可以通过以下命令从样例项目和规则生成：
 ./scripts/test
 ./scripts/check
 ./scripts/benchmark
+./scripts/benchmark-live
 ./scripts/benchmark-summary
 ```
 
@@ -247,5 +249,6 @@ uv build
 uv run semgrep-llm-vul validate-benchmarks
 uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .
 uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-only
+uv run semgrep-llm-vul evaluate-cases benchmarks/live-cases --repo-root .
 uv run semgrep-llm-vul benchmark-baseline --artifact-base . --repo-root . --markdown
 ```

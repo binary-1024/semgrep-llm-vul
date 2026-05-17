@@ -1,0 +1,27 @@
+schema_version: 1
+id: curated-open-redirect-exp-meta-refresh-verified
+type: curated_minimal
+target_stage: M4
+status: candidate
+source:
+  name: project-curated
+  url: null
+  license: project
+target:
+  repo_url: https://github.com/example/flask-app
+  affected_version: v1.0.0
+  fixed_version: v1.0.1
+  language: python
+inputs:
+  description: Open redirect through user-controlled next parameter.
+  mode: unknown_sink
+  semgrep_json:
+    - fixtures/semgrep/taint-result-with-source-control-local-var-trace.json
+  source_roots:
+    - fixtures/reachability/flask-source-control-local-var-app
+  execution_json:
+    - fixtures/execution/open-redirect-meta-refresh-verified.json
+safety:
+  contains_poc: false
+  contains_exp: true
+  requires_isolation: false

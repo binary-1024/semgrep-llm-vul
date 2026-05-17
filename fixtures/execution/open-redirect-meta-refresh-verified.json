@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "observations": [
+    {
+      "plan_match": {
+        "vulnerability_type": "open_redirect",
+        "sink_name": "redirect",
+        "entrypoint_name": "GET /login",
+        "parameter_name": "next"
+      },
+      "version_role": "affected",
+      "version": "v1.0.0",
+      "execution_state": "completed",
+      "request": {
+        "method": "GET",
+        "path": "/login",
+        "parameter_location": "query",
+        "parameters": [
+          {
+            "name": "next",
+            "value": "https://attacker.example/poc"
+          }
+        ]
+      },
+      "exit_code": 0,
+      "response": {
+        "status_code": 200,
+        "headers": {
+          "Content-Type": "text/html; charset=utf-8"
+        },
+        "body": "<html><head><meta http-equiv=\"refresh\" content=\"0; url=https://attacker.example/poc\"></head><body>redirecting</body></html>"
+      },
+      "notes": [
+        "使用 body meta refresh 形式表达 vulnerable redirect。"
+      ]
+    },
+    {
+      "plan_match": {
+        "vulnerability_type": "open_redirect",
+        "sink_name": "redirect",
+        "entrypoint_name": "GET /login",
+        "parameter_name": "next"
+      },
+      "version_role": "fixed",
+      "version": "v1.0.1",
+      "execution_state": "completed",
+      "request": {
+        "method": "GET",
+        "path": "/login",
+        "parameter_location": "query",
+        "parameters": [
+          {
+            "name": "next",
+            "value": "https://attacker.example/poc"
+          }
+        ]
+      },
+      "exit_code": 0,
+      "response": {
+        "status_code": 200,
+        "headers": {
+          "Content-Type": "text/html; charset=utf-8"
+        },
+        "body": "<html><body>stay local</body></html>"
+      },
+      "notes": [
+        "修复版本未在 body 中表达外跳效果。"
+      ]
+    }
+  ]
+}

@@ -26,6 +26,7 @@
 | 0016 | [M4.1 使用 loopback live HTTP replay runner](0016-use-loopback-live-http-replay-runner.md) | Accepted | [为 M4.1 引入 loopback live HTTP replay runner](../Insight/20260516-m4-local-http-replay-runner.md) | M4 live runner、安全边界、真实本地执行 |
 | 0017 | [M4.2 使用受控 managed fixture startup](0017-use-managed-fixture-startup-for-m4.md) | Accepted | [为 M4.2 引入受控 managed fixture app 启停](../Insight/20260517-m4-managed-fixture-startup.md) | M4 受控服务启停、CLI 执行边界 |
 | 0018 | [M4.3 使用 opt-in live benchmark cases](0018-use-opt-in-live-benchmark-cases-for-m4.md) | Accepted | [为 M4.3 引入 opt-in live benchmark cases](../Insight/20260517-m4-opt-in-live-cases.md) | M4 live case、benchmark 分层、managed fixture 第二消费者 |
+| 0019 | [M4.4 使用 body-signature effect observation](0019-use-body-signature-observation-for-m4.md) | Accepted | [为 M4.4 引入 body-signature effect observation](../Insight/20260517-m4-body-signature-observation.md) | M4 observation contract、response body 证据、open redirect body redirect |
 
 ## 使用方式
 

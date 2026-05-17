@@ -199,5 +199,6 @@ uv run semgrep-llm-vul benchmark-baseline --artifact-base . --repo-root . --mark
 第三阶段：
 
 - 已扩展到 M2 reachability、M3 结构化 PoC planning 与 M4 结构化 exp verification。
-- 已引入 M4.3 opt-in live cases，当前只覆盖仓库内置 `managed_fixture=open_redirect_pair`。
+- 已引入 M4.3 opt-in live cases，当前覆盖仓库内置 `managed_fixture=open_redirect_pair` 与 `managed_fixture=open_redirect_meta_refresh_pair`。
+- 已引入 M4.4 body-signature effect observation；当前 executable coverage 已包含 open redirect 下的 `meta refresh` body signature。
 - 支持外部 benchmark 下载缓存，但不提交原始大数据。
