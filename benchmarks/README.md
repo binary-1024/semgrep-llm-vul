@@ -30,6 +30,12 @@ benchmarks/
       case.yaml
       expected.json
       notes.md
+  live-cases/
+    README.md
+    <case-id>/
+      case.yaml
+      expected.json
+      notes.md
   templates/
     case.yaml
     expected.json
@@ -110,4 +116,10 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root .
 
 ```bash
 ./scripts/benchmark
+```
+
+opt-in live cases 单独运行：
+
+```bash
+./scripts/benchmark-live
 ```

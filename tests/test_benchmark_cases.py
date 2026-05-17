@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from semgrep_llm_vul.benchmark_cases import (
+    BenchmarkCaseError,
     evaluate_benchmark_case,
     evaluate_benchmark_cases,
     summarize_benchmark_suite,
@@ -12,6 +13,7 @@ from semgrep_llm_vul.benchmark_cases import (
 
 ROOT = Path(__file__).resolve().parent.parent
 CASES_ROOT = ROOT / "benchmarks" / "cases"
+LIVE_CASES_ROOT = ROOT / "benchmarks" / "live-cases"
 CASE_DIR = CASES_ROOT / "curated-open-redirect-safe-wrapper"
 
 
@@ -374,6 +376,39 @@ def test_evaluate_benchmark_case_passes_curated_m4_inconclusive_case() -> None:
     verification = result["exp_report"]["verifications"][0]
     assert verification["verdict"] == "inconclusive"
     assert verification["fixed"]["execution_state"] == "environment_missing"
+
+
+def test_evaluate_benchmark_case_passes_curated_m4_live_verified_case() -> None:
+    result = evaluate_benchmark_case(
+        LIVE_CASES_ROOT / "curated-open-redirect-exp-live-verified",
+        repo_root=ROOT,
+    )
+
+    assert result["kind"] == "benchmark_case_evaluation"
+    assert result["case_id"] == "curated-open-redirect-exp-live-verified"
+    assert result["stage"] == "M4"
+    assert result["passed"] is True
+    verification = result["exp_report"]["verifications"][0]
+    assert verification["verdict"] == "verified"
+    assert verification["affected"]["execution_state"] == "completed"
+    assert verification["fixed"]["effect_state"] == "effect_not_observed"
+
+
+def test_evaluate_benchmark_case_rejects_live_case_without_isolation(tmp_path) -> None:
+    case_dir = tmp_path / "case"
+    shutil.copytree(
+        LIVE_CASES_ROOT / "curated-open-redirect-exp-live-verified",
+        case_dir,
+    )
+    case_yaml = case_dir / "case.yaml"
+    text = case_yaml.read_text(encoding="utf-8")
+    case_yaml.write_text(
+        text.replace("requires_isolation: true", "requires_isolation: false"),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(BenchmarkCaseError, match="requires_isolation=true"):
+        evaluate_benchmark_case(case_dir, repo_root=ROOT)
 
 
 def test_evaluate_benchmark_case_passes_curated_m2_reachability_alias_assignment_unknown_case(

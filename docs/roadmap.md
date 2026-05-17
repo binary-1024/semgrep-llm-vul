@@ -133,7 +133,7 @@
 
 目标：生成并执行 exp 脚本，用于验证漏洞判断是否正确。
 
-当前状态：M4 第一版最小闭环已完成，并已推进到 M4.2。当前已经可以把 `PocPlan(execution_state=not_run)` 转换成结构化 exp verification report，并结合本地 execution evidence、loopback live HTTP replay 或仓库内置 managed fixture runtime 对 affected / fixed 版本做最小差分验证；当前 verdict 支持 `verified`、`not_verified`、`inconclusive`，runner 仍保持窄类型 `http_request_replay`，effect observation 当前仅覆盖 Flask open redirect。
+当前状态：M4 第一版最小闭环已完成，并已推进到 M4.3。当前已经可以把 `PocPlan(execution_state=not_run)` 转换成结构化 exp verification report，并结合本地 execution evidence、loopback live HTTP replay、仓库内置 managed fixture runtime 或 opt-in live case 对 affected / fixed 版本做最小差分验证；当前 verdict 支持 `verified`、`not_verified`、`inconclusive`，runner 仍保持窄类型 `http_request_replay`，effect observation 当前仅覆盖 Flask open redirect。
 
 输入：
 
@@ -164,7 +164,7 @@
 
 ## 当前下一步
 
-当前主线已经完成 M4 第一版最小闭环，并补上了 M4.1 的 loopback live runner 和 M4.2 的 managed fixture runtime。下一步优先扩 M4 的 effect coverage 与少量 opt-in live case，而不是重新回到 M2/M3 语法角落。
+当前主线已经完成 M4 第一版最小闭环，并补上了 M4.1 的 loopback live runner、M4.2 的 managed fixture runtime 和 M4.3 的第一条 opt-in live case。下一步优先扩 M4 的 effect coverage，而不是重新回到 M2/M3 语法角落。
 
 M1 当前已经具备：
 
@@ -199,13 +199,14 @@ M2/M3/M4 当前闭环能力：
 - M4 executable suite 已覆盖 `verified`、`not_verified` 与 `inconclusive` 三类差分验证结果。
 - M4.1 已有 loopback live runner 的单元测试与 CLI 回归；当前只允许 `localhost` / `127.0.0.1` / `::1`，不自动启动服务，不跟随 redirect。
 - M4.2 已有仓库内置 managed fixture runtime，可由内部 helper 受控地启动 `open_redirect_pair` 并复用现有 live runner；当前不暴露为公开 startup CLI。
+- M4.3 已有单独的 `benchmarks/live-cases/` opt-in live suite，并回归 `managed_fixture=open_redirect_pair` 的 `verified` 正例；默认 `./scripts/benchmark` 不消费该 root。
 
 建议下一个 M4 扩展任务：
 
 ```md
 ## 任务
 
-在保持当前差分 verification contract 稳定的前提下，把 managed fixture runtime 推进到少量 opt-in live case 与更广 observation。
+在保持当前差分 verification contract 稳定的前提下，继续扩 M4 的 observation contract，而不是把 live suite 混进默认 benchmark root。
 
 ## 背景
 

@@ -630,6 +630,30 @@ def test_evaluate_case_cli_outputs_json_report(capsys) -> None:
     assert report["passed"] is True
 
 
+def test_evaluate_case_cli_outputs_live_case_report(capsys) -> None:
+    exit_code = main(
+        [
+            "evaluate-case",
+            str(
+                ROOT
+                / "benchmarks"
+                / "live-cases"
+                / "curated-open-redirect-exp-live-verified"
+            ),
+            "--repo-root",
+            str(ROOT),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    report = json.loads(captured.out)
+    assert report["kind"] == "benchmark_case_evaluation"
+    assert report["case_id"] == "curated-open-redirect-exp-live-verified"
+    assert report["passed"] is True
+    assert report["exp_report"]["verifications"][0]["verdict"] == "verified"
+
+
 def test_evaluate_cases_cli_outputs_json_report(capsys) -> None:
     exit_code = main(
         [
@@ -646,6 +670,25 @@ def test_evaluate_cases_cli_outputs_json_report(capsys) -> None:
     assert report["kind"] == "benchmark_case_suite_evaluation"
     assert report["total"] == 34
     assert report["passed"] is True
+
+
+def test_evaluate_cases_cli_outputs_live_suite_report(capsys) -> None:
+    exit_code = main(
+        [
+            "evaluate-cases",
+            str(ROOT / "benchmarks" / "live-cases"),
+            "--repo-root",
+            str(ROOT),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    report = json.loads(captured.out)
+    assert report["kind"] == "benchmark_case_suite_evaluation"
+    assert report["total"] == 1
+    assert report["passed"] is True
+    assert report["results"][0]["case_id"] == "curated-open-redirect-exp-live-verified"
 
 
 def test_evaluate_cases_cli_outputs_summary_report(capsys) -> None:
@@ -752,6 +795,13 @@ def test_benchmark_script_is_executable() -> None:
 
 def test_benchmark_summary_script_is_executable() -> None:
     script = ROOT / "scripts" / "benchmark-summary"
+
+    assert script.exists()
+    assert os.access(script, os.X_OK)
+
+
+def test_benchmark_live_script_is_executable() -> None:
+    script = ROOT / "scripts" / "benchmark-live"
 
     assert script.exists()
     assert os.access(script, os.X_OK)

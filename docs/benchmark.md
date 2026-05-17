@@ -175,6 +175,14 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root .
 ./scripts/benchmark-summary
 ```
 
+需要真实 loopback 执行的 opt-in live cases 不进入默认 `benchmarks/cases/`。
+它们单独存放在 `benchmarks/live-cases/`，并通过显式命令运行：
+
+```bash
+uv run semgrep-llm-vul evaluate-cases benchmarks/live-cases --repo-root .
+./scripts/benchmark-live
+```
+
 更新 baseline 文档时，优先由命令生成当前计数和 gaps，再人工补充能力边界解释：
 
 ```bash
@@ -191,4 +199,5 @@ uv run semgrep-llm-vul benchmark-baseline --artifact-base . --repo-root . --mark
 第三阶段：
 
 - 已扩展到 M2 reachability、M3 结构化 PoC planning 与 M4 结构化 exp verification。
+- 已引入 M4.3 opt-in live cases，当前只覆盖仓库内置 `managed_fixture=open_redirect_pair`。
 - 支持外部 benchmark 下载缓存，但不提交原始大数据。

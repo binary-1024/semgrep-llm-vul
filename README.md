@@ -50,6 +50,7 @@
 ./scripts/lint
 ./scripts/build
 ./scripts/benchmark
+./scripts/benchmark-live
 ./scripts/benchmark-summary
 ./scripts/update-semgrep-fixtures
 uv run semgrep-llm-vul validate-benchmarks
@@ -64,6 +65,7 @@ uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .
 - `./scripts/check` 依次运行 lint、test 和 build
 - `./scripts/update-semgrep-fixtures` 从样例项目生成 Semgrep fixture
 - `./scripts/benchmark` 校验并执行 benchmark/case harness，覆盖 inventory/gap evaluator 和 M1/M2/M3/M4 case suite
+- `./scripts/benchmark-live` 显式执行 opt-in live case suite，覆盖少量需要 managed fixture 的 M4 live cases
 - `./scripts/benchmark-summary` 输出 benchmark/case harness 短摘要
 - `uv run semgrep-llm-vul validate-benchmarks` 校验 benchmark/case 目录并输出 inventory
 - `uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .` 执行 M1 benchmark/case evaluator
@@ -94,6 +96,7 @@ uv run semgrep-llm-vul generate-sinks \
 
 ```bash
 ./scripts/benchmark
+./scripts/benchmark-live
 ./scripts/benchmark-summary
 uv run semgrep-llm-vul validate-benchmarks
 uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .
@@ -111,6 +114,13 @@ uv run semgrep-llm-vul evaluate-case \
 
 ```bash
 uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root .
+```
+
+评估 opt-in live cases：
+
+```bash
+uv run semgrep-llm-vul evaluate-cases benchmarks/live-cases --repo-root .
+./scripts/benchmark-live
 ```
 
 生成 taint path candidate JSON 报告：

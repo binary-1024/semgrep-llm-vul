@@ -25,6 +25,7 @@
 | 0015 | [M4 第一版先使用结构化 exp verification/report](0015-use-structured-exp-verification-first.md) | Accepted | [为 M4 引入最小结构化 exp verification 闭环](../Insight/20260516-m4-structured-exp-verification.md) | M4 exp verification、执行边界、对照语义 |
 | 0016 | [M4.1 使用 loopback live HTTP replay runner](0016-use-loopback-live-http-replay-runner.md) | Accepted | [为 M4.1 引入 loopback live HTTP replay runner](../Insight/20260516-m4-local-http-replay-runner.md) | M4 live runner、安全边界、真实本地执行 |
 | 0017 | [M4.2 使用受控 managed fixture startup](0017-use-managed-fixture-startup-for-m4.md) | Accepted | [为 M4.2 引入受控 managed fixture app 启停](../Insight/20260517-m4-managed-fixture-startup.md) | M4 受控服务启停、CLI 执行边界 |
+| 0018 | [M4.3 使用 opt-in live benchmark cases](0018-use-opt-in-live-benchmark-cases-for-m4.md) | Accepted | [为 M4.3 引入 opt-in live benchmark cases](../Insight/20260517-m4-opt-in-live-cases.md) | M4 live case、benchmark 分层、managed fixture 第二消费者 |
 
 ## 使用方式
 

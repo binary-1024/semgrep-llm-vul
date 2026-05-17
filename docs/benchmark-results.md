@@ -18,7 +18,8 @@
 - M1 sink candidate pipeline 在现有 candidate M1 cases 上稳定通过。
 - M2 taint path candidate 与 reachability `true|false|null` cases 已进入 executable suite，并能通过当前 curated M2 cases。
 - M4 differential exp verification cases 已进入 executable suite，并能通过当前 curated M4 cases。
-- M4.1 loopback live runner 与 M4.2 managed fixture runtime 已进入 pytest 集成回归，但当前不纳入 benchmark executable suite。
+- M4.1 loopback live runner 与 M4.2 managed fixture runtime 已进入 pytest 集成回归。
+- M4.3 已新增单独的 opt-in live suite：`benchmarks/live-cases/`；它默认不纳入 `benchmarks/cases` executable suite。
 - inventory evaluator 仍只支持 M1 sink generation，所以会把 M2/M3/M4 cases 作为 `unsupported_stage` gap 记录。
 - 完整外部数据集 ingestion 和需要隔离运行环境的真实漏洞 case 仍处于边界记录阶段，不作为当前自动回归失败。
 
@@ -139,13 +140,14 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 - M4 differential verification 已支持 `verified`、`not_verified`、`inconclusive` 三类 curated case，且当前会显式区分 `execution_state`、`effect_state` 与最终 verdict。
 - M4.1 已支持 loopback live HTTP replay：对已运行在 `localhost` / `127.0.0.1` / `::1` 上的本地目标发起真实首跳请求，并继续复用现有 observation / verdict contract。
 - M4.2 已支持仓库内置 managed fixture runtime：可以由内部 helper 受控地启动 `open_redirect_pair`，再走现有 live runner / verdict contract。
+- M4.3 已支持 opt-in live benchmark case：当前可通过 `benchmarks/live-cases/curated-open-redirect-exp-live-verified` 验证 `managed_fixture(open_redirect_pair) -> verified`。
 - benchmark inventory、gap 和 executable suite 三层输出。
 - benchmark summary 使用 `inventory_evaluation` 和 `executable_suite` 区分 inventory/gap evaluation 与 M1/M2/M3/M4 executable suite，避免把 M2/M3/M4 `unsupported_stage` 误读为 suite 不支持。
 
 当前未覆盖或暂不自动化：
 
 - M2 reachability `true|false|null` 已有最小本地证据模型和 curated 回归，且已能从本地 Flask fixture 源码提取 decorator route 证据、`@*.get(...)` 这类 method-specific decorator 证据、Blueprint + `register_blueprint(..., url_prefix=...)` 组合证据、模块级 `app.add_url_rule(...)` registration 证据、同文件 helper call chain 证据、direct import 的跨文件 helper call chain 证据、module alias attribute call 证据、`ImportFrom` module attribute call / alias call 证据、最多两层 helper hop 的局部 helper chain 证据、handler-local 相对路径 guard 的 blocking evidence，以及 `source.location` 对应赋值语句的 source controllability AST 证据；普通 assignment alias、未注册 Blueprint 和更一般的 guard/sanitizer 当前继续保持 `reachable=null`。
-- M4 当前虽然已具备 loopback live runner 和受控 managed fixture runtime，但仍未进入真实项目服务自动启动、容器隔离、会话/鉴权或更广的 runner/effect 类型。
+- M4 当前虽然已具备 loopback live runner、受控 managed fixture runtime 和一条 opt-in live case，但仍未进入真实项目服务自动启动、容器隔离、会话/鉴权或更广的 runner/effect 类型。
 - 完整 CVEfixes ingestion 尚未实现。
 - Vul4J 等需要 checkout、构建、运行或隔离环境的 case 尚未进入自动执行。
 - 真实外部项目的大规模 benchmark 下载、缓存和采样流程尚未建立。
@@ -153,9 +155,9 @@ uv run semgrep-llm-vul evaluate-cases benchmarks/cases --repo-root . --summary-o
 
 ## 下一步
 
-当前 M4 已经完成 report-first 闭环，并补上了 loopback live runner 与 managed fixture runtime。下一步优先考虑：
+当前 M4 已经完成 report-first 闭环，并补上了 loopback live runner、managed fixture runtime 和第一条 opt-in live case。下一步优先考虑：
 
-- opt-in live benchmark case 或更明确的 managed fixture family 元数据；
+- 更明确的 managed fixture family 元数据；
 - 更强的 observation contract，例如 body diff、error signature 或 stdout/stderr；
 - 更广的 M4 场景族，而不只是 Flask open redirect；
 - 真实漏洞裁剪 case 的来源、许可证和安全边界记录。
