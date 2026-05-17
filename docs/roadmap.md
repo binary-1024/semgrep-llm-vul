@@ -2,6 +2,31 @@
 
 本文档把项目目标拆成可执行里程碑。每个里程碑都以 harness 为核心：明确输入、输出、验证方式和失败反馈。
 
+## 项目进度总览
+
+当前项目已经完成从 `M0` 到 `M4` 的第一版最小闭环，状态如下：
+
+| 里程碑 | 当前状态 | 当前说明 |
+| --- | --- | --- |
+| M0 | 已完成 | Python 3.10 + `uv` harness、测试、lint、build、CI、Git/文档规范已稳定。 |
+| M1 | 已完成第一版 | 已具备最小 deterministic sink candidate pipeline，并纳入默认 benchmark/case harness。 |
+| M2 | 已完成第一版 | 已具备 taint path candidate、`reachable=true/false/null` 三态、本地入口/调用链/source control/blocking evidence。 |
+| M3 | 已完成第一版 | 已具备结构化 PoC planning，默认输出 `execution_state=not_run`。 |
+| M4 | 已完成第一版并推进到 M4.3 | 已具备结构化 exp verification、loopback live runner、managed fixture runtime，以及第一条 opt-in live case。 |
+
+当前文档职责分工：
+
+- `README.md`：稳定入口、常用命令、核心文档导航。
+- `docs/roadmap.md`：当前阶段、项目进度、下一步任务和里程碑计划。
+- `docs/architecture.md`：当前架构状态、模块边界和数据流。
+- `docs/benchmark-results.md`：benchmark/case baseline、覆盖计数和能力边界。
+
+当前主线判断：
+
+- 默认主线仍然停留在 `M4`。
+- 下一步优先扩 `effect observation contract`，而不是回到 M2/M3 的局部语法角落。
+- `benchmarks/live-cases/` 当前是 opt-in live suite，不进入默认 `./scripts/benchmark`。
+
 ## 里程碑 0：项目 Harness
 
 目标：让项目具备可开发、可验证、可回滚的基础工程环境。
