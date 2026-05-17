@@ -15,6 +15,35 @@
 5. 来自真实 findings 的回归案例
 6. 便于人工审查的输出格式
 
+## 端到端 Smoke
+
+当前仓库除了阶段级 CLI 集成测试外，还应保留一层专门命名的 full-chain E2E smoke，
+用于锁定当前主线中“用户如何从分析输入一路走到最终 verdict”的最小可工作链路。
+
+当前 dedicated E2E smoke 位于：
+
+- `tests/test_e2e_cli.py`
+
+当前覆盖两条最小链路：
+
+1. offline full-chain：
+   `generate-sinks -> generate-taint-paths -> confirm-reachability -> generate-poc -> verify-exp --execution-json`
+2. live full-chain：
+   `generate-sinks -> generate-taint-paths -> confirm-reachability -> generate-poc -> verify-exp --affected-base-url --fixed-base-url`
+
+要求：
+
+- 优先锁当前主线支持最稳定的一条漏洞类型，不追求一次覆盖所有场景。
+- E2E smoke 只验证“整条链能否工作、关键语义是否保持”，不替代阶段级单元/回归测试。
+- live E2E 继续只允许 loopback 本地目标，不连接公网，不依赖 secrets。
+- 如果新增新的主线闭环，应优先考虑是否需要补一条同级 dedicated E2E smoke。
+
+运行方式：
+
+```bash
+./scripts/e2e-smoke
+```
+
 ## 测试分类
 
 ### 单元测试

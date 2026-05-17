@@ -47,6 +47,7 @@
 ```bash
 ./scripts/check
 ./scripts/test
+./scripts/e2e-smoke
 ./scripts/lint
 ./scripts/build
 ./scripts/benchmark
@@ -60,6 +61,7 @@ uv run semgrep-llm-vul evaluate-benchmarks --artifact-base .
 这些脚本通过 `uv` 执行：
 
 - `./scripts/test` 运行 `pytest`
+- `./scripts/e2e-smoke` 运行 full-chain CLI E2E smoke tests
 - `./scripts/lint` 运行 `ruff check .`
 - `./scripts/build` 运行 `uv build`
 - `./scripts/check` 依次运行 lint、test 和 build

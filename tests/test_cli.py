@@ -805,3 +805,10 @@ def test_benchmark_live_script_is_executable() -> None:
 
     assert script.exists()
     assert os.access(script, os.X_OK)
+
+
+def test_e2e_smoke_script_is_executable() -> None:
+    script = ROOT / "scripts" / "e2e-smoke"
+
+    assert script.exists()
+    assert os.access(script, os.X_OK)
